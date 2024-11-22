@@ -1,4 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, Form, File
+from fastapi.middleware.cors import CORSMiddleware
 from google.cloud import storage
 from pymongo import MongoClient
 from bson.objectid import ObjectId
@@ -6,7 +7,6 @@ from typing import List
 from datetime import datetime
 import os
 import uuid
-import json
 import base64
 
 # Configuración inicial para Google Cloud Storage
@@ -27,6 +27,21 @@ db = ConexionMongo["glamperos"]  # Base de datos "glamperos"
 
 # Crear la app de FastAPI
 app = FastAPI()
+
+# Configurar CORS para múltiples orígenes
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:8000",  # Dominio local
+        "http://127.0.0.1:8000",  # Otra forma del dominio local
+        "https://edwinzaratep.github.io",  # Dominio de producción
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],  # Permitir todos los métodos (GET, POST, etc.)
+    allow_headers=["*"],  # Permitir todos los encabezados
+)
+
+# Crear el router para glampings
 ruta_glampings = APIRouter(
     prefix="/glampings",
     tags=["Glampings de glamperos"],
