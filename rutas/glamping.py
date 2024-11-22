@@ -1,6 +1,6 @@
+from bson import ObjectId
 from fastapi import APIRouter, HTTPException, status, File, UploadFile, Form
 from typing import List
-from bson import ObjectId
 from bd.ConexionMongo import ConexionMongo
 from bd.schemas.glamping import SchemaGlamping
 
@@ -14,6 +14,12 @@ ruta_glampings = APIRouter(
     tags=["Glampings"],
     responses={status.HTTP_404_NOT_FOUND: {"description": "No encontrado"}},
 )
+
+def convertir_objectid(documento):
+    """Convierte el campo _id de ObjectId a string en un documento MongoDB."""
+    if "_id" in documento:
+        documento["_id"] = str(documento["_id"])  # Convierte el ObjectId a string
+    return documento
 
 
 @ruta_glampings.post("/", status_code=status.HTTP_201_CREATED)
@@ -33,27 +39,27 @@ async def crear_glamping(
         # Procesar las imágenes subidas
         rutas_imagenes = []
         for imagen in imagenes:
-            contenido = await imagen.read()  # Lee el archivo en binario
+            contenido = await imagen.read()
             rutas_imagenes.append({
                 "filename": imagen.filename,
                 "content_type": imagen.content_type,
-                "size": len(contenido)  # Para ejemplo, tamaño en bytes
+                "size": len(contenido),
             })
 
-        # Crear el objeto del glamping
+        # Crear el documento
         nuevo_glamping = {
             "nombre": nombre,
-            "ubicacion": ubicacion,  # Ubicación en formato JSON
+            "ubicacion": ubicacion,
             "precio_noche": precio_noche,
             "descripcion": descripcion,
-            "caracteristicas": caracteristicas.split(","),  # Convertir a lista
-            "imagenes": rutas_imagenes,  # Información sobre las imágenes
+            "caracteristicas": caracteristicas.split(","),
+            "imagenes": rutas_imagenes,
             "video_youtube": video_youtube,
         }
 
         # Insertar en la base de datos
         resultado = collection_glampings.insert_one(nuevo_glamping)
-        nuevo_glamping["id"] = str(resultado.inserted_id)
+        nuevo_glamping["_id"] = str(resultado.inserted_id)
 
         return nuevo_glamping
     except Exception as e:
@@ -68,9 +74,7 @@ async def obtener_glampings():
     try:
         # Consultar todos los glampings de la colección
         glampings = list(collection_glampings.find())
-        for glamping in glampings:
-            glamping["id"] = str(glamping["_id"])
-            del glamping["_id"]  # Eliminar el _id original para evitar problemas de serialización
+        glampings = [convertir_objectid(glamping) for glamping in glampings]
         return glampings
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener glampings: {str(e)}")
@@ -86,8 +90,7 @@ async def obtener_glamping_por_id(id: str):
         glamping = collection_glampings.find_one({"_id": ObjectId(id)})
         if not glamping:
             raise HTTPException(status_code=404, detail="Glamping no encontrado")
-        glamping["id"] = str(glamping["_id"])
-        del glamping["_id"]
+        glamping = convertir_objectid(glamping)
         return glamping
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener glamping: {str(e)}")
