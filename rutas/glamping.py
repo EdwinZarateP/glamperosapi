@@ -6,13 +6,23 @@ from typing import List
 from datetime import datetime
 import os
 import uuid
+import json
+import base64
 
-# Configuración inicial de Google Cloud Storage
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "./config/buoyant-episode-425002-u5-661a0d8e5658.json"
+# Configuración inicial para Google Cloud Storage
+credenciales_base64 = os.environ.get("GOOGLE_CLOUD_CREDENTIALS")
+if credenciales_base64:
+    # Decodificar el JSON de credenciales desde la variable de entorno
+    credenciales_json = base64.b64decode(credenciales_base64).decode("utf-8")
+    with open("temp_google_credentials.json", "w") as cred_file:
+        cred_file.write(credenciales_json)
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "temp_google_credentials.json"
+
 BUCKET_NAME = "glamperos-imagenes"
 
-# Conexión a MongoDB (importar conexión ya configurada)
-ConexionMongo = MongoClient("mongodb+srv://glamperos:glamperos2025@glamperosapi.8gnlu.mongodb.net/?retryWrites=true&w=majority&appName=glamperosapi")
+# Conexión a MongoDB usando variables de entorno
+MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
+ConexionMongo = MongoClient(MONGO_URI)
 db = ConexionMongo["glamperos"]  # Base de datos "glamperos"
 
 # Crear la app de FastAPI
