@@ -2,6 +2,7 @@ from bson import ObjectId
 from fastapi import APIRouter, HTTPException, status, File, UploadFile, Form
 from typing import List
 from datetime import datetime
+from pathlib import Path
 from bd.ConexionMongo import ConexionMongo
 from bd.schemas.glamping import SchemaGlamping
 
@@ -16,6 +17,10 @@ ruta_glampings = APIRouter(
     responses={status.HTTP_404_NOT_FOUND: {"description": "No encontrado"}},
 )
 
+UPLOAD_DIR = Path("uploads")  # Carpeta donde se guardarán las imágenes
+UPLOAD_DIR.mkdir(exist_ok=True)  # Crear la carpeta si no existe
+
+
 def convertir_objectid(documento):
     """Convierte ObjectId a string en un documento MongoDB."""
     if isinstance(documento, list):  # Si es una lista, aplica recursivamente
@@ -28,9 +33,10 @@ def convertir_objectid(documento):
     else:  # Si no es lista ni diccionario, devuelve el valor tal cual
         return documento
 
+
 def preparar_glamping_para_schema(documento):
     """Ajusta el documento al esquema esperado por SchemaGlamping."""
-    base_url = "http://127.0.0.1:8000"  # Cambia esto a tu dominio si está en producción
+    base_url = "https://glamperosapi.onrender.com/"  # Cambia esto a tu dominio si está en producción
 
     if "ubicacion" in documento:
         import json
@@ -53,6 +59,7 @@ def preparar_glamping_para_schema(documento):
         ]
     return documento
 
+
 @ruta_glampings.post("/", status_code=status.HTTP_201_CREATED)
 async def crear_glamping(
     nombre: str = Form(...),
@@ -60,17 +67,21 @@ async def crear_glamping(
     precio_noche: float = Form(...),
     descripcion: str = Form(...),
     caracteristicas: str = Form(...),
-    imagenes: List[UploadFile] = File(...),
+    imagenes: List[UploadFile] = File(...),  # Recibir múltiples archivos
     video_youtube: str = Form(None),
 ):
     """
-    Endpoint para crear un nuevo glamping con manejo de imágenes y datos
+    Endpoint para crear un nuevo glamping con manejo de múltiples imágenes y datos
     """
     try:
-        # Procesar las imágenes subidas
         rutas_imagenes = []
         for imagen in imagenes:
-            contenido = await imagen.read()
+            # Guardar cada imagen en el servidor
+            ruta_archivo = UPLOAD_DIR / imagen.filename
+            with open(ruta_archivo, "wb") as f:
+                contenido = await imagen.read()
+                f.write(contenido)
+
             rutas_imagenes.append(f"/uploads/{imagen.filename}")
 
         # Crear el documento
