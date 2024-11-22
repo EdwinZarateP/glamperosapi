@@ -14,7 +14,7 @@ fs = GridFS(db)
 # Crear el router y la aplicación
 ruta_glampings = APIRouter(
     prefix="/glampings",
-    tags=["Glampings"],
+    tags=["Glampings de glamperos"],
     responses={404: {"description": "No encontrado"}},
 )
 
