@@ -1,8 +1,7 @@
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, File, UploadFile, Form
 from typing import List
 from bson import ObjectId
 from bd.ConexionMongo import ConexionMongo
-from bd.models.glamping import ModeloGlamping  
 from bd.schemas.glamping import SchemaGlamping
 
 # Conectar a la base de datos y colección
@@ -17,25 +16,42 @@ ruta_glampings = APIRouter(
 )
 
 
-@ruta_glampings.post("/", response_model=SchemaGlamping, status_code=status.HTTP_201_CREATED)
-async def crear_glamping(glamping: ModeloGlamping):
+@ruta_glampings.post("/", status_code=status.HTTP_201_CREATED)
+async def crear_glamping(
+    nombre: str = Form(...),
+    ubicacion: str = Form(...),
+    precio_noche: float = Form(...),
+    descripcion: str = Form(...),
+    caracteristicas: str = Form(...),
+    imagenes: List[UploadFile] = File(...),
+    video_youtube: str = Form(None),
+):
     """
-    Endpoint para crear un nuevo glamping
+    Endpoint para crear un nuevo glamping con manejo de imágenes y datos
     """
     try:
-        # Convertir el modelo en un diccionario
-        nuevo_glamping = glamping.model_dump()
+        # Procesar las imágenes subidas
+        rutas_imagenes = []
+        for imagen in imagenes:
+            contenido = await imagen.read()  # Lee el archivo en binario
+            rutas_imagenes.append({
+                "filename": imagen.filename,
+                "content_type": imagen.content_type,
+                "size": len(contenido)  # Para ejemplo, tamaño en bytes
+            })
 
-        # Convertir HttpUrl a string
-        nuevo_glamping["imagenes"] = [str(url) for url in nuevo_glamping["imagenes"]]
-        if nuevo_glamping.get("video_youtube"):
-            nuevo_glamping["video_youtube"] = str(nuevo_glamping["video_youtube"])
+        # Crear el objeto del glamping
+        nuevo_glamping = {
+            "nombre": nombre,
+            "ubicacion": ubicacion,  # Ubicación en formato JSON
+            "precio_noche": precio_noche,
+            "descripcion": descripcion,
+            "caracteristicas": caracteristicas.split(","),  # Convertir a lista
+            "imagenes": rutas_imagenes,  # Información sobre las imágenes
+            "video_youtube": video_youtube,
+        }
 
-        # Eliminar el ID si está presente, ya que Mongo lo genera automáticamente
-        if nuevo_glamping.get("id"):
-            del nuevo_glamping["id"]
-
-        # Insertar en MongoDB
+        # Insertar en la base de datos
         resultado = collection_glampings.insert_one(nuevo_glamping)
         nuevo_glamping["id"] = str(resultado.inserted_id)
 
