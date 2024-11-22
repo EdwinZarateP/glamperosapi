@@ -74,7 +74,11 @@ async def obtener_glampings():
     try:
         # Consultar todos los glampings de la colección
         glampings = list(collection_glampings.find())
-        glampings = [convertir_objectid(glamping) for glamping in glampings]
+        
+        # Convertir ObjectId a string y asegurar que todos los campos coincidan con SchemaGlamping
+        glampings = [
+            convertir_objectid(glamping) for glamping in glampings
+        ]
         return glampings
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener glampings: {str(e)}")
