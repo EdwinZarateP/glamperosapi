@@ -1,15 +1,15 @@
-from pydantic import BaseModel, HttpUrl
-from typing import Optional, List
+from pydantic import BaseModel
+from typing import Optional, List, Dict
 from datetime import datetime
 
 class ModeloGlamping(BaseModel):
-    id: Optional[str] = None  # ID generado por MongoDB
-    nombre: str               # Nombre del glamping
-    ubicacion: dict           # Ubicación del glamping (latitud y longitud)
-    precio_noche: float       # Precio por noche en COP
-    descripcion: str          # Descripción detallada del glamping
-    imagenes: List[HttpUrl]   # URLs de imágenes del glamping
-    video_youtube: Optional[HttpUrl] = None  # URL del video de YouTube (opcional)
-    calificacion: Optional[float] = 0.0  # Promedio de calificaciones (1.0 a 5.0)
-    caracteristicas: List[str]  # Lista de características (ej. WiFi, piscina, etc.)
-    creado: Optional[datetime] = datetime.now()  # Fecha de creación
+    id: Optional[str] = None                          # ID generado por MongoDB
+    nombre: str                                       # Nombre del glamping
+    ubicacion: Dict[str, float]                       # Ubicación (latitud y longitud)
+    precio_noche: float                               # Precio por noche
+    descripcion: str                                  # Descripción
+    imagenes: List[str]                               # Lista de rutas/URLs de imágenes
+    video_youtube: Optional[str] = None              # Video de YouTube (opcional)
+    calificacion: Optional[float] = 0.0              # Promedio de calificaciones
+    caracteristicas: List[str]                       # Características
+    creado: Optional[datetime] = datetime.now()      # Fecha de creación por defecto
