@@ -5,7 +5,7 @@ from datetime import datetime
 class ModeloGlamping(BaseModel):
     id: Optional[str] = None                          # ID generado por MongoDB
     nombre: str                                       # Nombre del glamping
-    ubicacion: Dict[str, float]                       # Ubicación (latitud y longitud)
+    ubicacion: Optional[Dict[str, float]] = None      # Ubicación (latitud y longitud), ahora opcional
     precio_noche: float                               # Precio por noche
     descripcion: str                                  # Descripción
     imagenes: List[str]                               # Lista de rutas/URLs de imágenes

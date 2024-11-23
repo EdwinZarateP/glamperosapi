@@ -5,7 +5,7 @@ from datetime import datetime
 class SchemaGlamping(BaseModel):
     id: Optional[str] = None                           # ID convertido a string
     nombre: str                                        # Nombre del glamping
-    ubicacion: Dict[str, float]                        # Latitud y longitud
+    ubicacion: Optional[Dict[str, float]] = None
     precio_noche: float                                # Precio por noche
     descripcion: str                                   # Descripción del glamping
     imagenes: List[str]                                # Lista de imágenes en base64 o URLs
