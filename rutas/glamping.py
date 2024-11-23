@@ -5,6 +5,8 @@ from pymongo import MongoClient
 from bson.objectid import ObjectId
 from typing import List
 from datetime import datetime
+from PIL import Image
+from io import BytesIO
 import os
 import uuid
 import base64
@@ -31,15 +33,32 @@ ruta_glampings = APIRouter(
     responses={404: {"description": "No encontrado"}},
 )
 
-# Función para subir archivos al bucket
+# Función para optimizar imágenes y convertirlas a WebP
+def optimizar_imagen(archivo: UploadFile, formato: str = "WEBP") -> BytesIO:
+    try:
+        # Abrimos el archivo de imagen con Pillow
+        imagen = Image.open(archivo.file)
+        buffer = BytesIO()
+        imagen.save(buffer, format=formato, optimize=True, quality=85)
+        buffer.seek(0)  # Volvemos el puntero al inicio
+        return buffer
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al optimizar imagen: {str(e)}")
+
+# Función para subir archivos optimizados al bucket de Google Cloud Storage
 def subir_a_google_storage(archivo: UploadFile, carpeta: str = "glampings") -> str:
     try:
         cliente = storage.Client()
         bucket = cliente.bucket(BUCKET_NAME)
-        blob_nombre = f"{carpeta}/{uuid.uuid4().hex}_{archivo.filename}"
-        blob = bucket.blob(blob_nombre)
-        blob.upload_from_file(archivo.file, content_type=archivo.content_type)
-        return f"https://storage.googleapis.com/{BUCKET_NAME}/{blob_nombre}"
+
+        # Convertimos la imagen a WebP antes de subirla
+        archivo_optimizado = optimizar_imagen(archivo)
+
+        # Subimos la imagen optimizada al bucket
+        nombre_archivo = f"{carpeta}/{uuid.uuid4().hex}.webp"
+        blob = bucket.blob(nombre_archivo)
+        blob.upload_from_file(archivo_optimizado, content_type="image/webp")
+        return f"https://storage.googleapis.com/{BUCKET_NAME}/{nombre_archivo}"
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al subir archivo: {str(e)}")
 
@@ -157,4 +176,3 @@ async def eliminar_glamping(glamping_id: str):
         return {"detail": "Glamping eliminado correctamente"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al eliminar glamping: {str(e)}")
-
