@@ -13,7 +13,7 @@ app.version = "1"
 app.add_middleware(
     CORSMiddleware,
     # allow_origins=["*"],  
-    allow_origins=["http://localhost:5173"],  
+    allow_origins=["*"],  
     allow_credentials=True,
     allow_methods=["*"],  # Permite todos los métodos (GET, POST, PUT, DELETE, etc.)
     allow_headers=["*"],  # Permite todos los encabezados
