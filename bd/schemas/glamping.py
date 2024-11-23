@@ -12,4 +12,5 @@ class SchemaGlamping(BaseModel):
     video_youtube: Optional[HttpUrl] = None           # URL del video de YouTube (opcional)
     calificacion: Optional[float] = None              # Promedio de calificaciones (1.0 a 5.0)
     caracteristicas: List[str]                        # Características del glamping
+    ciudad_departamento: str                          # Ciudad y departamento del glamping
     creado: Optional[datetime] = None                 # Fecha de creación (opcional)
