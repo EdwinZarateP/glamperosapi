@@ -29,17 +29,17 @@ db = ConexionMongo["glamperos"]  # Base de datos "glamperos"
 app = FastAPI()
 
 # Configurar CORS para múltiples orígenes
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
-        "http://localhost:8000",  # Dominio local
-        "http://127.0.0.1:8000",  # Otra forma del dominio local
-        "https://edwinzaratep.github.io",  # Dominio de producción
-    ],
-    allow_credentials=True,
-    allow_methods=["*"],  # Permitir todos los métodos (GET, POST, etc.)
-    allow_headers=["*"],  # Permitir todos los encabezados
-)
+# app.add_middleware(
+#     CORSMiddleware,
+#     allow_origins=[
+#         "http://localhost:8000",  # Dominio local
+#         "http://127.0.0.1:8000",  # Otra forma del dominio local
+#         "https://edwinzaratep.github.io",  # Dominio de producción
+#     ],
+#     allow_credentials=True,
+#     allow_methods=["*"],  # Permitir todos los métodos (GET, POST, etc.)
+#     allow_headers=["*"],  # Permitir todos los encabezados
+# )
 
 # Crear el router para glampings
 ruta_glampings = APIRouter(
@@ -47,7 +47,7 @@ ruta_glampings = APIRouter(
     tags=["Glampings de glamperos"],
     responses={404: {"description": "No encontrado"}},
 )
-app.include_router(ruta_glampings)
+# app.include_router(ruta_glampings)
 
 
 # Función para subir archivos al bucket
