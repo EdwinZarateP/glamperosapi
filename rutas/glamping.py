@@ -34,13 +34,21 @@ ruta_glampings = APIRouter(
 )
 
 # Función para optimizar imágenes y convertirlas a WebP
-def optimizar_imagen(archivo: UploadFile, formato: str = "WEBP") -> BytesIO:
+def optimizar_imagen(archivo: UploadFile, formato: str = "WEBP", max_width: int = 1200, max_height: int = 800) -> BytesIO:
     try:
         # Abrimos el archivo de imagen con Pillow
         imagen = Image.open(archivo.file)
+        
+        # Redimensionar la imagen si excede las dimensiones máximas permitidas
+        imagen.thumbnail((max_width, max_height), Image.ANTIALIAS)
+        
+        # Crear un buffer en memoria
         buffer = BytesIO()
-        imagen.save(buffer, format=formato, optimize=True, quality=85)
-        buffer.seek(0)  # Volvemos el puntero al inicio
+        
+        # Guardar la imagen en formato optimizado con calidad reducida
+        imagen.save(buffer, format=formato, optimize=True, quality=75)  # Ajusta "quality" para más compresión
+        
+        buffer.seek(0)  # Volver al inicio del buffer
         return buffer
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al optimizar imagen: {str(e)}")
