@@ -30,5 +30,13 @@ async def root():
 # Ejecuta el servidor
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=10000)
+    uvicorn.run(
+        "main:app",
+        host="0.0.0.0",
+        port=10000,
+        log_level="info",
+        timeout_keep_alive=120,  # Tiempo de espera extendido
+        limit_concurrency=10,   # Limita la concurrencia a 10 solicitudes simultáneas
+    )
+
 
