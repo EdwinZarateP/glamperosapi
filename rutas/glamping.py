@@ -5,7 +5,7 @@ from pymongo import MongoClient
 from bson.objectid import ObjectId
 from typing import List
 from datetime import datetime
-from PIL import Image
+from PIL import Image, ImageOps
 from io import BytesIO
 import os
 import uuid
@@ -40,7 +40,7 @@ def optimizar_imagen(archivo: UploadFile, formato: str = "WEBP", max_width: int 
         imagen = Image.open(archivo.file)
         
         # Redimensionar la imagen si excede las dimensiones máximas permitidas
-        imagen.thumbnail((max_width, max_height), Image.ANTIALIAS)
+        imagen.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
         
         # Crear un buffer en memoria
         buffer = BytesIO()
