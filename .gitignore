@@ -3,3 +3,4 @@ __pycache__
 /config/buoyant-episode-425002-u5-661a0d8e5658.json
 .env
 /bd/ConexionMongo.py
+/.venv
