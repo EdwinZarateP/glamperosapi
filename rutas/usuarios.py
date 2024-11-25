@@ -104,20 +104,42 @@ async def iniciar_sesion(form_data: OAuth2PasswordRequestForm = Depends()):
         "nombre": usuario["nombre"],
     }
 
+
 @ruta_usuario.post("/", response_model=dict)
 async def crear_usuario(usuario: Usuario):
     usuario_existente = base_datos.usuarios.find_one({"email": usuario.email})
     if usuario_existente:
-        # Si el usuario ya existe, devuélvelo en lugar de crear uno nuevo
-        return modelo_usuario(usuario_existente)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El correo ya está registrado"
+        )
     
-    # Si no existe, crear uno nuevo
     usuario.clave = crear_hash(usuario.clave)
     nuevo_usuario = {
         "nombre": usuario.nombre,
         "email": usuario.email,
         "telefono": usuario.telefono,
         "clave": usuario.clave,
+        "glampings": [],
+    }
+    result = base_datos.usuarios.insert_one(nuevo_usuario)
+    return modelo_usuario(base_datos.usuarios.find_one({"_id": result.inserted_id}))
+
+
+@ruta_usuario.post("/google", response_model=dict)
+async def registro_google(email: str, nombre: str):
+    usuario_existente = base_datos.usuarios.find_one({"email": email})
+    if usuario_existente:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El correo ya está registrado"
+        )
+    
+    nuevo_usuario = {
+        "nombre": nombre,
+        "email": email,
+        "telefono": "",
+        "clave": crear_hash("autenticacionGoogle"),
         "glampings": [],
     }
     result = base_datos.usuarios.insert_one(nuevo_usuario)
