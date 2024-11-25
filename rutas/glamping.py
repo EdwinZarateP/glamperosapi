@@ -20,7 +20,6 @@ class ModeloGlamping(BaseModel):
     id: Optional[str] = None                          # ID generado por MongoDB
     nombre: str                                       # Nombre del glamping
     ubicacion: Dict[str, float]                      # Ubicación (latitud y longitud)
-    direccion: str                                    # Dirección completa
     precio_noche: float                               # Precio por noche
     descripcion: str                                  # Descripción
     imagenes: List[str]                               # Lista de rutas/URLs de imágenes
@@ -91,7 +90,6 @@ def subir_a_google_storage(archivo: UploadFile, carpeta: str = "glampings") -> s
 async def crear_glamping(
     nombre: str = Form(...),
     ubicacion: str = Form(...),
-    direccion: str = Form(...),
     precio_noche: float = Form(...),
     descripcion: str = Form(...),
     caracteristicas: str = Form(...),
@@ -108,7 +106,6 @@ async def crear_glamping(
         nuevo_glamping = ModeloGlamping(
             nombre=nombre,
             ubicacion=ubicacion_dict,
-            direccion=direccion,
             precio_noche=precio_noche,
             descripcion=descripcion,
             caracteristicas=caracteristicas.split(","),
@@ -152,7 +149,6 @@ async def actualizar_glamping(
     glamping_id: str,
     nombre: Optional[str] = Form(None),
     ubicacion: Optional[str] = Form(None),
-    direccion: Optional[str] = Form(None),
     precio_noche: Optional[float] = Form(None),
     descripcion: Optional[str] = Form(None),
     caracteristicas: Optional[str] = Form(None),
@@ -166,9 +162,7 @@ async def actualizar_glamping(
         if nombre:
             actualizaciones["nombre"] = nombre
         if ubicacion:
-            actualizaciones["ubicacion"] = {k: float(v) for k, v in (x.split(":") for x in ubicacion.split(","))}
-        if direccion:
-            actualizaciones["direccion"] = direccion
+            actualizaciones["ubicacion"] = {k: float(v) for k, v in (x.split(":") for x in ubicacion.split(","))}       
         if precio_noche:
             actualizaciones["precio_noche"] = precio_noche
         if descripcion:
