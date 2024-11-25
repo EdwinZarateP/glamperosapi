@@ -1,5 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, Form, File
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi import APIRouter, HTTPException, UploadFile, Form, File
 from google.cloud import storage
 from pymongo import MongoClient
 from bson.objectid import ObjectId
@@ -8,9 +7,9 @@ from datetime import datetime
 from PIL import Image
 from io import BytesIO
 import os
-import uuid
 import base64
-import json  # Para manejar JSON
+import uuid
+import json
 from bd.models.glamping import ModeloGlamping
 
 # Configuración inicial para Google Cloud Storage
@@ -31,7 +30,7 @@ db = ConexionMongo["glamperos"]
 # Crear el router para glampings
 ruta_glampings = APIRouter(
     prefix="/glampings",
-    tags=["Glampings de glamperos"],
+    tags=["Glampings"],
     responses={404: {"description": "No encontrado"}},
 )
 
@@ -66,16 +65,15 @@ def convertir_objectid(documento):
         return [convertir_objectid(doc) for doc in documento]
     elif isinstance(documento, dict):
         documento = {key: str(value) if isinstance(value, ObjectId) else value for key, value in documento.items()}
-        # Validar y convertir el campo 'ubicacion' si es un string
         if "ubicacion" in documento and isinstance(documento["ubicacion"], str):
             try:
                 documento["ubicacion"] = json.loads(documento["ubicacion"])
             except json.JSONDecodeError:
-                pass  # Si no es un JSON válido, se deja como está
+                pass
         return documento
     return documento
 
-# Endpoint para crear un nuevo glamping
+# Crear un nuevo glamping
 @ruta_glampings.post("/", status_code=201, response_model=ModeloGlamping)
 async def crear_glamping(
     nombre: str = Form(...),
@@ -104,12 +102,20 @@ async def crear_glamping(
             "propietario_id": propietario_id,
         }
         resultado = db["glampings"].insert_one(nuevo_glamping)
-        nuevo_glamping["_id"] = str(resultado.inserted_id)
+        glamping_id = str(resultado.inserted_id)
+        
+        # Asociar glamping al usuario propietario
+        db["usuarios"].update_one(
+            {"_id": ObjectId(propietario_id)},
+            {"$push": {"glampings": glamping_id}}
+        )
+        
+        nuevo_glamping["_id"] = glamping_id
         return ModeloGlamping(**convertir_objectid(nuevo_glamping))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al crear glamping: {str(e)}")
 
-# Endpoint para obtener todos los glampings
+# Obtener todos los glampings
 @ruta_glampings.get("/", response_model=List[ModeloGlamping])
 async def obtener_glampings():
     try:
@@ -118,7 +124,7 @@ async def obtener_glampings():
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener glampings: {str(e)}")
 
-# Endpoint para obtener un glamping por ID
+# Obtener un glamping por ID
 @ruta_glampings.get("/{glamping_id}", response_model=ModeloGlamping)
 async def obtener_glamping_por_id(glamping_id: str):
     try:
@@ -129,7 +135,7 @@ async def obtener_glamping_por_id(glamping_id: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener glamping: {str(e)}")
 
-# Endpoint para actualizar un glamping por ID
+# Actualizar un glamping
 @ruta_glampings.put("/{glamping_id}", response_model=ModeloGlamping)
 async def actualizar_glamping(
     glamping_id: str,
@@ -175,13 +181,13 @@ async def actualizar_glamping(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al actualizar glamping: {str(e)}")
 
-# Endpoint para eliminar un glamping por ID
+# Eliminar un glamping
 @ruta_glampings.delete("/{glamping_id}", status_code=204)
 async def eliminar_glamping(glamping_id: str):
     try:
         resultado = db["glampings"].delete_one({"_id": ObjectId(glamping_id)})
         if resultado.deleted_count == 0:
             raise HTTPException(status_code=404, detail="Glamping no encontrado")
-        return {"detail": "Glamping eliminado correctamente"}
+        return {"mensaje": "Glamping eliminado correctamente"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al eliminar glamping: {str(e)}")

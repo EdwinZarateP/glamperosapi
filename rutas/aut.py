@@ -4,20 +4,22 @@ from pymongo import MongoClient
 from bson import ObjectId
 from passlib.context import CryptContext
 import jwt
+import os
 from datetime import datetime, timedelta, timezone
 from typing import List
 from pydantic import BaseModel
-from bd.ConexionMongo import ConexionMongo
-from bd.models.usuario import modelo_usuario, modelo_usuarios
+from bd.models.usuario import Usuario
 
 # Configuración de la base de datos
-base_datos = ConexionMongo.glamperos
+MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
+ConexionMongo = MongoClient(MONGO_URI)
+base_datos = ConexionMongo["glamperos"]
 
 # Configuración de FastAPI y seguridad
-ruta_usuario = APIRouter( 
+ruta_usuario = APIRouter(
     prefix="/usuarios",
-    tags=['Usuarios'],
-    responses={status.HTTP_404_NOT_FOUND: {"message": "No encontrado"}}
+    tags=["Usuarios"],
+    responses={status.HTTP_404_NOT_FOUND: {"message": "No encontrado"}},
 )
 
 esquema_oauth2 = OAuth2PasswordBearer(tokenUrl="usuarios/token")
@@ -28,23 +30,36 @@ EXPIRE_MINUTOS_TOKEN = 20
 # Configuración de la contraseña
 contexto_pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+
 # Modelos de datos
 class Usuario(BaseModel):
     nombre: str
     email: str
-    tenedor: str
+    tenedor: str  # Cédula o NIT
     telefono: str
     clave: str
+    glampings: List[str] = []  # Lista de IDs de glampings asociados
 
-def modelo_usuarios(usuarios) -> list:
-    return [modelo_usuario(usuario) for usuario in usuarios]
+
+def modelo_usuario(usuario) -> dict:
+    return {
+        "id": str(usuario["_id"]),
+        "nombre": usuario["nombre"],
+        "email": usuario["email"],
+        "tenedor": usuario["tenedor"],
+        "telefono": usuario["telefono"],
+        "glampings": usuario.get("glampings", []),
+    }
+
 
 # Funciones de seguridad
 def crear_hash(clave: str) -> str:
     return contexto_pwd.hash(clave)
 
+
 def verificar_hash(clave: str, clave_hash: str) -> bool:
     return contexto_pwd.verify(clave, clave_hash)
+
 
 def crear_token(data: dict, expires_delta: timedelta = None) -> str:
     to_encode = data.copy()
@@ -55,7 +70,7 @@ def crear_token(data: dict, expires_delta: timedelta = None) -> str:
     to_encode.update({"exp": expira})
     return jwt.encode(to_encode, CLAVE_SECRETA, algorithm=ALGORITMO)
 
-# Dependencias
+
 async def obtener_usuario_actual(token: str = Depends(esquema_oauth2)):
     excepcion_credenciales = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -74,6 +89,7 @@ async def obtener_usuario_actual(token: str = Depends(esquema_oauth2)):
         raise excepcion_credenciales
     return modelo_usuario(usuario)
 
+
 # Rutas de la API
 @ruta_usuario.post("/token")
 async def iniciar_sesion(form_data: OAuth2PasswordRequestForm = Depends()):
@@ -84,34 +100,34 @@ async def iniciar_sesion(form_data: OAuth2PasswordRequestForm = Depends()):
     expires_access_token = timedelta(minutes=EXPIRE_MINUTOS_TOKEN)
     access_token = crear_token(data={"sub": usuario["email"]}, expires_delta=expires_access_token)
     
-    # Retorna el token y también el nombre y el tenedor
     return {
         "access_token": access_token,
         "token_type": "bearer",
-        "nombre": usuario["nombre"],  # Agrega el nombre
-        "tenedor": usuario["tenedor"],  # Agrega el tenedor
+        "nombre": usuario["nombre"],
+        "tenedor": usuario["tenedor"],
     }
+
 
 @ruta_usuario.post("/", response_model=dict)
 async def crear_usuario(usuario: Usuario):
-    # Verificar si el email ya existe
     if base_datos.usuarios.find_one({"email": usuario.email}):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El email ya está en uso")
     
-    # Verificar si el tenedor ya está en uso
     if base_datos.usuarios.find_one({"tenedor": usuario.tenedor}):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esta cedula o NIT ya están en uso")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Esta cédula o NIT ya está en uso")
     
-    usuario.clave = crear_hash(usuario.clave)  # Hash de la contraseña
+    usuario.clave = crear_hash(usuario.clave)
     nuevo_usuario = {
         "nombre": usuario.nombre,
         "email": usuario.email,
         "tenedor": usuario.tenedor,
         "telefono": usuario.telefono,
         "clave": usuario.clave,
+        "glampings": [],
     }
     result = base_datos.usuarios.insert_one(nuevo_usuario)
     return modelo_usuario(base_datos.usuarios.find_one({"_id": result.inserted_id}))
+
 
 @ruta_usuario.get("/{usuario_id}", response_model=dict)
 async def obtener_usuario(usuario_id: str, usuario_actual: dict = Depends(obtener_usuario_actual)):
@@ -120,6 +136,7 @@ async def obtener_usuario(usuario_id: str, usuario_actual: dict = Depends(obtene
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return modelo_usuario(usuario)
 
+
 @ruta_usuario.put("/{usuario_id}", response_model=dict)
 async def actualizar_usuario(usuario_id: str, usuario: Usuario, usuario_actual: dict = Depends(obtener_usuario_actual)):
     usuario_actualizado = {
@@ -127,12 +144,13 @@ async def actualizar_usuario(usuario_id: str, usuario: Usuario, usuario_actual: 
         "email": usuario.email,
         "tenedor": usuario.tenedor,
         "telefono": usuario.telefono,
-        "clave": crear_hash(usuario.clave)  # Actualiza la contraseña
+        "clave": crear_hash(usuario.clave),
     }
     result = base_datos.usuarios.update_one({"_id": ObjectId(usuario_id)}, {"$set": usuario_actualizado})
     if result.modified_count == 0:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return modelo_usuario(base_datos.usuarios.find_one({"_id": ObjectId(usuario_id)}))
+
 
 @ruta_usuario.delete("/{usuario_id}", response_model=dict)
 async def eliminar_usuario(usuario_id: str, usuario_actual: dict = Depends(obtener_usuario_actual)):
@@ -141,4 +159,24 @@ async def eliminar_usuario(usuario_id: str, usuario_actual: dict = Depends(obten
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return {"mensaje": "Usuario eliminado"}
 
-# Ejecutar el servidor: `uvicorn main:app --reload`
+
+@ruta_usuario.get("/{usuario_id}/glampings", response_model=List[dict])
+async def obtener_glampings_usuario(usuario_id: str):
+    usuario = base_datos.usuarios.find_one({"_id": ObjectId(usuario_id)})
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    
+    glamping_ids = usuario.get("glampings", [])
+    glampings = list(base_datos.glampings.find({"_id": {"$in": [ObjectId(glamping_id) for glamping_id in glamping_ids]}}))
+    return glampings
+
+
+@ruta_usuario.delete("/{usuario_id}/glampings/{glamping_id}", response_model=dict)
+async def desvincular_glamping(usuario_id: str, glamping_id: str):
+    result = base_datos.usuarios.update_one(
+        {"_id": ObjectId(usuario_id)},
+        {"$pull": {"glampings": glamping_id}}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Usuario o glamping no encontrado")
+    return {"mensaje": "Glamping desvinculado exitosamente"}
