@@ -14,3 +14,4 @@ class SchemaGlamping(BaseModel):
     caracteristicas: List[str]                        # Características del glamping
     ciudad_departamento: str                          # Ciudad y departamento del glamping
     creado: Optional[datetime] = None                 # Fecha de creación (opcional)
+    propietario_id: str       

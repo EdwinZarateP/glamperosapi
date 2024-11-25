@@ -14,3 +14,4 @@ class ModeloGlamping(BaseModel):
     caracteristicas: List[str]                       # Características
     ciudad_departamento: str                         # Ciudad y departamento del glamping
     creado: Optional[datetime] = datetime.now()      # Fecha de creación por defecto
+    propietario_id: str       

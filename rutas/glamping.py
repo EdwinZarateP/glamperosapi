@@ -90,6 +90,7 @@ async def crear_glamping(
     ciudad_departamento: str = Form(...),
     imagenes: List[UploadFile] = File(...),
     video_youtube: str = Form(None),
+    propietario_id: str = Form(...)
 ):
     try:
         imagen_urls = [subir_a_google_storage(imagen) for imagen in imagenes]
@@ -104,6 +105,7 @@ async def crear_glamping(
             "video_youtube": video_youtube,
             "calificacion": None,
             "creado": datetime.now(),
+            "propietario_id": propietario_id,
         }
         resultado = db["glampings"].insert_one(nuevo_glamping)
         nuevo_glamping["_id"] = str(resultado.inserted_id)
@@ -143,6 +145,7 @@ async def actualizar_glamping(
     ciudad_departamento: str = Form(None),
     imagenes: List[UploadFile] = File(None),
     video_youtube: str = Form(None),
+    propietario_id: str = Form(None),
 ):
     try:
         glamping = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
@@ -168,6 +171,8 @@ async def actualizar_glamping(
             actualizaciones["imagenes"] = imagen_urls
         if video_youtube:
             actualizaciones["video_youtube"] = video_youtube
+        if propietario_id:
+            actualizaciones["propietario_id"] = propietario_id
 
         db["glampings"].update_one({"_id": ObjectId(glamping_id)}, {"$set": actualizaciones})
         glamping_actualizado = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
