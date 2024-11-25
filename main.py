@@ -1,5 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
 
 # Importación de rutas
 from rutas.usuarios import ruta_usuario
@@ -12,18 +15,25 @@ app.version = "1"
 # Configuración de CORS
 app.add_middleware(
     CORSMiddleware,
-    # allow_origins=["*"],  
-    allow_origins=["*"],  
+    allow_origins=["*"],  # Cambia "*" por dominios específicos si es necesario
     allow_credentials=True,
     allow_methods=["*"],  # Permite todos los métodos (GET, POST, PUT, DELETE, etc.)
     allow_headers=["*"],  # Permite todos los encabezados
 )
 
+# Middleware para agregar encabezados de seguridad (COOP y COEP)
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+    response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
+    return response
+
+# Registro de rutas
 app.include_router(ruta_usuario)
 app.include_router(ruta_glampings)
 
-
-@app.get("/", tags=['Home'])
+@app.get("/", tags=["Home"])
 async def root():
     return {"message": "Hola Glampero"}
 
@@ -38,5 +48,3 @@ if __name__ == "__main__":
         timeout_keep_alive=120,  # Tiempo de espera extendido
         limit_concurrency=10,   # Limita la concurrencia a 10 solicitudes simultáneas
     )
-
-
