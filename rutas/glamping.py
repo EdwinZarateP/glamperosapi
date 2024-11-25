@@ -1,6 +1,5 @@
 from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, Form, File
 from fastapi.middleware.cors import CORSMiddleware
-from bd.schemas.glamping import SchemaGlamping
 from google.cloud import storage
 from pymongo import MongoClient
 from bson.objectid import ObjectId
@@ -81,7 +80,7 @@ def convertir_objectid(documento):
     return documento
 
 # Endpoint para crear un nuevo glamping
-@ruta_glampings.post("/", status_code=201,response_model=SchemaGlamping)
+@ruta_glampings.post("/", status_code=201)
 async def crear_glamping(
     nombre: str = Form(...),
     ubicacion: str = Form(...),
