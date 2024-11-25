@@ -10,26 +10,7 @@ from io import BytesIO
 import os
 import uuid
 import base64
-from dotenv import load_dotenv  # Para cargar las variables de entorno desde .env
 
-# === Cargar variables de entorno ===
-load_dotenv()  # Carga las variables de entorno desde el archivo .env
-
-# Configuración inicial
-MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
-GOOGLE_CLOUD_CREDENTIALS = os.getenv("GOOGLE_CLOUD_CREDENTIALS")
-BUCKET_NAME = os.getenv("BUCKET_NAME", "default-bucket")
-
-# Configurar Google Cloud Credentials
-if GOOGLE_CLOUD_CREDENTIALS:
-    credenciales_json = base64.b64decode(GOOGLE_CLOUD_CREDENTIALS).decode("utf-8")
-    with open("temp_google_credentials.json", "w") as cred_file:
-        cred_file.write(credenciales_json)
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "temp_google_credentials.json"
-
-# Conexión a MongoDB
-ConexionMongo = MongoClient(MONGO_URI)
-db = ConexionMongo["glamperos"]
 
 # === Modelos y Esquemas ===
 from pydantic import BaseModel, HttpUrl
@@ -39,6 +20,7 @@ class ModeloGlamping(BaseModel):
     id: Optional[str] = None                          # ID generado por MongoDB
     nombre: str                                       # Nombre del glamping
     ubicacion: Dict[str, float]                      # Ubicación (latitud y longitud)
+    direccion: str                                    # Dirección completa
     precio_noche: float                               # Precio por noche
     descripcion: str                                  # Descripción
     imagenes: List[str]                               # Lista de rutas/URLs de imágenes
@@ -49,6 +31,31 @@ class ModeloGlamping(BaseModel):
     propietario_id: Optional[str] = None             # ID del propietario
     ciudad_departamento: str                         # Ciudad y departamento del glamping
     creado: Optional[datetime] = None                # Fecha de creación (opcional)
+
+# === Configuración inicial ===
+
+# Configuración de Google Cloud Storage
+credenciales_base64 = os.environ.get("GOOGLE_CLOUD_CREDENTIALS")
+if credenciales_base64:
+    credenciales_json = base64.b64decode(credenciales_base64).decode("utf-8")
+    with open("temp_google_credentials.json", "w") as cred_file:
+        cred_file.write(credenciales_json)
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "temp_google_credentials.json"
+
+BUCKET_NAME = "glamperos-imagenes"
+
+# Conexión a MongoDB usando variables de entorno
+MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
+ConexionMongo = MongoClient(MONGO_URI)
+db = ConexionMongo["glamperos"]
+
+# Crear el router para glampings
+ruta_glampings = APIRouter(
+    prefix="/glampings",
+    tags=["Glampings"],
+    responses={404: {"description": "No encontrado"}},
+)
+
 
 # === Utilidades ===
 def convertir_objectid(documento):
@@ -80,16 +87,11 @@ def subir_a_google_storage(archivo: UploadFile, carpeta: str = "glampings") -> s
 
 
 # === Endpoints ===
-ruta_glampings = APIRouter(
-    prefix="/glampings",
-    tags=["Glampings"],
-    responses={404: {"description": "No encontrado"}},
-)
-
 @ruta_glampings.post("/", status_code=201)
 async def crear_glamping(
     nombre: str = Form(...),
     ubicacion: str = Form(...),
+    direccion: str = Form(...),
     precio_noche: float = Form(...),
     descripcion: str = Form(...),
     caracteristicas: str = Form(...),
@@ -106,6 +108,7 @@ async def crear_glamping(
         nuevo_glamping = ModeloGlamping(
             nombre=nombre,
             ubicacion=ubicacion_dict,
+            direccion=direccion,
             precio_noche=precio_noche,
             descripcion=descripcion,
             caracteristicas=caracteristicas.split(","),
@@ -149,6 +152,7 @@ async def actualizar_glamping(
     glamping_id: str,
     nombre: Optional[str] = Form(None),
     ubicacion: Optional[str] = Form(None),
+    direccion: Optional[str] = Form(None),
     precio_noche: Optional[float] = Form(None),
     descripcion: Optional[str] = Form(None),
     caracteristicas: Optional[str] = Form(None),
@@ -163,6 +167,8 @@ async def actualizar_glamping(
             actualizaciones["nombre"] = nombre
         if ubicacion:
             actualizaciones["ubicacion"] = {k: float(v) for k, v in (x.split(":") for x in ubicacion.split(","))}
+        if direccion:
+            actualizaciones["direccion"] = direccion
         if precio_noche:
             actualizaciones["precio_noche"] = precio_noche
         if descripcion:
@@ -195,3 +201,5 @@ async def eliminar_glamping(glamping_id: str):
         return {"detail": "Glamping eliminado correctamente"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al eliminar glamping: {str(e)}")
+
+
