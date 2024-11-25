@@ -6,7 +6,6 @@ class Usuario(BaseModel):
     id: Optional[str] = None
     nombre: str = "Edwin Zarate"
     email: EmailStr = "edwin@example.com"
-    tenedor: Optional[str] = None
     telefono: Optional[str] = None
     clave: str = "clavesegura"
 

@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 # Importación de rutas
-from rutas.aut import ruta_usuario
+from rutas.usuarios import ruta_usuario
 from rutas.glamping import ruta_glampings
 
 app = FastAPI()

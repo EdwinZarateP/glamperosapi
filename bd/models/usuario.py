@@ -3,7 +3,6 @@ def modelo_usuario(usuario)->dict:
         "id":str(usuario["_id"]),
         "nombre": usuario["nombre"],
         "email": usuario["email"],
-        "tenedor":usuario["tenedor"],
         "telefono":usuario["telefono"],
         "clave":usuario["clave"]
 
