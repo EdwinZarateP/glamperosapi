@@ -1,5 +1,6 @@
 from fastapi import FastAPI, APIRouter, HTTPException, UploadFile, Form, File
 from fastapi.middleware.cors import CORSMiddleware
+from bd.schemas.glamping import SchemaGlamping
 from google.cloud import storage
 from pymongo import MongoClient
 from bson.objectid import ObjectId
@@ -79,37 +80,27 @@ def convertir_objectid(documento):
         return {key: str(value) if isinstance(value, ObjectId) else value for key, value in documento.items()}
     return documento
 
-# Endpoint para crear un nuevo glamping
-@ruta_glampings.post("/", status_code=201)
+# Endpoint para crear un nuevo 
+@ruta_glampings.post("/", status_code=201, response_model=SchemaGlamping)
 async def crear_glamping(
-    nombre: str = Form(...),
-    ubicacion: str = Form(...),
-    precio_noche: float = Form(...),
-    descripcion: str = Form(...),
-    caracteristicas: str = Form(...),
-    ciudad_departamento: str = Form(...),
-    imagenes: List[UploadFile] = File(...),
-    video_youtube: str = Form(None),
-    propietario_id: str = Form(...)
+    glamping_data: SchemaGlamping,  # Aquí usas directamente el esquema para validar los datos
+    imagenes: List[UploadFile] = File(...)  # Manejo de imágenes aparte
 ):
     try:
+        # Procesar las imágenes y subirlas
         imagen_urls = [subir_a_google_storage(imagen) for imagen in imagenes]
-        nuevo_glamping = {
-            "nombre": nombre,
-            "ubicacion": ubicacion,
-            "precio_noche": precio_noche,
-            "descripcion": descripcion,
-            "caracteristicas": caracteristicas.split(","),
-            "ciudad_departamento": ciudad_departamento,
-            "imagenes": imagen_urls,
-            "video_youtube": video_youtube,
-            "calificacion": None,
-            "creado": datetime.now(),
-            "propietario_id": propietario_id,
-        }
+
+        # Convertir el esquema a un diccionario y agregar URLs de imágenes
+        nuevo_glamping = glamping_data.dict()
+        nuevo_glamping["imagenes"] = imagen_urls
+        nuevo_glamping["creado"] = datetime.now()  # Agregar la fecha de creación
+
+        # Insertar en la base de datos
         resultado = db["glampings"].insert_one(nuevo_glamping)
         nuevo_glamping["_id"] = str(resultado.inserted_id)
-        return convertir_objectid(nuevo_glamping)
+
+        # Retornar el objeto creado con el esquema
+        return SchemaGlamping(**convertir_objectid(nuevo_glamping))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al crear glamping: {str(e)}")
 
