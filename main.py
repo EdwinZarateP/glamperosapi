@@ -26,7 +26,7 @@ app.add_middleware(
 async def add_security_headers(request: Request, call_next):
     response = await call_next(request)
     response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
-    response.headers["Cross-Origin-Embedder-Policy"] = "require-corp"
+    
     return response
 
 # Registro de rutas
@@ -46,5 +46,5 @@ if __name__ == "__main__":
         port=10000,
         log_level="info",
         timeout_keep_alive=120,  # Tiempo de espera extendido
-        limit_concurrency=10,   # Limita la concurrencia a 10 solicitudes simultáneas
+        limit_concurrency=100,   # Limita la concurrencia a 100 solicitudes simultáneas
     )
