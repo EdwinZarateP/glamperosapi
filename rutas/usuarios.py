@@ -104,12 +104,14 @@ async def iniciar_sesion(form_data: OAuth2PasswordRequestForm = Depends()):
         "nombre": usuario["nombre"],
     }
 
-
 @ruta_usuario.post("/", response_model=dict)
 async def crear_usuario(usuario: Usuario):
-    if base_datos.usuarios.find_one({"email": usuario.email}):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El email ya está en uso")
+    usuario_existente = base_datos.usuarios.find_one({"email": usuario.email})
+    if usuario_existente:
+        # Si el usuario ya existe, devuélvelo en lugar de crear uno nuevo
+        return modelo_usuario(usuario_existente)
     
+    # Si no existe, crear uno nuevo
     usuario.clave = crear_hash(usuario.clave)
     nuevo_usuario = {
         "nombre": usuario.nombre,
