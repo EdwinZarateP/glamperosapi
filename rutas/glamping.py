@@ -10,6 +10,7 @@ from io import BytesIO
 import os
 import uuid
 import base64
+import json  # Para manejar JSON
 from bd.models.glamping import ModeloGlamping
 
 # Configuración inicial para Google Cloud Storage
@@ -59,12 +60,19 @@ def subir_a_google_storage(archivo: UploadFile, carpeta: str = "glampings") -> s
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al subir archivo: {str(e)}")
 
-# Función para convertir ObjectId a string
+# Función para convertir ObjectId a string y validar `ubicacion`
 def convertir_objectid(documento):
     if isinstance(documento, list):
         return [convertir_objectid(doc) for doc in documento]
     elif isinstance(documento, dict):
-        return {key: str(value) if isinstance(value, ObjectId) else value for key, value in documento.items()}
+        documento = {key: str(value) if isinstance(value, ObjectId) else value for key, value in documento.items()}
+        # Validar y convertir el campo 'ubicacion' si es un string
+        if "ubicacion" in documento and isinstance(documento["ubicacion"], str):
+            try:
+                documento["ubicacion"] = json.loads(documento["ubicacion"])
+            except json.JSONDecodeError:
+                pass  # Si no es un JSON válido, se deja como está
+        return documento
     return documento
 
 # Endpoint para crear un nuevo glamping
