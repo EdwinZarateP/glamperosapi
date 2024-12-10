@@ -76,12 +76,15 @@ def convertir_objectid(documento):
 # Crear un nuevo glamping
 @ruta_glampings.post("/", status_code=201, response_model=ModeloGlamping)
 async def crear_glamping(
-    nombre: str = Form(...),
+    nombreGlamping: str = Form(...),
+    tipoGlamping: str = Form(...),
+    Acepta_Mascotas: bool = Form(...),
     ubicacion: str = Form(...),
     precioEstandar: float = Form(...),
+    Cantidad_Huespedes: float = Form(...),
     descuento: float = Form(...),
-    descripcion: str = Form(...),
-    caracteristicas: str = Form(...),
+    descripcionGlamping: str = Form(...),
+    amenidadesGlobal: str = Form(...),
     ciudad_departamento: str = Form(...),
     imagenes: List[UploadFile] = File(...),
     video_youtube: str = Form(None),
@@ -90,12 +93,15 @@ async def crear_glamping(
     try:
         imagen_urls = [subir_a_google_storage(imagen) for imagen in imagenes]
         nuevo_glamping = {
-            "nombre": nombre,
+            "nombreGlamping": nombreGlamping,
+            "tipoGlamping": tipoGlamping, 
+            "Acepta_Mascotas": Acepta_Mascotas,                        
             "ubicacion": ubicacion,
             "precioEstandar": precioEstandar,
+            "Cantidad_Huespedes": Cantidad_Huespedes,            
             "descuento": descuento,
-            "descripcion": descripcion,
-            "caracteristicas": caracteristicas.split(","),
+            "descripcionGlamping": descripcionGlamping,
+            "amenidadesGlobal": amenidadesGlobal.split(","),
             "ciudad_departamento": ciudad_departamento,
             "imagenes": imagen_urls,
             "video_youtube": video_youtube,
@@ -141,12 +147,15 @@ async def obtener_glamping_por_id(glamping_id: str):
 @ruta_glampings.put("/{glamping_id}", response_model=ModeloGlamping)
 async def actualizar_glamping(
     glamping_id: str,
-    nombre: str = Form(None),
+    nombreGlamping: str = Form(None),
+    tipoGlamping: str = Form(None),
+    Acepta_Mascotas: bool = Form(...),
     ubicacion: str = Form(None),
     precioEstandar: float = Form(None),
+    Cantidad_Huespedes: float = Form(None),    
     descuento: float = Form(None),
-    descripcion: str = Form(None),
-    caracteristicas: str = Form(None),
+    descripcionGlamping: str = Form(None),
+    amenidadesGlobal: str = Form(None),
     ciudad_departamento: str = Form(None),
     imagenes: List[UploadFile] = File(None),
     video_youtube: str = Form(None),
@@ -158,18 +167,24 @@ async def actualizar_glamping(
             raise HTTPException(status_code=404, detail="Glamping no encontrado")
 
         actualizaciones = {}
-        if nombre:
-            actualizaciones["nombre"] = nombre
+        if nombreGlamping:
+            actualizaciones["nombreGlamping"] = nombreGlamping
+        if tipoGlamping:
+            actualizaciones["tipoGlamping"] = tipoGlamping
+        if Acepta_Mascotas:
+            actualizaciones["Acepta_Mascotas"] = Acepta_Mascotas
         if ubicacion:
             actualizaciones["ubicacion"] = ubicacion
         if precioEstandar:
             actualizaciones["precioEstandar"] = precioEstandar
+        if Cantidad_Huespedes:
+            actualizaciones["Cantidad_Huespedes"] = Cantidad_Huespedes        
         if descuento:
             actualizaciones["descuento"] = descuento
-        if descripcion:
-            actualizaciones["descripcion"] = descripcion
-        if caracteristicas:
-            actualizaciones["caracteristicas"] = caracteristicas.split(",")
+        if descripcionGlamping:
+            actualizaciones["descripcionGlamping"] = descripcionGlamping
+        if amenidadesGlobal:
+            actualizaciones["amenidadesGlobal"] = amenidadesGlobal.split(",")
         if ciudad_departamento:
             actualizaciones["ciudad_departamento"] = ciudad_departamento
         if imagenes:
