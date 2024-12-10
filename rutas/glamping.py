@@ -78,7 +78,8 @@ def convertir_objectid(documento):
 async def crear_glamping(
     nombre: str = Form(...),
     ubicacion: str = Form(...),
-    precio_noche: float = Form(...),
+    precioEstandar: float = Form(...),
+    descuento: float = Form(...),
     descripcion: str = Form(...),
     caracteristicas: str = Form(...),
     ciudad_departamento: str = Form(...),
@@ -91,7 +92,8 @@ async def crear_glamping(
         nuevo_glamping = {
             "nombre": nombre,
             "ubicacion": ubicacion,
-            "precio_noche": precio_noche,
+            "precioEstandar": precioEstandar,
+            "descuento": descuento,
             "descripcion": descripcion,
             "caracteristicas": caracteristicas.split(","),
             "ciudad_departamento": ciudad_departamento,
@@ -141,7 +143,8 @@ async def actualizar_glamping(
     glamping_id: str,
     nombre: str = Form(None),
     ubicacion: str = Form(None),
-    precio_noche: float = Form(None),
+    precioEstandar: float = Form(None),
+    descuento: float = Form(None),
     descripcion: str = Form(None),
     caracteristicas: str = Form(None),
     ciudad_departamento: str = Form(None),
@@ -159,8 +162,10 @@ async def actualizar_glamping(
             actualizaciones["nombre"] = nombre
         if ubicacion:
             actualizaciones["ubicacion"] = ubicacion
-        if precio_noche:
-            actualizaciones["precio_noche"] = precio_noche
+        if precioEstandar:
+            actualizaciones["precioEstandar"] = precioEstandar
+        if descuento:
+            actualizaciones["descuento"] = descuento
         if descripcion:
             actualizaciones["descripcion"] = descripcion
         if caracteristicas:
