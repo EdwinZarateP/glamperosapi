@@ -13,7 +13,7 @@ class ModeloGlamping(BaseModel):
     descuento:float = 0 
     descripcionGlamping: str = "Un lugar increíble rodeado de naturaleza."
     imagenes: List[str] = ["https://example.com/image1.jpg", "https://example.com/image2.jpg"]  # Ejemplo de URLs de imágenes
-    video_youtube: Optional[HttpUrl] = None  # Acepta None en lugar de una URL
+    video_youtube: Optional[str] = "https://youtube.com"
     calificacion: Optional[float] = 4.5
     amenidadesGlobal: List[str] = ["WiFi", "Jacuzzi", "Piscina"]  # Características de ejemplo
     ciudad_departamento: str = "Bogotá, Cundinamarca"
