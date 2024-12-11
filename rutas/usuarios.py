@@ -196,3 +196,15 @@ async def desvincular_glamping(usuario_id: str, glamping_id: str):
     if result.modified_count == 0:
         raise HTTPException(status_code=404, detail="Usuario o glamping no encontrado")
     return {"mensaje": "Glamping desvinculado exitosamente"}
+
+
+@ruta_usuario.get("/", response_model=dict)
+async def buscar_usuario(email: str):
+    """Buscar un usuario por su correo electrónico."""
+    if not email:
+        raise HTTPException(status_code=400, detail="Se requiere un correo electrónico válido")
+    
+    usuario = base_datos.usuarios.find_one({"email": email})
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    return modelo_usuario(usuario)
