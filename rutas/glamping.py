@@ -143,6 +143,8 @@ async def crear_glamping(
     except Exception as e:
         # Captura otros errores no esperados
         raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
+    
+    
 # Obtener todos los glampings
 @ruta_glampings.get("/", response_model=List[ModeloGlamping])
 async def obtener_glampings():
