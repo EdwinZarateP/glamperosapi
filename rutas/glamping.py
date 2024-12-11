@@ -33,7 +33,6 @@ ruta_glampings = APIRouter(
     tags=["Glampings"],
     responses={404: {"description": "No encontrado"}},
 )
-
 # Función para optimizar imágenes y convertirlas a WebP
 def optimizar_imagen(archivo: UploadFile, formato: str = "WEBP", max_width: int = 1200, max_height: int = 800) -> BytesIO:
     try:
@@ -44,7 +43,7 @@ def optimizar_imagen(archivo: UploadFile, formato: str = "WEBP", max_width: int 
         buffer.seek(0)
         return buffer
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al optimizar imagen: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Error al optimizar la imagen: {str(e)}")
 
 # Función para subir archivos optimizados al bucket de Google Cloud Storage
 def subir_a_google_storage(archivo: UploadFile, carpeta: str = "glampings") -> str:
@@ -57,7 +56,7 @@ def subir_a_google_storage(archivo: UploadFile, carpeta: str = "glampings") -> s
         blob.upload_from_file(archivo_optimizado, content_type="image/webp")
         return f"https://storage.googleapis.com/{BUCKET_NAME}/{nombre_archivo}"
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al subir archivo: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error al subir la imagen a Google Storage: {str(e)}")
 
 # Función para convertir ObjectId a string y validar `ubicacion`
 def convertir_objectid(documento):
@@ -73,7 +72,7 @@ def convertir_objectid(documento):
         return documento
     return documento
 
-# Crear un nuevo glamping
+# Crear un nuevo glamping con validaciones por cada paso
 @ruta_glampings.post("/", status_code=201, response_model=ModeloGlamping)
 async def crear_glamping(
     nombreGlamping: str = Form(...),
@@ -91,14 +90,23 @@ async def crear_glamping(
     propietario_id: str = Form(...),
 ):
     try:
-        imagen_urls = [subir_a_google_storage(imagen) for imagen in imagenes]
+        # Validación de las imágenes una por una
+        imagen_urls = []
+        for imagen in imagenes:
+            try:
+                url_imagen = subir_a_google_storage(imagen)
+                imagen_urls.append(url_imagen)
+            except HTTPException as e:
+                raise HTTPException(status_code=400, detail=f"Error con la imagen '{imagen.filename}': {e.detail}")
+        
+        # Crear el glamping en la base de datos
         nuevo_glamping = {
             "nombreGlamping": nombreGlamping,
-            "tipoGlamping": tipoGlamping, 
-            "Acepta_Mascotas": Acepta_Mascotas,                        
+            "tipoGlamping": tipoGlamping,
+            "Acepta_Mascotas": Acepta_Mascotas,
             "ubicacion": ubicacion,
             "precioEstandar": precioEstandar,
-            "Cantidad_Huespedes": Cantidad_Huespedes,            
+            "Cantidad_Huespedes": Cantidad_Huespedes,
             "descuento": descuento,
             "descripcionGlamping": descripcionGlamping,
             "amenidadesGlobal": amenidadesGlobal.split(","),
@@ -109,20 +117,32 @@ async def crear_glamping(
             "creado": datetime.now(),
             "propietario_id": propietario_id,
         }
-        resultado = db["glampings"].insert_one(nuevo_glamping)
-        glamping_id = str(resultado.inserted_id)
-        
+
+        # Intentar insertar en MongoDB
+        try:
+            resultado = db["glampings"].insert_one(nuevo_glamping)
+            glamping_id = str(resultado.inserted_id)
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error al insertar en MongoDB: {str(e)}")
+
         # Asociar glamping al usuario propietario
-        db["usuarios"].update_one(
-            {"_id": ObjectId(propietario_id)},
-            {"$push": {"glampings": glamping_id}}
-        )
-        
+        try:
+            db["usuarios"].update_one(
+                {"_id": ObjectId(propietario_id)},
+                {"$push": {"glampings": glamping_id}}
+            )
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Error al asociar el glamping con el usuario: {str(e)}")
+
         nuevo_glamping["_id"] = glamping_id
         return ModeloGlamping(**convertir_objectid(nuevo_glamping))
+    
+    except HTTPException as he:
+        # Lanza errores específicos que se hayan identificado
+        raise he
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al crear glamping: {str(e)}")
-
+        # Captura otros errores no esperados
+        raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
 # Obtener todos los glampings
 @ruta_glampings.get("/", response_model=List[ModeloGlamping])
 async def obtener_glampings():
