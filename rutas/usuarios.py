@@ -104,7 +104,7 @@ async def iniciar_sesion(form_data: OAuth2PasswordRequestForm = Depends()):
         "nombre": usuario["nombre"],
     }
 
-# crear usuario
+# Crear usuario
 @ruta_usuario.post("/", response_model=dict)
 async def crear_usuario(usuario: Usuario):
     # Buscar si el usuario ya existe
@@ -123,8 +123,16 @@ async def crear_usuario(usuario: Usuario):
         "clave": usuario.clave,
         "glampings": [],
     }
+    
+    # Insertar el nuevo usuario en la base de datos
     result = base_datos.usuarios.insert_one(nuevo_usuario)
-    return modelo_usuario(base_datos.usuarios.find_one({"_id": result.inserted_id}))
+    
+    # Recuperar el ID del usuario recién creado
+    id_usuario_creado = str(result.inserted_id)
+    
+    # Respuesta con el ID del usuario recién creado
+    return {"mensaje": "Usuario creado exitosamente", "id_usuario": id_usuario_creado}
+
 
 
 @ruta_usuario.post("/google", response_model=dict)
