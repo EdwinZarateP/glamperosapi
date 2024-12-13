@@ -128,10 +128,10 @@ async def crear_usuario(usuario: Usuario):
     result = base_datos.usuarios.insert_one(nuevo_usuario)
     
     # Recuperar el ID del usuario recién creado
-    id_usuario_creado = str(result.inserted_id)
+    # id_usuario_creado = str(result.inserted_id)
     
     # Respuesta con el ID del usuario recién creado
-    return {"mensaje": "Usuario creado exitosamente", "id_usuario": id_usuario_creado}
+    return {"mensaje": "Usuario creado exitosamente", "usuario": nuevo_usuario}
 
 
 
