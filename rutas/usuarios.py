@@ -113,10 +113,9 @@ async def crear_usuario(usuario: Usuario):
     usuario_existente = base_datos.usuarios.find_one({"email": usuario.email})
     
     if usuario_existente:
-        # Devolver un error con código 400 si el usuario ya existe
-        return JSONResponse(
-            status_code=400,
-            content={"mensaje": "Correo ya registrado", "usuario": {key: usuario_existente[key] for key in usuario_existente if key in ['_id', 'nombre', 'email', 'telefono']}}
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Correo ya registrado"
         )
 
     # Crear un nuevo usuario si no existe
