@@ -9,6 +9,8 @@ from datetime import datetime, timedelta, timezone
 from typing import List
 from pydantic import BaseModel
 from bd.models.usuario import modelo_usuario, modelo_usuarios
+from fastapi.responses import JSONResponse
+
 
 # Configuración de la base de datos
 MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
@@ -111,9 +113,12 @@ async def crear_usuario(usuario: Usuario):
     usuario_existente = base_datos.usuarios.find_one({"email": usuario.email})
     
     if usuario_existente:
-        # Devolver el ID del usuario existente en lugar de lanzar un error
-        return {"mensaje": "Correo ya registrado", "usuario": {key: usuario_existente[key] for key in usuario_existente if key in ['_id', 'nombre', 'email', 'telefono']}}
-    
+        # Devolver un error con código 400 si el usuario ya existe
+        return JSONResponse(
+            status_code=400,
+            content={"mensaje": "Correo ya registrado", "usuario": {key: usuario_existente[key] for key in usuario_existente if key in ['_id', 'nombre', 'email', 'telefono']}}
+        )
+
     # Crear un nuevo usuario si no existe
     usuario.clave = crear_hash(usuario.clave)
     nuevo_usuario = {
