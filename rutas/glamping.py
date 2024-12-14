@@ -63,7 +63,7 @@ def convertir_objectid(documento):
     if isinstance(documento, list):
         return [convertir_objectid(doc) for doc in documento]
     elif isinstance(documento, dict):
-        documento = {key: str(value) if isinstance(value, ObjectId) else value for key, value in documento.items()}
+        documento["_id"] = str(documento["_id"]) if "_id" in documento else None
         if "ubicacion" in documento and isinstance(documento["ubicacion"], str):
             try:
                 documento["ubicacion"] = json.loads(documento["ubicacion"])
@@ -71,6 +71,7 @@ def convertir_objectid(documento):
                 pass
         return documento
     return documento
+
 
 # Crear un nuevo glamping con validaciones por cada paso
 @ruta_glampings.post("/", status_code=201, response_model=ModeloGlamping)
@@ -150,9 +151,12 @@ async def crear_glamping(
 async def obtener_glampings():
     try:
         glampings = list(db["glampings"].find())
-        return [ModeloGlamping(**convertir_objectid(glamping)) for glamping in glampings]
+        glampings_convertidos = [convertir_objectid(glamping) for glamping in glampings]
+        return glampings_convertidos
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener glampings: {str(e)}")
+
+
 
 # Obtener un glamping por ID
 @ruta_glampings.get("/{glamping_id}", response_model=ModeloGlamping)
@@ -164,6 +168,14 @@ async def obtener_glamping_por_id(glamping_id: str):
         return ModeloGlamping(**convertir_objectid(glamping))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener glamping: {str(e)}")
+
+
+
+
+
+
+
+
 
 # Actualizar un glamping
 @ruta_glampings.put("/{glamping_id}", response_model=ModeloGlamping)

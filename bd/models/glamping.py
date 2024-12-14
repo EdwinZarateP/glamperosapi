@@ -1,9 +1,9 @@
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, HttpUrl, Field
 from typing import Optional, List, Dict
 from datetime import datetime
 
 class ModeloGlamping(BaseModel):
-    id: Optional[str] = None 
+    id: Optional[str] = Field(None, alias="_id") 
     nombreGlamping: str = "Glamping Estrella Verde" 
     tipoGlamping: str = "choza"
     Acepta_Mascotas: bool = True     
@@ -19,3 +19,6 @@ class ModeloGlamping(BaseModel):
     ciudad_departamento: str = "Bogotá, Cundinamarca"
     creado: Optional[datetime] = datetime.now()
     propietario_id: str = "6482ac77b9f19f39d67891b2"
+
+    class Config:
+        allow_population_by_field_name = True 
