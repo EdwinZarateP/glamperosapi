@@ -171,12 +171,6 @@ async def obtener_glamping_por_id(glamping_id: str):
 
 
 
-
-
-
-
-
-
 # Actualizar un glamping
 @ruta_glampings.put("/{glamping_id}", response_model=ModeloGlamping)
 async def actualizar_glamping(

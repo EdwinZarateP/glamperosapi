@@ -7,6 +7,7 @@ from starlette.responses import Response
 # Importación de rutas
 from rutas.usuarios import ruta_usuario
 from rutas.glamping import ruta_glampings
+from rutas.enviarCorreo import ruta_correos 
 
 app = FastAPI()
 app.title = "Glamperos"
@@ -32,6 +33,7 @@ async def add_security_headers(request: Request, call_next):
 # Registro de rutas
 app.include_router(ruta_usuario)
 app.include_router(ruta_glampings)
+app.include_router(ruta_correos)
 
 @app.get("/", tags=["Home"])
 async def root():
