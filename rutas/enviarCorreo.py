@@ -17,7 +17,7 @@ async def send_email():
     try:
         # Enviar el correo
         response = resend.Emails.send({
-            "from": "registro@resend.dev",
+            "from": "registroglamping@integralogistica.com",
             "to": "emzp1994@gmail.com",
             "subject": "Validacion de correo para crear Glamping!",
             "html": "<p>Hola soy Edwin!</p>"
