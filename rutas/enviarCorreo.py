@@ -18,7 +18,7 @@ async def send_email():
         # Enviar el correo
         response = resend.Emails.send({
         "from": "registro@resend.dev",
-        "to": "email_del_propietario@gmail.com",
+        "to": "emzp1994@gmail.com",
         "subject": "¡Bienvenido a la familia Glamperos!",
         "html": """
         <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
