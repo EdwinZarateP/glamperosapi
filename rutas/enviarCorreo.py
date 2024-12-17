@@ -22,7 +22,7 @@ async def send_email(data: EmailRequest):
     try:
         # Enviar el correo
         response = resend.Emails.send({
-            "from": "registro@resend.dev",
+            "from": "registro@glamperos.com",
             "to": data.email,
             "subject": "¡Bienvenido a la familia Glamperos!",
             "html": f"""
