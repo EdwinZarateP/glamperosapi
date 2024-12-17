@@ -1,9 +1,14 @@
+import os
 from fastapi import APIRouter, status, HTTPException
 from pydantic import BaseModel
 import resend
 
-# Configurar clave de API de Resend
-resend.api_key = "re_TpRoK8hZ_cDMXrA8Vz1zYQYcwCgGnHTfy"
+# Cargar la clave de API desde las variables de entorno
+resend.api_key = os.getenv("RESEND_API_KEY")
+
+# Verificar si la clave de API está presente
+if not resend.api_key:
+    raise ValueError("La clave RESEND_API_KEY no está configurada en las variables de entorno.")
 
 # Crear el router con el prefijo "/correos"
 ruta_correos = APIRouter(
