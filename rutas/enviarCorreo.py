@@ -24,12 +24,12 @@ async def send_email(data: EmailRequest):
         response = resend.Emails.send({
             "from": "registro@glamperos.com",
             "to": data.email,
-            "subject": "¡Bienvenido a la familia Glamperos!",
+            "subject": "¡Bienvenid@ a la familia Glamperos!",
             "html": f"""
             <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
                 <h1 style="color: #4CAF50;">¡Bienvenido a la familia Glamperos!</h1>
                 <p>
-                    Estimado {data.name},
+                    Estimad@ {data.name},
                 </p>
                 <p>
                     Nos sentimos muy emocionados de tenerte como parte de nuestra comunidad de emprendedores de experiencias únicas. Gracias por inscribir tu propiedad con Glamperos, el lugar donde el glamping cobra vida.
