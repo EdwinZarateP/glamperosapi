@@ -88,7 +88,7 @@ async def crear_glamping(
     ciudad_departamento: str = Form(...),
     imagenes: List[UploadFile] = File(...),
     video_youtube: str = Form(None),
-    fechasReservadas: str = Form(...),
+    fechasReservadas: List[str] = Form(...),
     propietario_id: str = Form(...),
 ):
     try:
@@ -116,7 +116,7 @@ async def crear_glamping(
             "imagenes": imagen_urls,
             "video_youtube": video_youtube,
             "calificacion": None,
-            "fechasReservadas": [],
+            "fechasReservadas": fechasReservadas.split(","),
             "creado": datetime.now(),
             "propietario_id": propietario_id,
         }

@@ -17,7 +17,7 @@ class ModeloGlamping(BaseModel):
     calificacion: Optional[float] = 4.5
     amenidadesGlobal: List[str] = ["WiFi", "Jacuzzi", "Piscina"]
     ciudad_departamento: str = "Bogotá, Cundinamarca"
-    fechasReservadas: Optional[List[str]] = ["01/03/2024", "01/05/2024", "01/06/2024"]
+    fechasReservadas: Optional[List[str]] = Field(default_factory=list)
     creado: Optional[datetime] = datetime.now()
     propietario_id: str = "6482ac77b9f19f39d67891b2"
 
