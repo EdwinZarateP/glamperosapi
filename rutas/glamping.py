@@ -116,7 +116,7 @@ async def crear_glamping(
             "imagenes": imagen_urls,
             "video_youtube": video_youtube,
             "calificacion": None,
-            "fechasReservadas": fechasReservadas.split(","),
+            "fechasReservadas": fechasReservadas,
             "creado": datetime.now(),
             "propietario_id": propietario_id,
         }
