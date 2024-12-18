@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, UploadFile, Form, File
 from google.cloud import storage
 from pymongo import MongoClient
 from bson.objectid import ObjectId
-from typing import List
+from typing import List, Optional
 from datetime import datetime
 from PIL import Image
 from io import BytesIO
@@ -88,7 +88,7 @@ async def crear_glamping(
     ciudad_departamento: str = Form(...),
     imagenes: List[UploadFile] = File(...),
     video_youtube: str = Form(None),
-    # fechasReservadas: List[str] = Form(...),
+    fechasReservadas: Optional[List[str]] = Form(None),
     propietario_id: str = Form(...),
 ):
     try:
@@ -116,7 +116,7 @@ async def crear_glamping(
             "imagenes": imagen_urls,
             "video_youtube": video_youtube,
             "calificacion": None,
-            # "fechasReservadas": fechasReservadas,
+            "fechasReservadas": fechasReservadas if fechasReservadas else [],
             "creado": datetime.now(),
             "propietario_id": propietario_id,
         }
