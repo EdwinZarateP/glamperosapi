@@ -149,10 +149,32 @@ async def crear_glamping(
     
     
 # Obtener todos los glampings
+# @ruta_glampings.get("/", response_model=List[ModeloGlamping])
+# async def obtener_glampings():
+#     try:
+#         glampings = list(db["glampings"].find())
+#         glampings_convertidos = [convertir_objectid(glamping) for glamping in glampings]
+#         return glampings_convertidos
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"Error al obtener glampings: {str(e)}")
+
 @ruta_glampings.get("/", response_model=List[ModeloGlamping])
-async def obtener_glampings():
+async def obtener_glampings(page: int = 1, limit: int = 30):
+    """
+    Obtiene una lista de glampings con paginación.
+    
+    - `page`: Número de página, por defecto 1.
+    - `limit`: Tamaño del lote, por defecto 30.
+    """
     try:
-        glampings = list(db["glampings"].find())
+        if page < 1 or limit < 1:
+            raise HTTPException(status_code=400, detail="Los parámetros `page` y `limit` deben ser mayores a 0")
+        
+        # Calcular los índices de paginación
+        skip = (page - 1) * limit
+        
+        # Obtener los glampings con límites y saltos
+        glampings = list(db["glampings"].find().skip(skip).limit(limit))
         glampings_convertidos = [convertir_objectid(glamping) for glamping in glampings]
         return glampings_convertidos
     except Exception as e:
