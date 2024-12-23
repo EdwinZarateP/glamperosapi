@@ -89,7 +89,7 @@ async def crear_glamping(
     ciudad_departamento: str = Form(...),
     imagenes: List[UploadFile] = File(...),
     video_youtube: str = Form(None),
-    fechasReservadas: Optional[List[str]] = Form(None),
+    fechasReservadas: Optional[str] = Form(None),
     propietario_id: str = Form(...),
 ):
     try:
@@ -102,7 +102,10 @@ async def crear_glamping(
             except HTTPException as e:
                 raise HTTPException(status_code=400, detail=f"Error con la imagen '{imagen.filename}': {e.detail}")
 
-#          Crear el glamping en la base de datos
+        # Manejo de fechasReservadas
+        fechas_reservadas_lista = fechasReservadas.split(",") if fechasReservadas else []
+
+        # Crear el glamping en la base de datos
         nuevo_glamping = {
             "nombreGlamping": nombreGlamping,
             "tipoGlamping": tipoGlamping,
@@ -117,35 +120,29 @@ async def crear_glamping(
             "imagenes": imagen_urls,
             "video_youtube": video_youtube,
             "calificacion": None,
-            "fechasReservadas": fechasReservadas if fechasReservadas else [],
+            "fechasReservadas": fechas_reservadas_lista,
             "creado": datetime.now(),
             "propietario_id": propietario_id,
         }
 
         # Intentar insertar en MongoDB
-        try:
-            resultado = db["glampings"].insert_one(nuevo_glamping)
-            glamping_id = str(resultado.inserted_id)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error al insertar en MongoDB: {str(e)}")
+        resultado = db["glampings"].insert_one(nuevo_glamping)
+        glamping_id = str(resultado.inserted_id)
 
         # Asociar glamping al usuario propietario
-        try:
-            db["usuarios"].update_one(
-                {"_id": ObjectId(propietario_id)},
-                {"$push": {"glampings": glamping_id}}
-            )
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=f"Error al asociar el glamping con el usuario: {str(e)}")
+        db["usuarios"].update_one(
+            {"_id": ObjectId(propietario_id)},
+            {"$push": {"glampings": glamping_id}}
+        )
 
         nuevo_glamping["_id"] = glamping_id
         return ModeloGlamping(**convertir_objectid(nuevo_glamping))
 
     except HTTPException as he:
-#         # Lanza errores específicos que se hayan identificado
+        # Lanza errores específicos que se hayan identificado
         raise he
     except Exception as e:
-#          Captura otros errores no esperados
+        # Captura otros errores no esperados
         raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
 
 
