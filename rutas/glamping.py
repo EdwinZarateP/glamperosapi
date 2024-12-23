@@ -4,6 +4,7 @@ from pymongo import MongoClient
 from bson.objectid import ObjectId
 from typing import List, Optional
 from datetime import datetime
+from datetime import datetime
 from PIL import Image
 from io import BytesIO
 import os
@@ -74,6 +75,80 @@ def convertir_objectid(documento):
 
 
 # Crear un nuevo glamping con validaciones por cada paso
+# @ruta_glampings.post("/", status_code=201, response_model=ModeloGlamping)
+# async def crear_glamping(
+#     nombreGlamping: str = Form(...),
+#     tipoGlamping: str = Form(...),
+#     Acepta_Mascotas: bool = Form(...),
+#     ubicacion: str = Form(...),
+#     precioEstandar: float = Form(...),
+#     Cantidad_Huespedes: float = Form(...),
+#     descuento: float = Form(...),
+#     descripcionGlamping: str = Form(...),
+#     amenidadesGlobal: str = Form(...),
+#     ciudad_departamento: str = Form(...),
+#     imagenes: List[UploadFile] = File(...),
+#     video_youtube: str = Form(None),
+#     fechasReservadas: Optional[List[str]] = Form(None),
+#     propietario_id: str = Form(...),
+# ):
+#     try:
+#         # Validación de las imágenes una por una
+#         imagen_urls = []
+#         for imagen in imagenes:
+#             try:
+#                 url_imagen = subir_a_google_storage(imagen)
+#                 imagen_urls.append(url_imagen)
+#             except HTTPException as e:
+#                 raise HTTPException(status_code=400, detail=f"Error con la imagen '{imagen.filename}': {e.detail}")
+        
+#         # Crear el glamping en la base de datos
+#         nuevo_glamping = {
+#             "nombreGlamping": nombreGlamping,
+#             "tipoGlamping": tipoGlamping,
+#             "Acepta_Mascotas": Acepta_Mascotas,
+#             "ubicacion": ubicacion,
+#             "precioEstandar": precioEstandar,
+#             "Cantidad_Huespedes": Cantidad_Huespedes,
+#             "descuento": descuento,
+#             "descripcionGlamping": descripcionGlamping,
+#             "amenidadesGlobal": amenidadesGlobal.split(","),
+#             "ciudad_departamento": ciudad_departamento,
+#             "imagenes": imagen_urls,
+#             "video_youtube": video_youtube,
+#             "calificacion": None,
+#             "fechasReservadas": fechasReservadas if fechasReservadas else [],
+#             "creado": datetime.now(),
+#             "propietario_id": propietario_id,
+#         }
+
+#         # Intentar insertar en MongoDB
+#         try:
+#             resultado = db["glampings"].insert_one(nuevo_glamping)
+#             glamping_id = str(resultado.inserted_id)
+#         except Exception as e:
+#             raise HTTPException(status_code=500, detail=f"Error al insertar en MongoDB: {str(e)}")
+
+#         # Asociar glamping al usuario propietario
+#         try:
+#             db["usuarios"].update_one(
+#                 {"_id": ObjectId(propietario_id)},
+#                 {"$push": {"glampings": glamping_id}}
+#             )
+#         except Exception as e:
+#             raise HTTPException(status_code=500, detail=f"Error al asociar el glamping con el usuario: {str(e)}")
+
+#         nuevo_glamping["_id"] = glamping_id
+#         return ModeloGlamping(**convertir_objectid(nuevo_glamping))
+    
+#     except HTTPException as he:
+#         # Lanza errores específicos que se hayan identificado
+#         raise he
+#     except Exception as e:
+#         # Captura otros errores no esperados
+#         raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
+    
+
 @ruta_glampings.post("/", status_code=201, response_model=ModeloGlamping)
 async def crear_glamping(
     nombreGlamping: str = Form(...),
@@ -92,7 +167,7 @@ async def crear_glamping(
     propietario_id: str = Form(...),
 ):
     try:
-        # Validación de las imágenes una por una
+        # Validación de las imágenes
         imagen_urls = []
         for imagen in imagenes:
             try:
@@ -100,7 +175,20 @@ async def crear_glamping(
                 imagen_urls.append(url_imagen)
             except HTTPException as e:
                 raise HTTPException(status_code=400, detail=f"Error con la imagen '{imagen.filename}': {e.detail}")
-        
+
+        # Validación y conversión de fechasReservadas
+        fechas_procesadas = []
+        if fechasReservadas:
+            for fecha in fechasReservadas:
+                try:
+                    # Convertir cada fecha a datetime
+                    fechas_procesadas.append(datetime.strptime(fecha, "%Y-%m-%d"))
+                except ValueError:
+                    raise HTTPException(
+                        status_code=400, 
+                        detail=f"Formato de fecha inválido: {fecha}. Debe ser 'YYYY-MM-DD'."
+                    )
+
         # Crear el glamping en la base de datos
         nuevo_glamping = {
             "nombreGlamping": nombreGlamping,
@@ -116,12 +204,12 @@ async def crear_glamping(
             "imagenes": imagen_urls,
             "video_youtube": video_youtube,
             "calificacion": None,
-            "fechasReservadas": fechasReservadas if fechasReservadas else [],
+            "fechasReservadas": fechas_procesadas,
             "creado": datetime.now(),
             "propietario_id": propietario_id,
         }
 
-        # Intentar insertar en MongoDB
+        # Insertar en MongoDB
         try:
             resultado = db["glampings"].insert_one(nuevo_glamping)
             glamping_id = str(resultado.inserted_id)
@@ -141,12 +229,10 @@ async def crear_glamping(
         return ModeloGlamping(**convertir_objectid(nuevo_glamping))
     
     except HTTPException as he:
-        # Lanza errores específicos que se hayan identificado
         raise he
     except Exception as e:
-        # Captura otros errores no esperados
         raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
-    
+
     
 # Obtener todos los glampings
 # @ruta_glampings.get("/", response_model=List[ModeloGlamping])
