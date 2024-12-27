@@ -9,9 +9,6 @@ from datetime import datetime, timedelta, timezone
 from typing import List
 from pydantic import BaseModel
 from bd.models.usuario import modelo_usuario, modelo_usuarios
-from fastapi.responses import JSONResponse
-import requests
-
 
 # Configuración de la base de datos
 MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
