@@ -59,6 +59,13 @@ def subir_a_google_storage(archivo: UploadFile, carpeta: str = "glampings") -> s
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al subir la imagen a Google Storage: {str(e)}")
 
+
+# # Función para limpiar y convertir las amenidades en una lista de cadenas únicas
+# def procesar_amenidades(amenidades_str: str) -> List[str]:
+#     # Divide las amenidades por coma, limpia los espacios y elimina duplicados
+#     amenidades = [amenidad.strip() for amenidad in amenidades_str.split(",")]
+#     return list(set(amenidades))  # Elimina duplicados
+
 # Función para convertir ObjectId a string y validar `ubicacion`
 def convertir_objectid(documento):
     if isinstance(documento, list):
@@ -105,6 +112,9 @@ async def crear_glamping(
         # Manejo de fechasReservadas
         fechas_reservadas_lista = fechasReservadas.split(",") if fechasReservadas else []
 
+        # Procesamiento de amenidadesGlobal: convertir de cadena a lista de amenidades
+        amenidades_lista = [amenidad.strip() for amenidad in amenidadesGlobal.split(",")]
+
         # Crear el glamping en la base de datos
         nuevo_glamping = {
             "nombreGlamping": nombreGlamping,
@@ -115,7 +125,7 @@ async def crear_glamping(
             "Cantidad_Huespedes": Cantidad_Huespedes,
             "descuento": descuento,
             "descripcionGlamping": descripcionGlamping,
-            "amenidadesGlobal": amenidadesGlobal.split(","),
+            "amenidadesGlobal": amenidades_lista,
             "ciudad_departamento": ciudad_departamento,
             "imagenes": imagen_urls,
             "video_youtube": video_youtube,
