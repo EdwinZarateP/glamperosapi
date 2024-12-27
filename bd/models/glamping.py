@@ -3,7 +3,8 @@ from typing import Optional, List, Dict
 from datetime import datetime
 
 class ModeloGlamping(BaseModel):
-    id: Optional[str] = Field(None, alias="_id") 
+    id: Optional[str] = Field(None, alias="_id")
+    habilitado: bool = False 
     nombreGlamping: str = "Glamping Estrella Verde" 
     tipoGlamping: str = "choza"
     Acepta_Mascotas: bool = True     

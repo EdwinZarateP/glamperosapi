@@ -10,6 +10,7 @@ from typing import List
 from pydantic import BaseModel
 from bd.models.usuario import modelo_usuario, modelo_usuarios
 from fastapi.responses import JSONResponse
+import requests
 
 
 # Configuración de la base de datos
@@ -106,7 +107,6 @@ async def iniciar_sesion(form_data: OAuth2PasswordRequestForm = Depends()):
         "nombre": usuario["nombre"],
     }
 
-# Crear usuario
 # Crear usuario
 @ruta_usuario.post("/", response_model=dict)
 async def crear_usuario(usuario: Usuario):
