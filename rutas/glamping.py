@@ -78,7 +78,7 @@ def convertir_objectid(documento):
 # Crear un nuevo glamping con validaciones por cada paso
 @ruta_glampings.post("/", status_code=201, response_model=ModeloGlamping)
 async def crear_glamping(
-    habilitado: bool = Form(...),
+    habilitado: Optional[bool] = Form(False),
     nombreGlamping: str = Form(...),
     tipoGlamping: str = Form(...),
     Acepta_Mascotas: bool = Form(...),
