@@ -45,7 +45,7 @@ async def agregar_favorito(favorito: Favorito):
         raise HTTPException(status_code=400, detail="El favorito ya existe")
 
     # Agregar el favorito
-    nuevo_favorito = favorito.dict()
+    nuevo_favorito = favorito.model_dump()
     resultado = db.favoritos.insert_one(nuevo_favorito)
     nuevo_favorito["_id"] = str(resultado.inserted_id)
     return {"mensaje": "Favorito agregado", "favorito": modelo_favorito(nuevo_favorito)}
