@@ -37,7 +37,9 @@ async def send_email(data: EmailRequest):
                     Estimad@ {data.name},
                 </p>
                 <p>
-                    Nos sentimos muy emocionados de tenerte como parte de nuestra comunidad de emprendedores de experiencias únicas. Gracias por inscribir tu propiedad con Glamperos, el lugar donde el glamping cobra vida.
+                    Nos sentimos muy emocionados de tenerte como parte de nuestra
+                    Comunidad de emprendedores de experiencias únicas. Gracias por inscribir tu propiedad con Glamperos, 
+                    el lugar donde el glamping cobra vida. Te notificaremos a este correo cuando tu glamping quede activo en la plataforma!
                 </p>
                 <p>
                     Ahora estás listo/a para conectar con miles de personas que buscan una experiencia única, confortable y memorable en tu espacio.
