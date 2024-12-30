@@ -25,13 +25,10 @@ class EmailRequest(BaseModel):
 @ruta_correos.post("/send-email")
 async def send_email(data: EmailRequest):
     try:
-        # Agregar correo adicional por defecto
-        destinatarios = [data.email, "emzp1994@gmail.com"]  # Añadir el correo adicional
-
         # Enviar el correo
         response = resend.Emails.send({
             "from": "registro@glamperos.com",
-            "to": destinatarios,  # Usar la lista de destinatarios
+            "to": data.email,
             "subject": "¡Bienvenid@ a la familia Glamperos!",
             "html": f"""
             <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
@@ -68,4 +65,3 @@ async def send_email(data: EmailRequest):
         return {"status": "success", "response": response}
     except Exception as e:
         return {"status": "error", "error": str(e)}
-
