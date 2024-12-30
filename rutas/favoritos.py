@@ -75,7 +75,12 @@ async def eliminar_favorito(usuario_id: str, glamping_id: str):
 # Endpoint para buscar un favorito
 @ruta_favoritos.get("/buscar", response_model=dict)
 async def buscar_favorito(usuario_id: str, glamping_id: str):
+    # Verificamos si el favorito existe en la base de datos
     favorito = db.favoritos.find_one({"usuario_id": usuario_id, "glamping_id": glamping_id})
-    if not favorito:
-        return {"favorito_existe": False}  # Retorna False si no se encuentra el favorito
-    return {"favorito_existe": True}  # Retorna True si el favorito existe
+    
+    if favorito:
+        # Si se encuentra el favorito, respondemos con 'favorito_existe: true'
+        return {"favorito_existe": True}
+    else:
+        # Si no se encuentra, respondemos con 'favorito_existe: false'
+        return {"favorito_existe": False}
