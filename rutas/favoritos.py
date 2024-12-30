@@ -50,13 +50,19 @@ async def agregar_favorito(favorito: Favorito):
     nuevo_favorito["_id"] = str(resultado.inserted_id)
     return {"mensaje": "Favorito agregado", "favorito": modelo_favorito(nuevo_favorito)}
 
+
+
 # Endpoint para listar favoritos de un usuario
-@ruta_favoritos.get("/{usuario_id}", response_model=List[dict])
+@ruta_favoritos.get("/{usuario_id}", response_model=List[str])  
 async def listar_favoritos(usuario_id: str):
     favoritos = list(db.favoritos.find({"usuario_id": usuario_id}))
     if not favoritos:
         raise HTTPException(status_code=404, detail="No se encontraron favoritos para este usuario")
-    return [modelo_favorito(f) for f in favoritos]
+    
+    # Extraer solo los glamping_id y devolverlos
+    return [favorito["glamping_id"] for favorito in favoritos]
+
+
 
 # Endpoint para eliminar un favorito
 @ruta_favoritos.delete("/", response_model=dict)
