@@ -59,9 +59,9 @@ async def listar_favoritos(usuario_id: str):
     return [modelo_favorito(f) for f in favoritos]
 
 # Endpoint para eliminar un favorito
-@ruta_favoritos.delete("/{favorito_id}", response_model=dict)
-async def eliminar_favorito(favorito_id: str):
-    resultado = db.favoritos.delete_one({"_id": ObjectId(favorito_id)})
+@ruta_favoritos.delete("/", response_model=dict)
+async def eliminar_favorito(usuario_id: str, glamping_id: str):
+    resultado = db.favoritos.delete_one({"usuario_id": usuario_id, "glamping_id": glamping_id})
     if resultado.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Favorito no encontrado")
     return {"mensaje": "Favorito eliminado"}
