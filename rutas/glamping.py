@@ -248,6 +248,7 @@ async def actualizar_glamping(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al actualizar glamping: {str(e)}")
 
+
 # Eliminar un glamping
 @ruta_glampings.delete("/{glamping_id}", status_code=204)
 async def eliminar_glamping(glamping_id: str):
@@ -258,3 +259,30 @@ async def eliminar_glamping(glamping_id: str):
         return {"mensaje": "Glamping eliminado correctamente"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al eliminar glamping: {str(e)}")
+
+
+
+# Con esto se obtienen los favoritos
+@ruta_glampings.post("/por_ids", response_model=List[ModeloGlamping])
+async def obtener_glampings_por_ids(glamping_ids: List[str]):
+    """
+    Obtiene los glampings que coincidan con los IDs proporcionados.
+
+    - `glamping_ids`: Lista de IDs de los glampings.
+    """
+    try:
+        # Convertir los IDs a ObjectId
+        object_ids = [ObjectId(glamping_id) for glamping_id in glamping_ids]
+        
+        # Consultar en la base de datos
+        glampings = list(db["glampings"].find({"_id": {"$in": object_ids}}))
+        
+        # Verificar si se encontraron resultados
+        if not glampings:
+            raise HTTPException(status_code=404, detail="No se encontraron glampings con los IDs proporcionados")
+        
+        # Convertir los documentos para incluir `ObjectId` como string
+        glampings_convertidos = [convertir_objectid(glamping) for glamping in glampings]
+        return glampings_convertidos
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener glampings por IDs: {str(e)}")
