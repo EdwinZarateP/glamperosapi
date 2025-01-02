@@ -9,6 +9,8 @@ from rutas.usuarios import ruta_usuario
 from rutas.glamping import ruta_glampings
 from rutas.enviarCorreo import ruta_correos 
 from rutas.favoritos import ruta_favoritos 
+from rutas.evaluacion import ruta_evaluaciones 
+
 
 
 app = FastAPI()
@@ -37,6 +39,8 @@ app.include_router(ruta_usuario)
 app.include_router(ruta_glampings)
 app.include_router(ruta_correos)
 app.include_router(ruta_favoritos)
+app.include_router(ruta_evaluaciones)
+
 
 @app.get("/", tags=["Home"])
 async def root():

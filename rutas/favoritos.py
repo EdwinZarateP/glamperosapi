@@ -3,7 +3,7 @@ from pymongo import MongoClient
 from bson import ObjectId
 from typing import List
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 
 # Configuración de la base de datos
@@ -22,7 +22,7 @@ ruta_favoritos = APIRouter(
 class Favorito(BaseModel):
     usuario_id: str
     glamping_id: str
-    fecha_agregado: datetime = datetime.utcnow()
+    fecha_agregado: datetime = datetime.now(timezone.utc) 
 
 # Modelo para formatear el favorito
 def modelo_favorito(favorito) -> dict:
