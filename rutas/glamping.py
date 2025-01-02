@@ -125,7 +125,7 @@ async def crear_glamping(
             "ciudad_departamento": ciudad_departamento,
             "imagenes": imagen_urls,
             "video_youtube": video_youtube,
-            "calificacion": None,
+            "calificacion": 4.5,
             "fechasReservadas": fechas_reservadas_lista,
             "creado": datetime.now(),
             "propietario_id": propietario_id,
@@ -286,3 +286,28 @@ async def obtener_glampings_por_ids(glamping_ids: List[str]):
         return glampings_convertidos
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener glampings por IDs: {str(e)}")
+
+
+
+# Actualizar la calificación de un glamping
+@ruta_glampings.patch("/{glamping_id}/calificacion", response_model=ModeloGlamping)
+async def actualizar_calificacion(
+    glamping_id: str,
+    calificacion: float = Form(..., ge=0, le=5)  # Validación para que la calificación esté entre 0 y 5
+):
+    try:
+        # Buscar el glamping por ID
+        glamping = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
+        if not glamping:
+            raise HTTPException(status_code=404, detail="Glamping no encontrado")
+
+        # Actualizar la calificación
+        actualizaciones = {"calificacion": calificacion}
+        db["glampings"].update_one({"_id": ObjectId(glamping_id)}, {"$set": actualizaciones})
+
+        # Obtener el glamping actualizado
+        glamping_actualizado = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
+        return ModeloGlamping(**convertir_objectid(glamping_actualizado))
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al actualizar la calificación: {str(e)}")
