@@ -40,16 +40,8 @@ def modelo_evaluacion(evaluacion) -> dict:
 # Endpoint para agregar una evaluación
 @ruta_evaluaciones.post("/", response_model=dict)
 async def agregar_evaluacion(evaluacion: Evaluacion):
-    # Verificar si ya existe una evaluación para el usuario y el glamping
-    existe = db.evaluaciones.find_one({
-        "usuario_id": evaluacion.usuario_id,
-        "glamping_id": evaluacion.glamping_id,
-    })
-    if existe:
-        raise HTTPException(status_code=400, detail="La evaluación ya existe")
-
-    # Agregar la evaluación
-    nueva_evaluacion = evaluacion.dict()
+    # Agregar la evaluación directamente sin verificar si ya existe
+    nueva_evaluacion = evaluacion.model_dump()
     resultado = db.evaluaciones.insert_one(nueva_evaluacion)
     nueva_evaluacion["_id"] = str(resultado.inserted_id)
     return {"mensaje": "Evaluación agregada", "evaluacion": modelo_evaluacion(nueva_evaluacion)}
