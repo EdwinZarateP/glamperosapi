@@ -3,7 +3,7 @@ from pymongo import MongoClient
 from bson import ObjectId
 from typing import List
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 
 # Configuración de la base de datos
