@@ -22,15 +22,17 @@ ruta_evaluaciones = APIRouter(
 class Evaluacion(BaseModel):
     usuario_id: str
     glamping_id: str
-    fecha_agregado: datetime = datetime.utcnow()
-    calificacion: float  # Campo numérico para calificación
-    comentario: str  # Campo de texto para comentarios
+    nombre_usuario: str
+    fecha_agregado: datetime = datetime.timezone.utc()
+    calificacion: float 
+    comentario: str 
 
 # Modelo para formatear la evaluación
 def modelo_evaluacion(evaluacion) -> dict:
     return {
         "id": str(evaluacion["_id"]),
         "usuario_id": evaluacion["usuario_id"],
+        "nombre_usuario": evaluacion["nombre_usuario"],
         "glamping_id": evaluacion["glamping_id"],
         "fecha_agregado": evaluacion["fecha_agregado"],
         "calificacion": evaluacion["calificacion"],
