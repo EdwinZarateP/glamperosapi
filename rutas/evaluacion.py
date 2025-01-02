@@ -23,7 +23,7 @@ class Evaluacion(BaseModel):
     usuario_id: str
     glamping_id: str
     nombre_usuario: str
-    fecha_agregado: datetime = datetime.timezone.utc()
+    fecha_agregado: datetime = datetime.now(timezone.utc)
     calificacion: float 
     comentario: str 
 
