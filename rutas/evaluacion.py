@@ -76,16 +76,28 @@ async def buscar_evaluacion(usuario_id: str, glamping_id: str):
 # Evaluacion promedio
 @ruta_evaluaciones.get("/glamping/{glamping_id}/promedio", response_model=dict)
 async def obtener_calificacion_promedio(glamping_id: str):
-    # Usamos la función aggregate para calcular la calificación promedio
+    # Usamos la función aggregate para calcular la calificación promedio y la cantidad de evaluaciones
     pipeline = [
         {"$match": {"glamping_id": glamping_id}},  # Filtramos las evaluaciones por glamping_id
-        {"$group": {"_id": "$glamping_id", "promedio_calificacion": {"$avg": "$calificacion"}}}
+        {"$group": {
+            "_id": "$glamping_id", 
+            "promedio_calificacion": {"$avg": "$calificacion"}, 
+            "calificacionEvaluaciones": {"$sum": 1}  # Cuenta el número de evaluaciones
+        }}
     ]
     resultado = list(db.evaluaciones.aggregate(pipeline))
     
     if resultado:
-        # Si hay resultados, devolvemos el promedio calculado
-        return {"glamping_id": glamping_id, "calificacion_promedio": resultado[0]["promedio_calificacion"]}
+        # Si hay resultados, devolvemos el promedio y la cantidad de calificaciones
+        return {
+            "glamping_id": glamping_id,
+            "calificacion_promedio": resultado[0]["promedio_calificacion"],
+            "calificacionEvaluaciones": resultado[0]["calificacionEvaluaciones"]
+        }
     else:
-        # Si no hay evaluaciones, devolvemos un valor predeterminado de 4
-        return {"glamping_id": glamping_id, "calificacion_promedio": 4}
+        # Si no hay evaluaciones, devolvemos un valor predeterminado de 4 y 0 evaluaciones
+        return {
+            "glamping_id": glamping_id,
+            "calificacion_promedio": 4,
+            "calificacionEvaluaciones": 0
+        }
