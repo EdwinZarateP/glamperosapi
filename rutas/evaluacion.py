@@ -74,7 +74,7 @@ async def buscar_evaluacion(usuario_id: str, glamping_id: str):
         return {"evaluacion_existe": False}
 
 # Evaluacion promedio
-@ruta_evaluaciones.get("/{glamping_id}/promedio", response_model=dict)
+@ruta_evaluaciones.get("/glamping/{glamping_id}/promedio", response_model=dict)
 async def obtener_calificacion_promedio(glamping_id: str):
     # Usamos la función aggregate para calcular la calificación promedio y la cantidad de evaluaciones
     pipeline = [
