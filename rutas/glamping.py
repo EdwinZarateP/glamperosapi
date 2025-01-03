@@ -311,3 +311,44 @@ async def actualizar_calificacion(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al actualizar la calificación: {str(e)}")
+
+
+
+# solo para actualizar datos basicos del glamping
+@ruta_glampings.put("/{glamping_id}", response_model=ModeloGlamping)
+async def actualizar_glamping(
+    glamping_id: str,
+    nombreGlamping: str = Form(None),
+    tipoGlamping: str = Form(None),
+    Acepta_Mascotas: bool = Form(...),
+    precioEstandar: float = Form(None),
+    descuento: float = Form(None),
+    descripcionGlamping: str = Form(None),
+    video_youtube: str = Form(None),
+):
+    try:
+        glamping = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
+        if not glamping:
+            raise HTTPException(status_code=404, detail="Glamping no encontrado")
+
+        actualizaciones = {}
+        if nombreGlamping:
+            actualizaciones["nombreGlamping"] = nombreGlamping
+        if tipoGlamping:
+            actualizaciones["tipoGlamping"] = tipoGlamping
+        if Acepta_Mascotas:
+            actualizaciones["Acepta_Mascotas"] = Acepta_Mascotas
+        if precioEstandar:
+            actualizaciones["precioEstandar"] = precioEstandar
+        if descuento:
+            actualizaciones["descuento"] = descuento
+        if descripcionGlamping:
+            actualizaciones["descripcionGlamping"] = descripcionGlamping
+        if video_youtube:
+            actualizaciones["video_youtube"] = video_youtube
+
+        db["glampings"].update_one({"_id": ObjectId(glamping_id)}, {"$set": actualizaciones})
+        glamping_actualizado = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
+        return ModeloGlamping(**convertir_objectid(glamping_actualizado))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al actualizar glamping: {str(e)}")
