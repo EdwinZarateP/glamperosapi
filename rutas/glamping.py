@@ -264,12 +264,15 @@ async def actualizar_glamping(
     descuento: float = Form(None),
     descripcionGlamping: str = Form(None),
     video_youtube: str = Form(None),
-    amenidadesGlobal: Optional[list[str]] = None 
+    amenidadesGlobal: str = Form(...), 
 ):
     try:
         glamping = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
         if not glamping:
             raise HTTPException(status_code=404, detail="Glamping no encontrado")
+
+        # Procesamiento de amenidadesGlobal: convertir de cadena a lista de amenidades
+        amenidades_lista = [amenidad.strip() for amenidad in amenidadesGlobal.split(",")]
 
         actualizaciones = {}
         if nombreGlamping:
@@ -287,7 +290,7 @@ async def actualizar_glamping(
         if video_youtube:
             actualizaciones["video_youtube"] = video_youtube
         if amenidadesGlobal:
-            actualizaciones["amenidadesGlobal"] = amenidadesGlobal
+            actualizaciones["amenidadesGlobal"] = amenidades_lista
 
         db["glampings"].update_one({"_id": ObjectId(glamping_id)}, {"$set": actualizaciones})
         glamping_actualizado = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
