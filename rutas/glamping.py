@@ -189,66 +189,6 @@ async def obtener_glamping_por_id(glamping_id: str):
         raise HTTPException(status_code=500, detail=f"Error al obtener glamping: {str(e)}")
 
 
-
-# Actualizar un glamping
-@ruta_glampings.put("/{glamping_id}", response_model=ModeloGlamping)
-async def actualizar_glamping(
-    glamping_id: str,
-    nombreGlamping: str = Form(None),
-    tipoGlamping: str = Form(None),
-    Acepta_Mascotas: bool = Form(...),
-    ubicacion: str = Form(None),
-    precioEstandar: float = Form(None),
-    Cantidad_Huespedes: float = Form(None),    
-    descuento: float = Form(None),
-    descripcionGlamping: str = Form(None),
-    amenidadesGlobal: str = Form(None),
-    ciudad_departamento: str = Form(None),
-    imagenes: List[UploadFile] = File(None),
-    video_youtube: str = Form(None),
-    propietario_id: str = Form(None),
-):
-    try:
-        glamping = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
-        if not glamping:
-            raise HTTPException(status_code=404, detail="Glamping no encontrado")
-
-        actualizaciones = {}
-        if nombreGlamping:
-            actualizaciones["nombreGlamping"] = nombreGlamping
-        if tipoGlamping:
-            actualizaciones["tipoGlamping"] = tipoGlamping
-        if Acepta_Mascotas:
-            actualizaciones["Acepta_Mascotas"] = Acepta_Mascotas
-        if ubicacion:
-            actualizaciones["ubicacion"] = ubicacion
-        if precioEstandar:
-            actualizaciones["precioEstandar"] = precioEstandar
-        if Cantidad_Huespedes:
-            actualizaciones["Cantidad_Huespedes"] = Cantidad_Huespedes        
-        if descuento:
-            actualizaciones["descuento"] = descuento
-        if descripcionGlamping:
-            actualizaciones["descripcionGlamping"] = descripcionGlamping
-        if amenidadesGlobal:
-            actualizaciones["amenidadesGlobal"] = amenidadesGlobal.split(",")
-        if ciudad_departamento:
-            actualizaciones["ciudad_departamento"] = ciudad_departamento
-        if imagenes:
-            imagen_urls = [subir_a_google_storage(imagen) for imagen in imagenes]
-            actualizaciones["imagenes"] = imagen_urls
-        if video_youtube:
-            actualizaciones["video_youtube"] = video_youtube
-        if propietario_id:
-            actualizaciones["propietario_id"] = propietario_id
-
-        db["glampings"].update_one({"_id": ObjectId(glamping_id)}, {"$set": actualizaciones})
-        glamping_actualizado = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
-        return ModeloGlamping(**convertir_objectid(glamping_actualizado))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al actualizar glamping: {str(e)}")
-
-
 # Eliminar un glamping
 @ruta_glampings.delete("/{glamping_id}", status_code=204)
 async def eliminar_glamping(glamping_id: str):
@@ -313,7 +253,6 @@ async def actualizar_calificacion(
         raise HTTPException(status_code=500, detail=f"Error al actualizar la calificación: {str(e)}")
 
 
-
 # solo para actualizar datos basicos del glamping
 @ruta_glampings.put("/{glamping_id}", response_model=ModeloGlamping)
 async def actualizar_glamping(
@@ -325,6 +264,7 @@ async def actualizar_glamping(
     descuento: float = Form(None),
     descripcionGlamping: str = Form(None),
     video_youtube: str = Form(None),
+    amenidadesGlobal: Optional[list[str]] = None 
 ):
     try:
         glamping = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
@@ -346,6 +286,8 @@ async def actualizar_glamping(
             actualizaciones["descripcionGlamping"] = descripcionGlamping
         if video_youtube:
             actualizaciones["video_youtube"] = video_youtube
+        if amenidadesGlobal:
+            actualizaciones["amenidadesGlobal"] = amenidadesGlobal
 
         db["glampings"].update_one({"_id": ObjectId(glamping_id)}, {"$set": actualizaciones})
         glamping_actualizado = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
