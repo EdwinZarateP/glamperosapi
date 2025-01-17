@@ -27,7 +27,7 @@ async def enviar_mensaje_directo(mensaje: MensajeWhatsAppDirecto):
     # Credenciales de Twilio desde las variables de entorno
     account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
     auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
-    from_whatsapp = 'whatsapp:+14155238886'
+    from_whatsapp = 'whatsapp:+573215658598'
 
     if not account_sid or not auth_token:
         raise HTTPException(status_code=500, detail="Twilio credentials not set in environment variables.")
