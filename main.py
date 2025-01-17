@@ -11,7 +11,7 @@ from rutas.enviarCorreo import ruta_correos
 from rutas.favoritos import ruta_favoritos 
 from rutas.evaluacion import ruta_evaluaciones 
 from rutas.mensajeria import ruta_mensajes
-# from rutas.whatsapp import ruta_whatsapp
+from rutas.whatsapp import ruta_whatsapp
 
 
 
@@ -43,7 +43,7 @@ app.include_router(ruta_correos)
 app.include_router(ruta_favoritos)
 app.include_router(ruta_evaluaciones)
 app.include_router(ruta_mensajes)
-# app.include_router(ruta_whatsapp)
+app.include_router(ruta_whatsapp)
 
 
 @app.get("/", tags=["Home"])
