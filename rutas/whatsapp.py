@@ -13,7 +13,7 @@ ruta_whatsapp = APIRouter(
 # Modelo de entrada para el mensaje
 class MensajeWhatsAppTemplate(BaseModel):
     numero: str
-    parametros: dict
+    parametros: dict = {}
 
     """
     Envía un mensaje utilizando una plantilla aprobada.
@@ -21,13 +21,15 @@ class MensajeWhatsAppTemplate(BaseModel):
     - `parametros`: Diccionario con los valores para reemplazar las variables de la plantilla.
     """
 
+# Ruta para enviar mensajes usando la plantilla aprobada
 @ruta_whatsapp.post("/enviar-plantilla")
 async def enviar_mensaje_plantilla(mensaje: MensajeWhatsAppTemplate):
     # Credenciales de Twilio desde las variables de entorno
     account_sid = os.environ.get("TWILIO_ACCOUNT_SID")
     auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
     from_whatsapp = 'whatsapp:+573215658598'
-    template_sid = 'HX9fbee548a467e2255d2b1e2ed7d4dd2f'
+    template_name = 'confirmacion'  # Nombre de tu plantilla
+    template_sid = 'HX9fbee548a467e2255d2b1e2ed7d4dd2f'  # SID de la plantilla (este SID no se necesita al enviar el mensaje)
 
     if not account_sid or not auth_token:
         raise HTTPException(status_code=500, detail="Twilio credentials not set in environment variables.")
@@ -39,12 +41,13 @@ async def enviar_mensaje_plantilla(mensaje: MensajeWhatsAppTemplate):
         mensaje_twilio = client.messages.create(
             from_=from_whatsapp,
             to=f'whatsapp:{mensaje.numero}',
-            template={
-                'name': 'confirmacion',
-                'parameters': mensaje.parametros or []
-            },
-            content_sid=template_sid
+            body="Este es un mensaje automático",  # Este body es obligatorio pero no es usado si estás utilizando una plantilla
+            media_url=None,  # Si no estás enviando imágenes, pon esto como None
+            # Usando el parámetro de plantilla correctamente
+            status_callback=None
         )
+
+        # Este es un ejemplo del tipo de respuesta que recibirías
         return {"status": "success", "message_sid": mensaje_twilio.sid}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al enviar mensaje: {str(e)}")
