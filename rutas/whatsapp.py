@@ -18,7 +18,7 @@ class MensajeWhatsAppDirecto(BaseModel):
     """
     Envía un mensaje de texto directo por WhatsApp.
     - `numero`: Número de WhatsApp del destinatario.
-    - `mensaje`: El mensaje a enviar.
+    - `mensaje`: El mensaje que quiere enviar.
     """
 
 # Ruta para enviar mensaje por WhatsApp
