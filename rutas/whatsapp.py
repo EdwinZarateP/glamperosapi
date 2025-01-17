@@ -39,10 +39,11 @@ async def enviar_mensaje_plantilla(mensaje: MensajeWhatsAppTemplate):
             from_=from_whatsapp,
             to=f'whatsapp:{mensaje.numero}',
             body="Este es un mensaje automático",  # Este body es obligatorio pero no se usa si la plantilla se aplica
-            media_url=None,  # Si no estás enviando imágenes, pon esto como None
-            status_callback=None,
-            # Usando el nombre de la plantilla para enviarla
-            template={'name': template_name}
+            # Usando la plantilla con el nombre correcto y la categoría
+            template={
+                "name": template_name,
+                "language": {"code": "es"},  # Asegúrate de usar el código de idioma correcto
+            }
         )
 
         # Respuesta
