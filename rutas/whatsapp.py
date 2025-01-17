@@ -27,6 +27,7 @@ async def enviar_mensaje_plantilla(mensaje: MensajeWhatsAppTemplate):
     auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
     from_whatsapp = 'whatsapp:+573215658598'
     template_name = 'confirmacion'  # Nombre de tu plantilla
+    template_namespace = 'your_template_namespace'  # Namespace de la plantilla si lo tienes, puede ser vacío
 
     if not account_sid or not auth_token:
         raise HTTPException(status_code=500, detail="Twilio credentials not set in environment variables.")
@@ -34,15 +35,17 @@ async def enviar_mensaje_plantilla(mensaje: MensajeWhatsAppTemplate):
     client = Client(account_sid, auth_token)
 
     try:
-        # Envío del mensaje utilizando la plantilla sin parámetros
+        # Envío del mensaje utilizando la plantilla
         mensaje_twilio = client.messages.create(
             from_=from_whatsapp,
             to=f'whatsapp:{mensaje.numero}',
-            body="Este es un mensaje automático",  # Este body es obligatorio pero no se usa si la plantilla se aplica
-            # Usando la plantilla con el nombre correcto y la categoría
+            # Aquí usamos `template` y los parámetros para la plantilla, si no hay parámetros no es necesario incluir nada.
+            body="Este es un mensaje de prueba",
             template={
+                "namespace": template_namespace,
                 "name": template_name,
-                "language": {"code": "es"},  # Asegúrate de usar el código de idioma correcto
+                "language": {"code": "es"},
+                "components": []
             }
         )
 
