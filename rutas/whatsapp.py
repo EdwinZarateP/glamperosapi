@@ -21,7 +21,6 @@ class MensajeWhatsAppTemplate(BaseModel):
     - `parametros`: Diccionario con los valores para reemplazar las variables de la plantilla.
     """
 
-# Ruta para enviar mensajes usando la plantilla aprobada
 @ruta_whatsapp.post("/enviar-plantilla")
 async def enviar_mensaje_plantilla(mensaje: MensajeWhatsAppTemplate):
     # Credenciales de Twilio desde las variables de entorno
@@ -42,7 +41,7 @@ async def enviar_mensaje_plantilla(mensaje: MensajeWhatsAppTemplate):
             to=f'whatsapp:{mensaje.numero}',
             template={
                 'name': 'confirmacion',
-                'parameters': mensaje.parametros
+                'parameters': mensaje.parametros or []
             },
             content_sid=template_sid
         )
