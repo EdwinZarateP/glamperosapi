@@ -15,7 +15,7 @@ auth_token = os.environ.get("TWILIO_AUTH_TOKEN")
 from_whatsapp_number = 'whatsapp:+573215658598'  # Tu número de WhatsApp registrado en Twilio
 to_whatsapp_number = 'whatsapp:+573125443396'  # El número de destino
 
-# SID de la plantilla
+# SID de la plantilla de WhatsApp
 template_sid = 'HX9fbee548a467e2255d2b1e2ed7d4dd2f'
 
 # Inicialización del cliente de Twilio
@@ -25,12 +25,19 @@ client = Client(account_sid, auth_token)
 @ruta_whatsapp.post("/enviar-mensaje")
 async def enviar_mensaje():
     try:
+        # Enviar mensaje utilizando la plantilla de WhatsApp
         message = client.messages.create(
             to=to_whatsapp_number,
             from_=from_whatsapp_number,
-            body="Confirmación de tu mensaje",  # Puedes incluir un texto simple, si es necesario
-            messaging_service_sid=template_sid,
-            status_callback="https://www.yourcallbackurl.com"
+            messaging_service_sid="your_messaging_service_sid",  # SID del servicio de mensajería
+            status_callback="https://www.yourcallbackurl.com",
+            template={
+                "name": "confirmacion",  # Nombre de la plantilla en Twilio
+                "language": {"code": "es_MX"},  # Código de idioma de la plantilla
+                "parameters": [
+                    {"type": "text", "text": "Parámetro del mensaje"}  # Parámetro de la plantilla
+                ]
+            }
         )
         return {"status": "success", "message_sid": message.sid}
     except Exception as e:
