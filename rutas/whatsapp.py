@@ -33,9 +33,4 @@ async def webhook(request: Request):
     # Puedes agregar una respuesta automatizada o lógica adicional aquí
     return {"status": "ok"}
 
-# Crear la aplicación FastAPI
-app = FastAPI()
-
-# Incluir las rutas del webhook en la aplicación
-app.include_router(ruta_whatsapp)
 
