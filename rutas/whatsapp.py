@@ -21,6 +21,7 @@ async def verify_webhook(request: Request):
     else:
         return JSONResponse(content="Error de verificación", status_code=403)
 
+
 # Ruta para recibir los mensajes
 @ruta_whatsapp.post("/")
 async def webhook(request: Request):
