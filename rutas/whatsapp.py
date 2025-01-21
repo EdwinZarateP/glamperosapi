@@ -16,7 +16,7 @@ async def verify_webhook(request: Request):
     hub_verify_token = request.query_params.get("hub.verify_token")
     
     # Verifica que el token sea el correcto
-    if hub_verify_token == "mi_token_secreto":  # Aquí reemplaza con el token de verificación que hayas elegido
+    if hub_verify_token == "mitoken":  # Aquí reemplaza con el token de verificación que hayas elegido
         return JSONResponse(content=hub_challenge)
     else:
         return JSONResponse(content="Error de verificación", status_code=403)
