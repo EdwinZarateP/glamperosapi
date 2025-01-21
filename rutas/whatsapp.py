@@ -21,7 +21,6 @@ async def verify_webhook(request: Request):
     else:
         return JSONResponse(content="Error de verificación", status_code=403)
 
-
 # Ruta para recibir los mensajes
 @ruta_whatsapp.post("/")
 async def webhook(request: Request):
@@ -33,3 +32,10 @@ async def webhook(request: Request):
     
     # Puedes agregar una respuesta automatizada o lógica adicional aquí
     return {"status": "ok"}
+
+# Crear la aplicación FastAPI
+app = FastAPI()
+
+# Incluir las rutas del webhook en la aplicación
+app.include_router(ruta_whatsapp)
+
