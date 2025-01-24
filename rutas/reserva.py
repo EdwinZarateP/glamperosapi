@@ -1,0 +1,71 @@
+from fastapi import APIRouter, HTTPException, status, Body
+from pymongo import MongoClient
+from bson import ObjectId
+from datetime import datetime
+from pydantic import BaseModel
+import os
+
+# Configuración de la base de datos
+MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
+ConexionMongo = MongoClient(MONGO_URI)
+base_datos = ConexionMongo["glamperos"]
+
+# Configuración de FastAPI
+ruta_reserva = APIRouter(
+    prefix="/reservas",
+    tags=["Reservas"],
+    responses={status.HTTP_404_NOT_FOUND: {"message": "No encontrado"}},
+)
+
+# Modelo de reserva
+class Reserva(BaseModel):
+    idCliente: str
+    idGlamping: str
+    FechaIngreso: datetime
+    FechaSalida: datetime
+    ValorReserva: float
+    huespedes: int
+    mascotas: int
+    EstadoReserva: str
+
+# Modelo de respuesta de reserva
+def modelo_reserva(reserva) -> dict:
+    return {
+        "id": str(reserva["_id"]),
+        "idCliente": reserva["idCliente"],
+        "idGlamping": reserva["idGlamping"],
+        "FechaIngreso": reserva["FechaIngreso"],
+        "FechaSalida": reserva["FechaSalida"],
+        "ValorReserva": reserva["ValorReserva"],
+        "fechaCreacion": reserva["fechaCreacion"],
+        "huespedes": reserva["huespedes"],
+        "mascotas": reserva["mascotas"],
+        "EstadoReserva": reserva["EstadoReserva"],
+    }
+
+# Crear una nueva reserva
+@ruta_reserva.post("/", response_model=dict)
+async def crear_reserva(reserva: Reserva):
+    try:
+        nueva_reserva = {
+            "idCliente": reserva.idCliente,
+            "idGlamping": reserva.idGlamping,
+            "FechaIngreso": reserva.FechaIngreso,
+            "FechaSalida": reserva.FechaSalida,
+            "ValorReserva": reserva.ValorReserva,
+            "fechaCreacion": datetime.now(),
+            "huespedes": reserva.huespedes,
+            "mascotas": reserva.mascotas,
+            "EstadoReserva": reserva.EstadoReserva,
+        }
+
+        # Insertar en la base de datos
+        result = base_datos.reservas.insert_one(nueva_reserva)
+        nueva_reserva["_id"] = result.inserted_id
+
+        return {"mensaje": "Reserva creada exitosamente", "reserva": modelo_reserva(nueva_reserva)}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al crear la reserva: {str(e)}"
+        )

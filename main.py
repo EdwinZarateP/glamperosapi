@@ -12,8 +12,7 @@ from rutas.favoritos import ruta_favoritos
 from rutas.evaluacion import ruta_evaluaciones 
 from rutas.mensajeria import ruta_mensajes
 from rutas.whatsapp import ruta_whatsapp
-
-
+from rutas.reserva import ruta_reserva
 
 app = FastAPI()
 app.title = "Glamperos"
@@ -44,6 +43,7 @@ app.include_router(ruta_favoritos)
 app.include_router(ruta_evaluaciones)
 app.include_router(ruta_mensajes)
 app.include_router(ruta_whatsapp)
+app.include_router(ruta_reserva)
 
 
 @app.get("/", tags=["Home"])
