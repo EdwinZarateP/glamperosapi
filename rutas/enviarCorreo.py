@@ -21,51 +21,23 @@ ruta_correos = APIRouter(
 class EmailRequest(BaseModel):
     name: str
     email: str
+    subject: str
+    html_content: str  # Agregar el contenido del correo
 
 @ruta_correos.post("/send-email")
 async def send_email(data: EmailRequest):
     try:
         # Agregar correo adicional por defecto
-        destinatarios = [data.email, "emzp1994@gmail.com"]  # Añadir el correo adicional
+        destinatarios = [data.email, "emzp1994@gmail.com"]
 
         # Enviar el correo
         response = resend.Emails.send({
             "from": "registro@glamperos.com",
             "to": destinatarios,  # Usar la lista de destinatarios
-            "subject": "¡Bienvenid@ a la familia Glamperos!",
-            "html": f"""
-            <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
-                <h1 style="color: #4CAF50;">¡Bienvenido a la familia Glamperos!</h1>
-                <p>
-                    Estimad@ {data.name},
-                </p>
-                <p>
-                    Nos sentimos muy emocionados de tenerte como parte de nuestra
-                    Comunidad de emprendedores de experiencias únicas. Gracias por inscribir tu propiedad con Glamperos, 
-                    el lugar donde el glamping cobra vida.
-                    Una vez verifiquemos si tu glamping cumple con nuestros requisitos, te notificaremos a este correo cuando quede activo en la plataforma!
-                </p>
-                <p>
-                    Ahora estás listo/a para conectar con cientos de personas que buscan una experiencia única, confortable y memorable en tu espacio.
-                </p>
-                <p>
-                    Si necesitas ayuda o tienes preguntas, nuestro equipo estará siempre aquí para ti.
-                </p>
-                <p>
-                    ¡Juntos haremos que esta aventura sea inolvidable!
-                </p>
-                <p style="margin: 20px 0;">
-                    El equipo de <strong style="color: #4CAF50;">Glamperos</strong>.
-                </p>
-                <hr style="border: 1px solid #e0e0e0;">
-                <p style="font-size: 0.9em; color: #777;">
-                    Si tienes preguntas, no dudes en ponerte en contacto con nosotros a través de nuestro portal.
-                </p>
-            </div>
-            """
+            "subject": data.subject,  
+            "html": data.html_content  # Usar el contenido HTML enviado desde el frontend
         })
 
         return {"status": "success", "response": response}
     except Exception as e:
         return {"status": "error", "error": str(e)}
-
