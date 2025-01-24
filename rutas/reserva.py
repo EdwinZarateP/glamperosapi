@@ -20,7 +20,7 @@ ruta_reserva = APIRouter(
 # Modelo de reserva
 class Reserva(BaseModel):
     idCliente: str
-    idPropiestario: str
+    idPropietario: str
     idGlamping: str
     FechaIngreso: datetime
     FechaSalida: datetime
@@ -34,7 +34,7 @@ def modelo_reserva(reserva) -> dict:
     return {
         "id": str(reserva["_id"]),
         "idCliente": reserva["idCliente"],
-        "idPropiestario": reserva["idPropiestario"],        
+        "idPropietario": reserva["idPropietario"],        
         "idGlamping": reserva["idGlamping"],
         "FechaIngreso": reserva["FechaIngreso"],
         "FechaSalida": reserva["FechaSalida"],
@@ -52,7 +52,7 @@ async def crear_reserva(reserva: Reserva):
     try:
         nueva_reserva = {
             "idCliente": reserva.idCliente,
-            "idPropiestario": reserva.idPropiestario,
+            "idPropietario": reserva.idPropietario,
             "idGlamping": reserva.idGlamping,
             "FechaIngreso": reserva.FechaIngreso,
             "FechaSalida": reserva.FechaSalida,
