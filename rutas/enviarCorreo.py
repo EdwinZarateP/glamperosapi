@@ -19,10 +19,11 @@ ruta_correos = APIRouter(
 
 # Modelo de datos para el cuerpo del request
 class EmailRequest(BaseModel):
+    from_email: str = "registro@glamperos.com"  # Remitente opcional con valor por defecto
     name: str
     email: str
     subject: str
-    html_content: str  # Agregar el contenido del correo
+    html_content: str  # Contenido del correo
 
 @ruta_correos.post("/send-email")
 async def send_email(data: EmailRequest):
@@ -32,9 +33,9 @@ async def send_email(data: EmailRequest):
 
         # Enviar el correo
         response = resend.Emails.send({
-            "from": "registro@glamperos.com",
-            "to": destinatarios,  # Usar la lista de destinatarios
-            "subject": data.subject,  
+            "from": data.from_email,  # Usar el remitente proporcionado o el valor por defecto
+            "to": destinatarios,
+            "subject": data.subject,
             "html": data.html_content  # Usar el contenido HTML enviado desde el frontend
         })
 
