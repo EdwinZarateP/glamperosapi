@@ -25,7 +25,9 @@ class Reserva(BaseModel):
     FechaIngreso: datetime
     FechaSalida: datetime
     ValorReserva: float
-    huespedes: int
+    adultos: int
+    niños: int
+    bebes: int
     mascotas: int
     EstadoReserva: str
 
@@ -39,7 +41,9 @@ def modelo_reserva(reserva) -> dict:
         "FechaIngreso": reserva["FechaIngreso"],
         "FechaSalida": reserva["FechaSalida"],
         "ValorReserva": reserva["ValorReserva"],
-        "huespedes": reserva["huespedes"],
+        "adultos": reserva["adultos"],
+        "niños": reserva["niños"],
+        "bebes": reserva["bebes"],
         "mascotas": reserva["mascotas"],
         "EstadoReserva": reserva["EstadoReserva"],
         "fechaCreacion": reserva["fechaCreacion"],
@@ -57,7 +61,9 @@ async def crear_reserva(reserva: Reserva):
             "FechaIngreso": reserva.FechaIngreso,
             "FechaSalida": reserva.FechaSalida,
             "ValorReserva": reserva.ValorReserva,
-            "huespedes": reserva.huespedes,
+            "adultos": reserva.adultos,
+            "niños": reserva.niños,
+            "bebes": reserva.bebes,
             "mascotas": reserva.mascotas,
             "EstadoReserva": reserva.EstadoReserva,
             "fechaCreacion": datetime.now(),
