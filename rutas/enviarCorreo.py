@@ -28,7 +28,7 @@ class EmailRequest(BaseModel):
 async def send_email(data: EmailRequest):
     try:
         # Agregar correo adicional por defecto
-        destinatarios = [data.email, "emzp1994@gmail.com"]
+        destinatarios = [data.email]
 
         # Enviar el correo
         response = resend.Emails.send({
