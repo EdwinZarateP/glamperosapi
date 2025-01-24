@@ -20,6 +20,7 @@ ruta_reserva = APIRouter(
 # Modelo de reserva
 class Reserva(BaseModel):
     idCliente: str
+    idPropiestario: str
     idGlamping: str
     FechaIngreso: datetime
     FechaSalida: datetime
@@ -33,14 +34,16 @@ def modelo_reserva(reserva) -> dict:
     return {
         "id": str(reserva["_id"]),
         "idCliente": reserva["idCliente"],
+        "idPropiestario": reserva["idPropiestario"],        
         "idGlamping": reserva["idGlamping"],
         "FechaIngreso": reserva["FechaIngreso"],
         "FechaSalida": reserva["FechaSalida"],
         "ValorReserva": reserva["ValorReserva"],
-        "fechaCreacion": reserva["fechaCreacion"],
         "huespedes": reserva["huespedes"],
         "mascotas": reserva["mascotas"],
         "EstadoReserva": reserva["EstadoReserva"],
+        "fechaCreacion": reserva["fechaCreacion"],
+
     }
 
 # Crear una nueva reserva
@@ -49,14 +52,15 @@ async def crear_reserva(reserva: Reserva):
     try:
         nueva_reserva = {
             "idCliente": reserva.idCliente,
+            "idPropiestario": reserva.idPropiestario,
             "idGlamping": reserva.idGlamping,
             "FechaIngreso": reserva.FechaIngreso,
             "FechaSalida": reserva.FechaSalida,
             "ValorReserva": reserva.ValorReserva,
-            "fechaCreacion": datetime.now(),
             "huespedes": reserva.huespedes,
             "mascotas": reserva.mascotas,
             "EstadoReserva": reserva.EstadoReserva,
+            "fechaCreacion": datetime.now(),
         }
 
         # Insertar en la base de datos
