@@ -85,6 +85,7 @@ async def crear_glamping(
     Acepta_Mascotas: bool = Form(...),
     ubicacion: str = Form(...),
     precioEstandar: float = Form(...),
+    precioEstandarAdicional: float = Form(...),
     Cantidad_Huespedes: float = Form(...),
     Cantidad_Huespedes_Adicionales: float = Form(...),
     descuento: float = Form(...),
@@ -120,6 +121,7 @@ async def crear_glamping(
             "Acepta_Mascotas": Acepta_Mascotas,
             "ubicacion": ubicacion,
             "precioEstandar": precioEstandar,
+            "precioEstandarAdicional": precioEstandarAdicional,
             "Cantidad_Huespedes": Cantidad_Huespedes,
             "Cantidad_Huespedes_Adicionales":Cantidad_Huespedes_Adicionales,
             "descuento": descuento,
@@ -262,8 +264,11 @@ async def actualizar_glamping(
     glamping_id: str,
     nombreGlamping: str = Form(None),
     tipoGlamping: str = Form(None),
+    Cantidad_Huespedes: str = Form(None),
+    Cantidad_Huespedes_Adicionales: str = Form(None),
     Acepta_Mascotas: str = Form(...), 
     precioEstandar: float = Form(None),
+    precioEstandarAdicional: float = Form(None),
     descuento: float = Form(None),
     descripcionGlamping: str = Form(None),
     video_youtube: str = Form(None),
@@ -290,10 +295,16 @@ async def actualizar_glamping(
             actualizaciones["nombreGlamping"] = nombreGlamping
         if tipoGlamping:
             actualizaciones["tipoGlamping"] = tipoGlamping
+        if Cantidad_Huespedes:
+            actualizaciones["Cantidad_Huespedes"] = Cantidad_Huespedes
+        if Cantidad_Huespedes_Adicionales:
+            actualizaciones["Cantidad_Huespedes_Adicionales"] = Cantidad_Huespedes_Adicionales            
         if Acepta_Mascotas is not None:
             actualizaciones["Acepta_Mascotas"] = Acepta_Mascotas
         if precioEstandar:
             actualizaciones["precioEstandar"] = precioEstandar
+        if precioEstandarAdicional:
+            actualizaciones["precioEstandarAdicional"] = precioEstandarAdicional
         if descuento:
             actualizaciones["descuento"] = descuento
         if descripcionGlamping:
