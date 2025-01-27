@@ -87,7 +87,7 @@ async def crear_glamping(
     precioEstandar: float = Form(...),
     precioEstandarAdicional: float = Form(...),
     Cantidad_Huespedes: float = Form(...),
-    Cantidad_Huespedes_Adicionales: float = Form(...),
+    Cantidad_Huespedes_Adicional: float = Form(...),
     descuento: float = Form(...),
     descripcionGlamping: str = Form(...),
     amenidadesGlobal: str = Form(...),
@@ -123,7 +123,7 @@ async def crear_glamping(
             "precioEstandar": precioEstandar,
             "precioEstandarAdicional": precioEstandarAdicional,
             "Cantidad_Huespedes": Cantidad_Huespedes,
-            "Cantidad_Huespedes_Adicionales":Cantidad_Huespedes_Adicionales,
+            "Cantidad_Huespedes_Adicional":Cantidad_Huespedes_Adicional,
             "descuento": descuento,
             "descripcionGlamping": descripcionGlamping,
             "amenidadesGlobal": amenidades_lista,
@@ -265,7 +265,7 @@ async def actualizar_glamping(
     nombreGlamping: str = Form(None),
     tipoGlamping: str = Form(None),
     Cantidad_Huespedes: float = Form(None),
-    Cantidad_Huespedes_Adicionales:float = Form(None),
+    Cantidad_Huespedes_Adicional:float = Form(None),
     Acepta_Mascotas: str = Form(...), 
     precioEstandar: float = Form(None),
     precioEstandarAdicional: float = Form(None),
@@ -297,8 +297,8 @@ async def actualizar_glamping(
             actualizaciones["tipoGlamping"] = tipoGlamping
         if Cantidad_Huespedes:
             actualizaciones["Cantidad_Huespedes"] = Cantidad_Huespedes
-        if Cantidad_Huespedes_Adicionales:
-            actualizaciones["Cantidad_Huespedes_Adicionales"] = Cantidad_Huespedes_Adicionales            
+        if Cantidad_Huespedes_Adicional:
+            actualizaciones["Cantidad_Huespedes_Adicional"] = Cantidad_Huespedes_Adicional           
         if Acepta_Mascotas is not None:
             actualizaciones["Acepta_Mascotas"] = Acepta_Mascotas
         if precioEstandar:
