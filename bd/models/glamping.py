@@ -9,8 +9,8 @@ class ModeloGlamping(BaseModel):
     tipoGlamping: str = "choza"
     Acepta_Mascotas: bool = True     
     ubicacion: Optional[Dict[str, float]] = {"latitud": 4.5981, "longitud": -74.0758}  # Ejemplo de ubicación    
-    precioEstandar: float = 250000
-    precioEstandarAdicional:float = 100000
+    precioEstandar: float = 0
+    precioEstandarAdicional:float = 0
     Cantidad_Huespedes: float = 1  
     Cantidad_Huespedes_Adicional: float = 0 
     descuento:float = 0 
