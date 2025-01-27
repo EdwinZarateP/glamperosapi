@@ -297,16 +297,26 @@ async def actualizar_glamping(
             actualizaciones["tipoGlamping"] = tipoGlamping
         if Cantidad_Huespedes:
             actualizaciones["Cantidad_Huespedes"] = Cantidad_Huespedes
-        if Cantidad_Huespedes_Adicional:
-            actualizaciones["Cantidad_Huespedes_Adicional"] = Cantidad_Huespedes_Adicional           
+        
+        if Cantidad_Huespedes_Adicional is not None:
+            actualizaciones["Cantidad_Huespedes_Adicional"] = Cantidad_Huespedes_Adicional
+        else:
+            actualizaciones["Cantidad_Huespedes_Adicional"] = 0 
+        
         if Acepta_Mascotas is not None:
             actualizaciones["Acepta_Mascotas"] = Acepta_Mascotas
         if precioEstandar:
             actualizaciones["precioEstandar"] = precioEstandar
-        if precioEstandarAdicional:
+        if precioEstandarAdicional is not None:
             actualizaciones["precioEstandarAdicional"] = precioEstandarAdicional
-        if descuento:
+        else:
+            actualizaciones["precioEstandarAdicional"] = 0 
+        
+        if descuento is not None:
             actualizaciones["descuento"] = descuento
+        else:
+            actualizaciones["descuento"] = 0
+
         if descripcionGlamping:
             actualizaciones["descripcionGlamping"] = descripcionGlamping
         if video_youtube:
