@@ -8,9 +8,11 @@ class ModeloGlamping(BaseModel):
     nombreGlamping: str = "Glamping Estrella Verde" 
     tipoGlamping: str = "choza"
     Acepta_Mascotas: bool = True     
-    ubicacion: Optional[Dict[str, float]] = {"latitud": 4.5981, "longitud": -74.0758}  # Ejemplo de ubicación
-    precioEstandar: float = 150.0
-    Cantidad_Huespedes: float = 1     
+    ubicacion: Optional[Dict[str, float]] = {"latitud": 4.5981, "longitud": -74.0758}  # Ejemplo de ubicación    
+    precioEstandar: float = 250000
+    precioEstandarAdicional:float = 100000
+    Cantidad_Huespedes: float = 1  
+    Cantidad_Huespedes_Adicional: float = 0 
     descuento:float = 0 
     descripcionGlamping: str = "Un lugar increíble rodeado de naturaleza."
     imagenes: List[str] = ["https://example.com/image1.jpg", "https://example.com/image2.jpg"]  # Ejemplo de URLs de imágenes
