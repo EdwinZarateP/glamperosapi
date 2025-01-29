@@ -22,6 +22,7 @@ class Reserva(BaseModel):
     idCliente: str
     idPropietario: str
     idGlamping: str
+    ciudad_departamento: str
     FechaIngreso: datetime
     FechaSalida: datetime
     Noches: float
@@ -41,6 +42,7 @@ def modelo_reserva(reserva) -> dict:
         "idCliente": reserva["idCliente"],
         "idPropietario": reserva["idPropietario"],        
         "idGlamping": reserva["idGlamping"],
+        "ciudad_departamento": reserva["ciudad_departamento"],
         "FechaIngreso": reserva["FechaIngreso"],
         "FechaSalida": reserva["FechaSalida"],
         "Noches": reserva["Noches"],
@@ -64,6 +66,7 @@ async def crear_reserva(reserva: Reserva):
             "idCliente": reserva.idCliente,
             "idPropietario": reserva.idPropietario,
             "idGlamping": reserva.idGlamping,
+            "ciudad_departamento": reserva.ciudad_departamento,
             "FechaIngreso": reserva.FechaIngreso,
             "FechaSalida": reserva.FechaSalida,
             "Noches": reserva.Noches,
