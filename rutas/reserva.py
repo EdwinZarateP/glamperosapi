@@ -29,7 +29,7 @@ class Reserva(BaseModel):
     CostoGlamping: float
     ComisionGlamperos: float
     adultos: int
-    niños: int
+    ninos: int
     bebes: int
     mascotas: int
     EstadoReserva: str
@@ -48,7 +48,7 @@ def modelo_reserva(reserva) -> dict:
         "CostoGlamping": reserva["CostoGlamping"],
         "ComisionGlamperos": reserva["ComisionGlamperos"],
         "adultos": reserva["adultos"],
-        "niños": reserva["niños"],
+        "ninos": reserva["ninos"],
         "bebes": reserva["bebes"],
         "mascotas": reserva["mascotas"],
         "EstadoReserva": reserva["EstadoReserva"],
@@ -71,7 +71,7 @@ async def crear_reserva(reserva: Reserva):
             "CostoGlamping": reserva.CostoGlamping,
             "ComisionGlamperos": reserva.ComisionGlamperos,
             "adultos": reserva.adultos,
-            "niños": reserva.niños,
+            "ninos": reserva.ninos,
             "bebes": reserva.bebes,
             "mascotas": reserva.mascotas,
             "EstadoReserva": reserva.EstadoReserva,
