@@ -40,7 +40,7 @@ def modelo_reserva(reserva) -> dict:
     return {
         "id": str(reserva["_id"]),
         "idCliente": reserva["idCliente"],
-        "idPropietario": reserva["idPropietario"],        
+        "idPropietario": reserva["idPropietario"],
         "idGlamping": reserva["idGlamping"],
         "ciudad_departamento": reserva["ciudad_departamento"],
         "FechaIngreso": reserva["FechaIngreso"],
@@ -55,13 +55,16 @@ def modelo_reserva(reserva) -> dict:
         "mascotas": reserva["mascotas"],
         "EstadoReserva": reserva["EstadoReserva"],
         "fechaCreacion": reserva["fechaCreacion"],
-
+        "codigoReserva": reserva["codigoReserva"],  # Incluyendo el código de reserva
     }
 
 # Crear una nueva reserva
 @ruta_reserva.post("/", response_model=dict)
 async def crear_reserva(reserva: Reserva):
     try:
+        # Generar un código único con los primeros 8 caracteres del ObjectId
+        codigo_reserva = str(ObjectId())[:8]
+        
         nueva_reserva = {
             "idCliente": reserva.idCliente,
             "idPropietario": reserva.idPropietario,
@@ -79,6 +82,7 @@ async def crear_reserva(reserva: Reserva):
             "mascotas": reserva.mascotas,
             "EstadoReserva": reserva.EstadoReserva,
             "fechaCreacion": datetime.now(),
+            "codigoReserva": codigo_reserva,  # Incluir el código generado
         }
 
         # Insertar en la base de datos
