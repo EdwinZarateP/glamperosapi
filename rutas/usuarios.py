@@ -88,7 +88,8 @@ async def crear_usuario(usuario: Usuario):
             "usuario": {
                 "_id": str(usuario_existente["_id"]),
                 "nombre": usuario_existente["nombre"],
-                "email": usuario_existente["email"]
+                "email": usuario_existente["email"],
+                "telefono": usuario_existente["telefono"]
             }
         }
 
