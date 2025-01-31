@@ -9,7 +9,7 @@ class ModeloGlamping(BaseModel):
     tipoGlamping: str = "choza"
     Acepta_Mascotas: bool = True     
     ubicacion: Optional[Dict[str, float]] = {"latitud": 4.5981, "longitud": -74.0758}
-    direccionCompleta: str = "calle falsa 123" 
+    direccion: str = "calle falsa 123" 
     precioEstandar: float = 0
     precioEstandarAdicional:float = 0
     Cantidad_Huespedes: float = 1  
