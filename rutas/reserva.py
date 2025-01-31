@@ -95,3 +95,45 @@ async def crear_reserva(reserva: Reserva):
             status_code=500,
             detail=f"Error al crear la reserva: {str(e)}"
         )
+
+@ruta_reserva.get("/documentos/{idPropietario}", response_model=list)
+async def obtener_documentos_por_propietario(idPropietario: str):
+    try:
+        # Consulta los documentos asociados al propietario
+        documentos = base_datos.reservas.find({"idPropietario": idPropietario})
+        
+        # Verifica si existen documentos
+        documentos_lista = [modelo_reserva(doc) for doc in documentos]
+        if not documentos_lista:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No se encontraron documentos para el propietario con ID {idPropietario}"
+            )
+        
+        return documentos_lista
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al obtener los documentos del propietario: {str(e)}"
+        )
+
+@ruta_reserva.get("/documentos_cliente/{idCliente}", response_model=list)
+async def obtener_documentos_por_cliente(idCliente: str):
+    try:
+        # Consulta los documentos asociados al cliente
+        documentos = base_datos.reservas.find({"idCliente": idCliente})
+        
+        # Verifica si existen documentos
+        documentos_lista = [modelo_reserva(doc) for doc in documentos]
+        if not documentos_lista:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No se encontraron documentos para el cliente con ID {idCliente}"
+            )
+        
+        return documentos_lista
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al obtener los documentos del cliente: {str(e)}"
+        )
