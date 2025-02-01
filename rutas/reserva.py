@@ -96,6 +96,7 @@ async def crear_reserva(reserva: Reserva):
             detail=f"Error al crear la reserva: {str(e)}"
         )
 
+# Consultar reservas del propietario
 @ruta_reserva.get("/documentos/{idPropietario}", response_model=list)
 async def obtener_documentos_por_propietario(idPropietario: str):
     try:
@@ -117,6 +118,7 @@ async def obtener_documentos_por_propietario(idPropietario: str):
             detail=f"Error al obtener los documentos del propietario: {str(e)}"
         )
 
+# Consultar reservas del cliente
 @ruta_reserva.get("/documentos_cliente/{idCliente}", response_model=list)
 async def obtener_documentos_por_cliente(idCliente: str):
     try:

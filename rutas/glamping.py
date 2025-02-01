@@ -183,6 +183,23 @@ async def obtener_glampings(page: int = 1, limit: int = 30):
         raise HTTPException(status_code=500, detail=f"Error al obtener glampings: {str(e)}")
 
 
+# Obtener todos los glampings SIN PAGINACIÓN (PARA API DEEP SEEK)
+@ruta_glampings.get("/todos/", response_model=List[ModeloGlamping])
+async def obtener_todos_glampings():
+    """
+    Obtiene la lista completa de glampings sin paginación.
+    """
+    try:
+        # Obtener todos los glampings sin límites
+        glampings = list(db["glampings"].find())
+        
+        # Convertir los ObjectId y procesar ubicación
+        glampings_convertidos = [convertir_objectid(glamping) for glamping in glampings]
+        
+        return glampings_convertidos
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener glampings: {str(e)}")
+
 
 # Obtener un glamping por ID
 @ruta_glampings.get("/{glamping_id}", response_model=ModeloGlamping)
