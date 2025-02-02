@@ -3,6 +3,7 @@ from pymongo import MongoClient
 from bson import ObjectId
 from datetime import datetime
 from pydantic import BaseModel
+from pytz import timezone
 import os
 
 # Configuración de la base de datos
@@ -58,6 +59,9 @@ def modelo_reserva(reserva) -> dict:
         "codigoReserva": reserva["codigoReserva"],  # Incluyendo el código de reserva
     }
 
+# Definir la zona horaria de Colombia
+ZONA_HORARIA_COLOMBIA = timezone("America/Bogota")
+
 # Crear una nueva reserva
 @ruta_reserva.post("/", response_model=dict)
 async def crear_reserva(reserva: Reserva):
@@ -65,6 +69,9 @@ async def crear_reserva(reserva: Reserva):
         # Generar un código único con los primeros 8 caracteres del ObjectId
         codigo_reserva = str(ObjectId())[:8]
         
+        # Convertir la fecha de creación a la hora de Colombia (UTC-5)
+        fecha_creacion_colombia = datetime.now().astimezone(ZONA_HORARIA_COLOMBIA)
+
         nueva_reserva = {
             "idCliente": reserva.idCliente,
             "idPropietario": reserva.idPropietario,
@@ -81,7 +88,7 @@ async def crear_reserva(reserva: Reserva):
             "bebes": reserva.bebes,
             "mascotas": reserva.mascotas,
             "EstadoReserva": reserva.EstadoReserva,
-            "fechaCreacion": datetime.now(),
+            "fechaCreacion":fecha_creacion_colombia,
             "codigoReserva": codigo_reserva,  # Incluir el código generado
         }
 

@@ -3,6 +3,7 @@ from pymongo import MongoClient
 from bson import ObjectId
 from google.cloud import storage
 import uuid
+from pytz import timezone
 from io import BytesIO
 from PIL import Image
 from datetime import datetime
@@ -75,6 +76,9 @@ def subir_a_google_storage(archivo: UploadFile, carpeta: str = "glampings") -> s
 
 # Rutas de la API
 
+# Definir la zona horaria de Colombia
+ZONA_HORARIA_COLOMBIA = timezone("America/Bogota")
+
 # Crear usuario
 @ruta_usuario.post("/", response_model=dict)
 async def crear_usuario(usuario: Usuario):
@@ -95,13 +99,16 @@ async def crear_usuario(usuario: Usuario):
 
     # Crear un nuevo usuario si no existe
     usuario.clave = "autenticacionGoogle"  # Se omite el uso de clave de acceso aquí
+    # Convertir la fecha de creación a la hora de Colombia (UTC-5)
+    fecha_creacion_colombia = datetime.now().astimezone(ZONA_HORARIA_COLOMBIA)
+
     nuevo_usuario = {
         "nombre": usuario.nombre,
         "email": usuario.email,
         "telefono": usuario.telefono,
         "clave": usuario.clave,
         "glampings": [],
-        "fecha_registro": datetime.now(),  # Añadir fecha de registro
+        "fecha_registro": fecha_creacion_colombia,  # Añadir fecha de registro
         "foto": usuario.foto,  # Campo opcional
     }
     

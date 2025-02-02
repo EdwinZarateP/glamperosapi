@@ -4,7 +4,7 @@ from pymongo import MongoClient
 from bson.objectid import ObjectId
 from typing import List, Optional
 from datetime import datetime
-from datetime import datetime
+from pytz import timezone
 from PIL import Image
 from io import BytesIO
 import os
@@ -76,6 +76,9 @@ def convertir_objectid(documento):
     return documento
 
 
+# Definir la zona horaria de Colombia
+ZONA_HORARIA_COLOMBIA = timezone("America/Bogota")
+
 # Crear un nuevo glamping con validaciones por cada paso
 @ruta_glampings.post("/", status_code=201, response_model=ModeloGlamping)
 async def crear_glamping(
@@ -114,6 +117,9 @@ async def crear_glamping(
         # Procesamiento de amenidadesGlobal: convertir de cadena a lista de amenidades
         amenidades_lista = [amenidad.strip() for amenidad in amenidadesGlobal.split(",")]
 
+        # Convertir la fecha de creación a la hora de Colombia (UTC-5)
+        fecha_creacion_colombia = datetime.now().astimezone(ZONA_HORARIA_COLOMBIA)
+
         # Crear el glamping en la base de datos
         nuevo_glamping = {
             "habilitado":habilitado,
@@ -134,7 +140,7 @@ async def crear_glamping(
             "video_youtube": video_youtube,
             "calificacion": 4.5,
             "fechasReservadas": fechas_reservadas_lista,
-            "creado": datetime.now(),
+            "creado": fecha_creacion_colombia,
             "propietario_id": propietario_id,
         }
 
