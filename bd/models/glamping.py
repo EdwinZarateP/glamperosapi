@@ -12,6 +12,7 @@ class ModeloGlamping(BaseModel):
     direccion: str = "Plaza Bolivar, Bogota, Colombia" 
     precioEstandar: float = 0
     precioEstandarAdicional:float = 0
+    diasCancelacion:float = 0
     Cantidad_Huespedes: float = 1  
     Cantidad_Huespedes_Adicional: float = 0 
     descuento:float = 0 

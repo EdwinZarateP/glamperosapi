@@ -89,7 +89,8 @@ async def crear_glamping(
     ubicacion: str = Form(...),
     direccion: str = Form(...),
     precioEstandar: float = Form(...),
-    precioEstandarAdicional: float = Form(..., ge=0), 
+    precioEstandarAdicional: float = Form(..., ge=0),
+    diasCancelacion: float = Form(..., ge=0), 
     Cantidad_Huespedes: float = Form(...),
     Cantidad_Huespedes_Adicional: float = Form(..., ge=0), 
     descuento: float = Form(..., ge=0), 
@@ -130,6 +131,7 @@ async def crear_glamping(
             "direccion": direccion,
             "precioEstandar": precioEstandar,
             "precioEstandarAdicional": precioEstandarAdicional,
+            "diasCancelacion": diasCancelacion,
             "Cantidad_Huespedes": Cantidad_Huespedes,
             "Cantidad_Huespedes_Adicional":Cantidad_Huespedes_Adicional,
             "descuento": descuento,
@@ -294,6 +296,7 @@ async def actualizar_glamping(
     Acepta_Mascotas: str = Form(...), 
     precioEstandar: str = Form(None),
     precioEstandarAdicional: str = Form(None),
+    diasCancelacion: str = Form(None),    
     descuento: str = Form(None),
     descripcionGlamping: str = Form(None),
     video_youtube: str = Form(None),
@@ -337,6 +340,11 @@ async def actualizar_glamping(
         else:
             actualizaciones["precioEstandarAdicional"] = 0 
         
+        if diasCancelacion is not None:
+            actualizaciones["diasCancelacion"] = diasCancelacion
+        else:
+            actualizaciones["diasCancelacion"] = 0         
+
         if descuento is not None:
             actualizaciones["descuento"] = descuento
         else:
