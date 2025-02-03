@@ -61,7 +61,8 @@ def modelo_reserva(reserva) -> dict:
         "bebes": reserva["bebes"],
         "mascotas": reserva["mascotas"],
         "EstadoReserva": reserva["EstadoReserva"],
-        "fechaCreacion": reserva["fechaCreacion"],         
+        "fechaCreacion": reserva["fechaCreacion"],  
+        "codigoReserva": reserva["codigoReserva"],               
         "ComentariosCancelacion": reserva["ComentariosCancelacion"],          
     }
 
