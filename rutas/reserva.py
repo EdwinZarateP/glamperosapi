@@ -35,7 +35,6 @@ class Reserva(BaseModel):
     bebes: int
     mascotas: int
     EstadoReserva: str
-    diasCancelacion: int
     ComentariosCancelacion: str
 
 # Modelo para actualización
@@ -62,9 +61,7 @@ def modelo_reserva(reserva) -> dict:
         "bebes": reserva["bebes"],
         "mascotas": reserva["mascotas"],
         "EstadoReserva": reserva["EstadoReserva"],
-        "fechaCreacion": reserva["fechaCreacion"],
-        "codigoReserva": reserva["codigoReserva"],  
-        "diasCancelacion": reserva["diasCancelacion"],          
+        "fechaCreacion": reserva["fechaCreacion"],         
         "ComentariosCancelacion": reserva["ComentariosCancelacion"],          
     }
 
@@ -98,8 +95,7 @@ async def crear_reserva(reserva: Reserva):
             "mascotas": reserva.mascotas,
             "EstadoReserva": reserva.EstadoReserva,
             "fechaCreacion":fecha_creacion_colombia,
-            "codigoReserva": codigo_reserva, 
-            "diasCancelacion": reserva.diasCancelacion, 
+            "codigoReserva": codigo_reserva,             
             "ComentariosCancelacion": reserva.ComentariosCancelacion, 
             
         }
