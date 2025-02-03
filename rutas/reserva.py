@@ -35,6 +35,12 @@ class Reserva(BaseModel):
     bebes: int
     mascotas: int
     EstadoReserva: str
+    ComentariosCancelacion: str
+
+# Modelo para actualización
+class ActualizarReserva(BaseModel):
+    EstadoReserva: str
+    ComentariosCancelacion: str
 
 # Modelo de respuesta de reserva
 def modelo_reserva(reserva) -> dict:
@@ -56,7 +62,8 @@ def modelo_reserva(reserva) -> dict:
         "mascotas": reserva["mascotas"],
         "EstadoReserva": reserva["EstadoReserva"],
         "fechaCreacion": reserva["fechaCreacion"],
-        "codigoReserva": reserva["codigoReserva"],  # Incluyendo el código de reserva
+        "codigoReserva": reserva["codigoReserva"],  
+        "ComentariosCancelacion": reserva["ComentariosCancelacion"],          
     }
 
 # Definir la zona horaria de Colombia
@@ -89,7 +96,9 @@ async def crear_reserva(reserva: Reserva):
             "mascotas": reserva.mascotas,
             "EstadoReserva": reserva.EstadoReserva,
             "fechaCreacion":fecha_creacion_colombia,
-            "codigoReserva": codigo_reserva,  # Incluir el código generado
+            "codigoReserva": codigo_reserva, 
+            "ComentariosCancelacion": reserva.ComentariosCancelacion, 
+            
         }
 
         # Insertar en la base de datos
@@ -145,4 +154,54 @@ async def obtener_documentos_por_cliente(idCliente: str):
         raise HTTPException(
             status_code=500,
             detail=f"Error al obtener los documentos del cliente: {str(e)}"
+        )
+
+# Actualizar estado de reserva y comentarios
+@ruta_reserva.put("/{reserva_id}", response_model=dict)
+async def actualizar_estado_reserva(
+    reserva_id: str,
+    actualizacion: ActualizarReserva = Body(...)
+):
+    try:
+        # Validar formato del ID
+        try:
+            object_id = ObjectId(reserva_id)
+        except:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Formato de ID inválido"
+            )
+
+        # Construir actualización
+        update_data = {
+            "EstadoReserva": actualizacion.EstadoReserva,
+            "ComentariosCancelacion": actualizacion.ComentariosCancelacion
+        }
+
+        # Ejecutar actualización
+        resultado = base_datos.reservas.update_one(
+            {"_id": object_id},
+            {"$set": update_data}
+        )
+
+        if resultado.modified_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Reserva no encontrada"
+            )
+
+        # Obtener reserva actualizada
+        reserva_actualizada = base_datos.reservas.find_one({"_id": object_id})
+        
+        return {
+            "mensaje": "Reserva actualizada correctamente",
+            "reserva": modelo_reserva(reserva_actualizada)
+        }
+        
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al actualizar reserva: {str(e)}"
         )
