@@ -205,3 +205,31 @@ async def actualizar_estado_reserva(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al actualizar reserva: {str(e)}"
         )
+
+
+
+# Consultar reserva por código de reserva
+@ruta_reserva.get("/codigo/{codigoReserva}", response_model=dict)
+async def obtener_reserva_por_codigo(codigoReserva: str):
+    try:
+        # Consultar la reserva por su código
+        reserva = base_datos.reservas.find_one({"codigoReserva": codigoReserva})
+        
+        # Verificar si se encontró la reserva
+        if not reserva:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No se encontró una reserva con el código {codigoReserva}"
+            )
+        
+        return {
+            "mensaje": "Reserva encontrada",
+            "reserva": modelo_reserva(reserva)
+        }
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Error al buscar la reserva: {str(e)}"
+        )        
