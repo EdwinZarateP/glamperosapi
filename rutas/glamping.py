@@ -563,23 +563,36 @@ async def actualizar_fechas_reservadas(
 @ruta_glampings.patch("/{glamping_id}/eliminar_fechas", response_model=ModeloGlamping)
 async def eliminar_fechas_reservadas(
     glamping_id: str,
-    fechas_a_eliminar: List[str] = Body(..., embed=True)  # Array de fechas a eliminar
+    fechas_a_eliminar: List[str] = Body(..., embed=True)  # Lista de fechas a eliminar
 ):
     try:
         # Buscar el glamping por ID
         glamping = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
         if not glamping:
-            raise HTTPException(status_code=404, detail="Glamping no encontrado")
+            raise HTTPException(status_code=404, detail="❌ Glamping no encontrado")
 
-        # Eliminar las fechas reservadas que estén en el array `fechas_a_eliminar`
+        # Si no hay fechas a eliminar, responder sin cambios
+        if not fechas_a_eliminar:
+            raise HTTPException(status_code=400, detail="⚠️ No se proporcionaron fechas a eliminar")
+
+        # Filtrar solo las fechas existentes que se van a eliminar
+        fechas_actuales = set(glamping.get("fechasReservadas", []))
+        fechas_eliminar_set = set(fechas_a_eliminar)
+        fechas_a_eliminar_final = list(fechas_actuales.intersection(fechas_eliminar_set))
+
+        if not fechas_a_eliminar_final:
+            raise HTTPException(status_code=400, detail="🚫 Ninguna de las fechas proporcionadas está reservada")
+
+        # Actualizar la base de datos eliminando las fechas específicas
         db["glampings"].update_one(
             {"_id": ObjectId(glamping_id)},
-            {"$pullAll": {"fechasReservadas": fechas_a_eliminar}}  # Elimina las fechas de la lista
+            {"$pullAll": {"fechasReservadas": fechas_a_eliminar_final}}
         )
 
         # Obtener el glamping actualizado
         glamping_actualizado = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
+
         return ModeloGlamping(**convertir_objectid(glamping_actualizado))
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al eliminar las fechas reservadas: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"🔥 Error al eliminar las fechas reservadas: {str(e)}")
