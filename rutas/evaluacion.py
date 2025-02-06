@@ -103,3 +103,10 @@ async def obtener_calificacion_promedio(glamping_id: str):
             "calificacion_promedio": 4.5,
             "calificacionEvaluaciones": 1
         }
+
+
+# Endpoint para verificar si un codigoReserva tiene calificación
+@ruta_evaluaciones.get("/codigoReserva/{codigoReserva}/tieneCalificacion", response_model=dict)
+async def verificar_calificacion_codigo_reserva(codigoReserva: str):
+    evaluacion = db.evaluaciones.find_one({"codigoReserva": codigoReserva})
+    return {"tiene_calificacion": bool(evaluacion)}
