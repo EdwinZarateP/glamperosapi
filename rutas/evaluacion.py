@@ -38,7 +38,7 @@ def modelo_evaluacion(evaluacion) -> dict:
         "fecha_agregado": evaluacion["fecha_agregado"],
         "calificacion": evaluacion["calificacion"],
         "comentario": evaluacion["comentario"],
-        "codigoReserva": evaluacion["codigoReserva"],
+        "codigoReserva": evaluacion.get("codigoReserva", ""),
     }
 
 # Endpoint para agregar una evaluación
