@@ -26,6 +26,7 @@ class Evaluacion(BaseModel):
     fecha_agregado: datetime = datetime.now(timezone.utc)
     calificacion: float 
     comentario: str 
+    codigoReserva: str 
 
 # Modelo para formatear la evaluación
 def modelo_evaluacion(evaluacion) -> dict:
@@ -37,6 +38,7 @@ def modelo_evaluacion(evaluacion) -> dict:
         "fecha_agregado": evaluacion["fecha_agregado"],
         "calificacion": evaluacion["calificacion"],
         "comentario": evaluacion["comentario"],
+        "codigoReserva": evaluacion["codigoReserva"],
     }
 
 # Endpoint para agregar una evaluación
