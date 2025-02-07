@@ -184,7 +184,7 @@ async def obtener_glampings(page: int = 1, limit: int = 30):
         skip = (page - 1) * limit
         
         # Obtener los glampings con límites y saltos
-        glampings = list(db["glampings"].find().skip(skip).limit(limit))
+        glampings = list(db["glampings"].find().sort("calificacion", -1).skip(skip).limit(limit))
         glampings_convertidos = [convertir_objectid(glamping) for glamping in glampings]
         return glampings_convertidos
     except Exception as e:
