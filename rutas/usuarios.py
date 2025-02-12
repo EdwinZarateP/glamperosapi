@@ -153,11 +153,7 @@ async def registro_google(email: str, nombre: str):
         "email": email,
         "telefono": "",
         "clave": "autenticacionGoogle",  
-        "glampings": [],
-        "banco": "",
-        "numeroCuenta": "",
-        "tipoCuenta": "",
-        "certificadoBancario": "",        
+        "glampings": [],       
     }
     result = base_datos.usuarios.insert_one(nuevo_usuario)
     return modelo_usuario(base_datos.usuarios.find_one({"_id": result.inserted_id}))
