@@ -101,11 +101,7 @@ async def crear_usuario(usuario: Usuario):
                 "_id": str(usuario_existente["_id"]),
                 "nombre": usuario_existente["nombre"],
                 "email": usuario_existente["email"],
-                "telefono": usuario_existente["telefono"],
-                "banco": usuario["banco"],
-                "numeroCuenta": usuario["numeroCuenta"],
-                "tipoCuenta": usuario["tipoCuenta"],
-                "certificadoBancario": usuario["certificadoBancario"],                
+                "telefono": usuario_existente["telefono"],                
             }
         }
 
