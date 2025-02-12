@@ -251,3 +251,49 @@ async def buscar_usuario(email: str):
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return modelo_usuario(usuario)
+
+
+@ruta_usuario.put("/{usuario_id}/banco", response_model=dict)
+async def actualizar_datos_bancarios(
+    usuario_id: str,
+    numeroCuenta: str = Body(None, embed=True),
+    tipoCuenta: str = Body(None, embed=True),
+    certificadoBancario: UploadFile = File(None),
+):
+    try:
+        # Buscar al usuario por su ID
+        usuario = base_datos.usuarios.find_one({"_id": ObjectId(usuario_id)})
+        if not usuario:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado")
+        
+        actualizaciones = {}
+        
+        # Actualizar número de cuenta si se proporciona
+        if numeroCuenta:
+            actualizaciones["numeroCuenta"] = numeroCuenta
+        
+        # Actualizar tipo de cuenta si se proporciona
+        if tipoCuenta:
+            actualizaciones["tipoCuenta"] = tipoCuenta
+        
+        # Subir el certificado bancario si se proporciona
+        if certificadoBancario:
+            url_certificado = subir_a_google_storage(certificadoBancario, carpeta="certificadosBancarios")
+            actualizaciones["certificadoBancario"] = url_certificado
+        
+        # Si no hay cambios, no hacer actualización
+        if not actualizaciones:
+            raise HTTPException(status_code=400, detail="No se proporcionaron datos para actualizar")
+        
+        # Aplicar la actualización en la base de datos
+        result = base_datos.usuarios.update_one(
+            {"_id": ObjectId(usuario_id)},
+            {"$set": actualizaciones}
+        )
+        
+        if result.modified_count == 0:
+            raise HTTPException(status_code=400, detail="No se pudo actualizar los datos bancarios")
+        
+        return {"message": "Datos bancarios actualizados correctamente", **actualizaciones}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al actualizar los datos bancarios: {str(e)}")
