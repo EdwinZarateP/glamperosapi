@@ -7,6 +7,9 @@ def modelo_usuario(usuario) -> dict:
         "glampings": usuario.get("glampings", []),
         "fecha_registro": usuario.get("fecha_registro"),  # Nuevo campo
         "foto": usuario.get("foto"),  # Campo opcional
+        "banco": usuario.get("banco"),  # Campo opcional
+        "numeroCuenta": usuario.get("numeroCuenta"),  # Campo opcional
+        "tipoCuenta": usuario.get("tipoCuenta"),  # Campo opcional
     }
 
 def modelo_usuarios(usuarios)->list:

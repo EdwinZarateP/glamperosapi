@@ -34,6 +34,10 @@ class Usuario(BaseModel):
     clave: str
     glampings: List[str] = []  # Lista de IDs de glampings asociados
     foto: str = None  # Campo opcional para la foto
+    banco: str = None  # Campo opcional para la banco
+    numeroCuenta: str = None  # Campo opcional para numeroCuenta
+    tipoCuenta: str = None  # Campo opcional para tipoCuenta 
+    certificadoBancario: str = None  # Campo opcional para la foto
 
 
 def modelo_usuario(usuario) -> dict:
@@ -44,6 +48,10 @@ def modelo_usuario(usuario) -> dict:
         "telefono": usuario["telefono"],
         "glampings": usuario.get("glampings", []),
         "foto": usuario["foto"],
+        "banco": usuario["banco"],
+        "numeroCuenta": usuario["numeroCuenta"],
+        "tipoCuenta": usuario["tipoCuenta"],
+        "certificadoBancario": usuario["certificadoBancariofoto"],
     }
 
 
@@ -93,7 +101,11 @@ async def crear_usuario(usuario: Usuario):
                 "_id": str(usuario_existente["_id"]),
                 "nombre": usuario_existente["nombre"],
                 "email": usuario_existente["email"],
-                "telefono": usuario_existente["telefono"]
+                "telefono": usuario_existente["telefono"],
+                "banco": usuario["banco"],
+                "numeroCuenta": usuario["numeroCuenta"],
+                "tipoCuenta": usuario["tipoCuenta"],
+                "certificadoBancario": usuario["certificadoBancario"],                
             }
         }
 
@@ -108,8 +120,12 @@ async def crear_usuario(usuario: Usuario):
         "telefono": usuario.telefono,
         "clave": usuario.clave,
         "glampings": [],
-        "fecha_registro": fecha_creacion_colombia,  # Añadir fecha de registro
+        "fecha_registro": fecha_creacion_colombia, 
         "foto": usuario.foto,  # Campo opcional
+        "banco": usuario.banco, # Campo opcional
+        "numeroCuenta": usuario.numeroCuenta, # Campo opcional
+        "tipoCuenta": usuario.tipoCuenta, # Campo opcional  
+        "certificadoBancario": usuario.certificadoBancario # Campo opcional                
     }
     
     # Insertar el nuevo usuario en la base de datos
@@ -136,8 +152,12 @@ async def registro_google(email: str, nombre: str):
         "nombre": nombre,
         "email": email,
         "telefono": "",
-        "clave": "autenticacionGoogle",  # Clave de autenticación Google no se necesita
+        "clave": "autenticacionGoogle",  
         "glampings": [],
+        "banco": "",
+        "numeroCuenta": "",
+        "tipoCuenta": "",
+        "certificadoBancario": "",        
     }
     result = base_datos.usuarios.insert_one(nuevo_usuario)
     return modelo_usuario(base_datos.usuarios.find_one({"_id": result.inserted_id}))
