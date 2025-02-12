@@ -51,7 +51,7 @@ def modelo_usuario(usuario) -> dict:
         "banco": usuario["banco"],
         "numeroCuenta": usuario["numeroCuenta"],
         "tipoCuenta": usuario["tipoCuenta"],
-        "certificadoBancario": usuario["certificadoBancariofoto"],
+        "certificadoBancario": usuario["certificadoBancario"],
     }
 
 
