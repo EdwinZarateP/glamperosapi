@@ -43,29 +43,30 @@ def is_bot(user_agent: str) -> bool:
 
 class PrerenderMiddleware(BaseHTTPMiddleware):
     """Middleware que intercepta bots y redirige a Prerender.io."""
-
+    
     async def dispatch(self, request: Request, call_next):
         user_agent = request.headers.get("User-Agent", "")
 
+        print(f"🕵️‍♂️ User-Agent recibido: {user_agent}")  # Debug
+        
         if is_bot(user_agent):
-            prerender_url = f"https://service.prerender.io/{request.url.netloc}{request.url.path}"
+            prerender_url = f"https://service.prerender.io/{request.url.scheme}://{request.url.netloc}{request.url.path}"
             headers = {"X-Prerender-Token": PRERENDER_TOKEN}
 
-            print(f"🕷️ Prerender detectado para: {user_agent}")
-            print(f"🌐 Solicitando URL pre-renderizada: {prerender_url}")
+            print(f"🕷️ Prerender activado para {user_agent} - URL: {prerender_url}")  # Debugging
 
             try:
                 response = requests.get(prerender_url, headers=headers, timeout=5)
+                print(f"🔄 Respuesta de Prerender: {response.status_code}")
 
                 if response.status_code == 200:
-                    print("✅ Prerender.io respondió correctamente")
                     return Response(content=response.content, media_type="text/html")
                 else:
                     print(f"⚠️ Prerender.io devolvió estado {response.status_code}")
                     return Response(content="Error al cargar contenido pre-renderizado", status_code=500)
 
             except requests.exceptions.RequestException as e:
-                print(f"❌ Error en la petición a Prerender.io: {e}")
+                print(f"❌ Error al conectar con Prerender.io: {e}")
                 return Response(content="Error interno en el prerender", status_code=500)
 
         return await call_next(request)
