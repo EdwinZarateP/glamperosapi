@@ -50,19 +50,20 @@ def is_bot(user_agent: str) -> bool:
 
 def is_prerender_request(request: Request) -> bool:
     """Verifica si la solicitud viene de Prerender.io según su IP."""
-    return request.client.host in PRERENDER_IPS
+    client_ip = request.client.host or ""
+    return client_ip in PRERENDER_IPS
 
 class PrerenderMiddleware(BaseHTTPMiddleware):
     """Middleware que intercepta bots y redirige a Prerender.io."""
     
     async def dispatch(self, request: Request, call_next):
         user_agent = request.headers.get("User-Agent", "")
-        client_ip = request.client.host
-        
+        client_ip = request.client.host or ""
+
         print(f"🕵️‍♂️ User-Agent recibido: {user_agent} - IP: {client_ip}")  # Debugging
         
         if is_bot(user_agent) or is_prerender_request(request):
-            prerender_url = f"https://service.prerender.io/{request.url.scheme}://{request.url.netloc}{request.url.path}"
+            prerender_url = f"https://service.prerender.io/{request.url}"
             headers = {"X-Prerender-Token": PRERENDER_TOKEN}
 
             print(f"🕷️ Prerender activado para {user_agent} - URL: {prerender_url}")
@@ -72,6 +73,7 @@ class PrerenderMiddleware(BaseHTTPMiddleware):
                 print(f"🔄 Respuesta de Prerender: {response.status_code}")
 
                 if response.status_code == 200:
+                    print(f"📢 Respondiendo con Prerender.io para: {request.url}")
                     return Response(content=response.content, media_type="text/html")
                 else:
                     print(f"⚠️ Prerender.io devolvió estado {response.status_code}")
