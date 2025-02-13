@@ -28,7 +28,7 @@ app.add_middleware(
     allow_headers=["*"],  # Permite todos los encabezados
 )
 
-# Token de Prerender.io
+# Token de Prerender.io (se debe configurar en Render como variable de entorno)
 PRERENDER_TOKEN = os.getenv("PRERENDER_TOKEN", "KNtCIH1CTMX2w5K9XMT4")
 
 # Lista de bots que deben recibir la versión pre-renderizada
@@ -41,22 +41,28 @@ def is_bot(user_agent: str) -> bool:
     """Verifica si la petición proviene de un bot de búsqueda."""
     return any(bot in user_agent for bot in BOT_USER_AGENTS)
 
-@app.middleware("http")
-async def prerender_middleware(request: Request, call_next):
-    """Intercepta peticiones de bots y las redirige a Prerender.io."""
-    user_agent = request.headers.get("User-Agent", "")
+class PrerenderMiddleware(BaseHTTPMiddleware):
+    """Middleware que intercepta bots y redirige a Prerender.io."""
 
-    if is_bot(user_agent):
-        prerender_url = f"https://service.prerender.io/{request.url.path}"
-        headers = {"X-Prerender-Token": PRERENDER_TOKEN}
+    async def dispatch(self, request: Request, call_next):
+        user_agent = request.headers.get("User-Agent", "")
 
-        try:
-            response = requests.get(prerender_url, headers=headers)
-            return Response(content=response.content, media_type="text/html")
-        except requests.exceptions.RequestException:
-            pass  # Si falla, servimos la versión normal
+        if is_bot(user_agent):
+            print(f"🕷️ Prerender detectado para: {user_agent}")  # Debug
+            prerender_url = f"https://service.prerender.io/{request.url.path}"
+            headers = {"X-Prerender-Token": PRERENDER_TOKEN}
 
-    return await call_next(request)
+            try:
+                response = requests.get(prerender_url, headers=headers)
+                print("✅ Prerender.io respondió correctamente")  # Debug
+                return Response(content=response.content, media_type="text/html")
+            except requests.exceptions.RequestException as e:
+                print(f"❌ Error en Prerender.io: {e}")  # Debug
+
+        return await call_next(request)
+
+# Agregar el middleware de Prerender.io antes que cualquier otro middleware
+app.add_middleware(PrerenderMiddleware)
 
 # Middleware para agregar encabezados de seguridad (COOP y COEP)
 @app.middleware("http")
@@ -85,8 +91,8 @@ if __name__ == "__main__":
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=10000,
+        port=int(os.getenv("PORT", 10000)),  # Usa el puerto que Render proporciona si existe
         log_level="info",
-        timeout_keep_alive=120,  # Tiempo de espera extendido
-        limit_concurrency=100,   # Limita la concurrencia a 100 solicitudes simultáneas
+        timeout_keep_alive=120,  
+        limit_concurrency=100,
     )
