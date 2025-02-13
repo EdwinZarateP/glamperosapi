@@ -48,7 +48,7 @@ class PrerenderMiddleware(BaseHTTPMiddleware):
         user_agent = request.headers.get("User-Agent", "")
 
         if is_bot(user_agent):
-            prerender_url = f"https://service.prerender.io/{request.url.scheme}://{request.url.netloc}{request.url.path}"
+            prerender_url = f"https://service.prerender.io/{request.url.netloc}{request.url.path}"
             headers = {"X-Prerender-Token": PRERENDER_TOKEN}
 
             print(f"🕷️ Prerender detectado para: {user_agent}")
