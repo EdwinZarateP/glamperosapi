@@ -37,23 +37,35 @@ BOT_USER_AGENTS = [
     "LinkedInBot", "Slackbot"
 ]
 
+# Lista de IPs permitidas para Prerender.io (para evitar bloqueos en Render y Cloudflare)
+PRERENDER_IPS = [
+    "54.241.5.235",
+    "54.241.5.236",
+    "54.241.5.237"
+]
+
 def is_bot(user_agent: str) -> bool:
     """Verifica si la petición proviene de un bot de búsqueda."""
     return any(bot in user_agent for bot in BOT_USER_AGENTS)
+
+def is_prerender_request(request: Request) -> bool:
+    """Verifica si la solicitud viene de Prerender.io según su IP."""
+    return request.client.host in PRERENDER_IPS
 
 class PrerenderMiddleware(BaseHTTPMiddleware):
     """Middleware que intercepta bots y redirige a Prerender.io."""
     
     async def dispatch(self, request: Request, call_next):
         user_agent = request.headers.get("User-Agent", "")
-
-        print(f"🕵️‍♂️ User-Agent recibido: {user_agent}")  # Debug
+        client_ip = request.client.host
         
-        if is_bot(user_agent):
+        print(f"🕵️‍♂️ User-Agent recibido: {user_agent} - IP: {client_ip}")  # Debugging
+        
+        if is_bot(user_agent) or is_prerender_request(request):
             prerender_url = f"https://service.prerender.io/{request.url.scheme}://{request.url.netloc}{request.url.path}"
             headers = {"X-Prerender-Token": PRERENDER_TOKEN}
 
-            print(f"🕷️ Prerender activado para {user_agent} - URL: {prerender_url}")  # Debugging
+            print(f"🕷️ Prerender activado para {user_agent} - URL: {prerender_url}")
 
             try:
                 response = requests.get(prerender_url, headers=headers, timeout=5)
@@ -87,7 +99,7 @@ app.include_router(ruta_glampings)
 app.include_router(ruta_correos)
 app.include_router(ruta_favoritos)
 app.include_router(ruta_evaluaciones)
-app.include_router(ruta_mensajes)
+app.include_router(ruta_mensajeria)
 app.include_router(ruta_whatsapp)
 app.include_router(ruta_reserva)
 
