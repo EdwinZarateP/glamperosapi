@@ -256,6 +256,7 @@ async def buscar_usuario(email: str):
 @ruta_usuario.put("/{usuario_id}/banco", response_model=dict)
 async def actualizar_datos_bancarios(
     usuario_id: str,
+    banco: str = Body(None, embed=True),
     numeroCuenta: str = Body(None, embed=True),
     tipoCuenta: str = Body(None, embed=True),
     certificadoBancario: UploadFile = File(None),
@@ -268,6 +269,10 @@ async def actualizar_datos_bancarios(
         
         actualizaciones = {}
         
+         # Actualizar número de cuenta si se proporciona
+        if banco:
+            actualizaciones["banco"] = banco
+
         # Actualizar número de cuenta si se proporciona
         if numeroCuenta:
             actualizaciones["numeroCuenta"] = numeroCuenta
