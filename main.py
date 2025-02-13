@@ -8,27 +8,27 @@ import os
 # Importación de rutas
 from rutas.usuarios import ruta_usuario
 from rutas.glamping import ruta_glampings
-from rutas.enviarCorreo import ruta_correos 
-from rutas.favoritos import ruta_favoritos 
-from rutas.evaluacion import ruta_evaluaciones 
+from rutas.enviarCorreo import ruta_correos
+from rutas.favoritos import ruta_favoritos
+from rutas.evaluacion import ruta_evaluaciones
 from rutas.mensajeria import ruta_mensajes
 from rutas.whatsapp import ruta_whatsapp
 from rutas.reserva import ruta_reserva
 
 app = FastAPI()
 app.title = "Glamperos"
-app.version = "1"
+app.version = "1.0"
 
 # Configuración de CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Cambia "*" por dominios específicos si es necesario
+    allow_origins=["*"],  # Puedes restringir a dominios específicos si lo deseas
     allow_credentials=True,
-    allow_methods=["*"],  # Permite todos los métodos (GET, POST, PUT, DELETE, etc.)
-    allow_headers=["*"],  # Permite todos los encabezados
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# Token de Prerender.io (se debe configurar en Render como variable de entorno)
+# Token de Prerender.io (se recomienda configurar como variable de entorno en Render)
 PRERENDER_TOKEN = os.getenv("PRERENDER_TOKEN", "KNtCIH1CTMX2w5K9XMT4")
 
 # Lista de bots que deben recibir la versión pre-renderizada
@@ -48,16 +48,25 @@ class PrerenderMiddleware(BaseHTTPMiddleware):
         user_agent = request.headers.get("User-Agent", "")
 
         if is_bot(user_agent):
-            print(f"🕷️ Prerender detectado para: {user_agent}")  # Debug
-            prerender_url = f"https://service.prerender.io/{request.url.path}"
+            prerender_url = f"https://service.prerender.io/{request.url.scheme}://{request.url.netloc}{request.url.path}"
             headers = {"X-Prerender-Token": PRERENDER_TOKEN}
 
+            print(f"🕷️ Prerender detectado para: {user_agent}")
+            print(f"🌐 Solicitando URL pre-renderizada: {prerender_url}")
+
             try:
-                response = requests.get(prerender_url, headers=headers)
-                print("✅ Prerender.io respondió correctamente")  # Debug
-                return Response(content=response.content, media_type="text/html")
+                response = requests.get(prerender_url, headers=headers, timeout=5)
+
+                if response.status_code == 200:
+                    print("✅ Prerender.io respondió correctamente")
+                    return Response(content=response.content, media_type="text/html")
+                else:
+                    print(f"⚠️ Prerender.io devolvió estado {response.status_code}")
+                    return Response(content="Error al cargar contenido pre-renderizado", status_code=500)
+
             except requests.exceptions.RequestException as e:
-                print(f"❌ Error en Prerender.io: {e}")  # Debug
+                print(f"❌ Error en la petición a Prerender.io: {e}")
+                return Response(content="Error interno en el prerender", status_code=500)
 
         return await call_next(request)
 
