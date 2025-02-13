@@ -99,7 +99,7 @@ app.include_router(ruta_glampings)
 app.include_router(ruta_correos)
 app.include_router(ruta_favoritos)
 app.include_router(ruta_evaluaciones)
-app.include_router(ruta_mensajeria)
+app.include_router(ruta_mensajes)
 app.include_router(ruta_whatsapp)
 app.include_router(ruta_reserva)
 
