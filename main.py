@@ -28,46 +28,29 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Token de Prerender.io (Se recomienda configurar como variable de entorno)
+# Token de Prerender.io
 PRERENDER_TOKEN = os.getenv("PRERENDER_TOKEN", "KNtCIH1CTMX2w5K9XMT4")
 
-# Lista de bots que deben recibir la versión pre-renderizada
+# Lista de bots que deben recibir la versión prerenderizada
 BOT_USER_AGENTS = [
     "Googlebot", "Bingbot", "Yahoo", "Twitterbot", "FacebookExternalHit",
     "LinkedInBot", "Slackbot", "Prerender.io"
 ]
 
-# Lista de IPs permitidas para Prerender.io
-PRERENDER_IPS = [
-    "54.241.5.235", "54.241.5.236", "54.241.5.237",
-    "104.224.12.0/22", "103.207.40.0/22", "157.90.99.0/27",
-    "159.69.172.160/27", "168.119.133.64/27", "188.34.148.112/28"
-]
-
 def is_bot(user_agent: str) -> bool:
     """Verifica si la petición proviene de un bot de búsqueda."""
-    if user_agent:
-        print(f"🕵️‍♂️ Analizando User-Agent: {user_agent}")  # Debugging en logs de Render
     return any(bot.lower() in user_agent.lower() for bot in BOT_USER_AGENTS)
-
-def is_prerender_request(request: Request) -> bool:
-    """Verifica si la solicitud viene de Prerender.io según su IP o User-Agent."""
-    client_ip = request.client.host or ""
-    if client_ip in PRERENDER_IPS:
-        print(f"✅ La IP {client_ip} pertenece a Prerender.io")
-    return client_ip in PRERENDER_IPS or "_escaped_fragment_" in request.url.path
 
 class PrerenderMiddleware(BaseHTTPMiddleware):
     """Middleware que intercepta bots y redirige a Prerender.io."""
     
     async def dispatch(self, request: Request, call_next):
         user_agent = request.headers.get("User-Agent", "")
-        client_ip = request.client.host or ""
         url = request.url.path
 
-        print(f"🔍 Recibida solicitud: {url} - User-Agent: {user_agent} - IP: {client_ip}")  
+        print(f"🔍 Recibida solicitud: {url} - User-Agent: {user_agent}")
 
-        if is_bot(user_agent) or is_prerender_request(request):
+        if is_bot(user_agent):
             prerender_url = f"https://service.prerender.io/{request.url}"
             headers = {"X-Prerender-Token": PRERENDER_TOKEN}
 
@@ -78,15 +61,14 @@ class PrerenderMiddleware(BaseHTTPMiddleware):
                 print(f"🔍 Respuesta de Prerender.io: {response.status_code}")
 
                 if response.status_code == 200:
-                    print(f"✅ Prerender.io respondió correctamente para {request.url}")
                     return Response(content=response.content, media_type="text/html")
                 else:
                     print(f"⚠️ Error en Prerender.io: {response.status_code}")
-                    return Response(content="Error en prerenderizado", status_code=500)
+                    return Response(content=f"⚠️ Error en prerenderizado: {response.status_code}", status_code=500)
 
             except requests.exceptions.RequestException as e:
                 print(f"❌ Error al conectar con Prerender.io: {str(e)}")
-                return Response(content=f"Error en prerender: {str(e)}", status_code=500)
+                return Response(content=f"❌ Error en prerender: {str(e)}", status_code=500)
 
         return await call_next(request)
 
@@ -113,6 +95,18 @@ app.include_router(ruta_reserva)
 @app.get("/", tags=["Home"])
 async def root():
     return {"message": "Hola Glampero"}
+
+# Debug: Ruta para probar la integración con Prerender.io
+@app.get("/debug-prerender")
+async def debug_prerender():
+    prerender_url = "https://service.prerender.io/https://glamperos.com"
+    headers = {"X-Prerender-Token": PRERENDER_TOKEN}
+
+    try:
+        response = requests.get(prerender_url, headers=headers, timeout=5)
+        return {"status": response.status_code, "content": response.text[:500]}
+    except requests.exceptions.RequestException as e:
+        return {"error": str(e)}
 
 # Ejecuta el servidor
 if __name__ == "__main__":
