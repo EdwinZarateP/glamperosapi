@@ -22,87 +22,62 @@ app.version = "1.0"
 # Configuración de CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Puedes restringir a dominios específicos si lo deseas
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Token de Prerender.io
+# Token de Prerender.io (se recomienda configurar como variable de entorno)
 PRERENDER_TOKEN = os.getenv("PRERENDER_TOKEN", "KNtCIH1CTMX2w5K9XMT4")
 
 # Lista de bots que deben recibir la versión pre-renderizada
 BOT_USER_AGENTS = [
     "Googlebot", "Bingbot", "Yahoo", "Twitterbot", "FacebookExternalHit",
-    "LinkedInBot", "Slackbot"
+    "LinkedInBot", "Slackbot", "Prerender.io"
 ]
 
-# Lista de IPs permitidas para Prerender.io (actualizadas)
-PRERENDER_IPS = [
-    "54.241.5.235", "54.241.5.236", "54.241.5.237",
-    "104.224.12.0/22", "103.207.40.0/22", "157.90.99.0/27",
-    "159.69.172.160/27", "168.119.133.64/27", "188.34.148.112/28"
-]
-
+# Verifica si la petición viene de un bot de búsqueda
 def is_bot(user_agent: str) -> bool:
-    """Verifica si la petición proviene de un bot de búsqueda."""
+    if user_agent:
+        print(f"🕵️‍♂️ Analizando User-Agent: {user_agent}")  # Debugging
     return any(bot in user_agent for bot in BOT_USER_AGENTS)
-
-def is_prerender_request(request: Request) -> bool:
-    """Verifica si la solicitud viene de Prerender.io según su IP o parámetros en la URL."""
-    client_ip = request.client.host or ""
-    return client_ip in PRERENDER_IPS or "_escaped_fragment_" in request.url.path
 
 class PrerenderMiddleware(BaseHTTPMiddleware):
     """Middleware que intercepta bots y redirige a Prerender.io."""
-    
+
     async def dispatch(self, request: Request, call_next):
         user_agent = request.headers.get("User-Agent", "")
-        client_ip = request.client.host or ""
-
-        print(f"🕵️‍♂️ Request recibida: {request.method} {request.url} - User-Agent: {user_agent} - IP: {client_ip}")
+        full_url = str(request.url)
         
-        if is_bot(user_agent) or is_prerender_request(request):
-            prerender_url = f"https://service.prerender.io/{request.url}"
+        # Si es un bot, redirige a Prerender.io
+        if is_bot(user_agent):
+            prerender_url = f"https://service.prerender.io/{full_url}"
             headers = {"X-Prerender-Token": PRERENDER_TOKEN}
 
             print(f"🕷️ Prerender activado para {user_agent} - URL: {prerender_url}")
 
             try:
                 response = requests.get(prerender_url, headers=headers, timeout=5)
-                print(f"🔄 Respuesta de Prerender: {response.status_code}")
+                print(f"🔄 Respuesta de Prerender.io: {response.status_code}")
 
                 if response.status_code == 200:
-                    print(f"📢 Respondiendo con Prerender.io para: {request.url}")
+                    print(f"📢 Respondiendo con HTML pre-renderizado para: {request.url}")
                     return Response(content=response.content, media_type="text/html")
                 else:
                     print(f"⚠️ Prerender.io devolvió estado {response.status_code}")
-                    return Response(content="Error en Prerender.io", status_code=500)
+                    return Response(content="Error al cargar contenido pre-renderizado", status_code=500)
 
             except requests.exceptions.RequestException as e:
                 print(f"❌ Error al conectar con Prerender.io: {e}")
-                return Response(content=f"Error en prerender: {str(e)}", status_code=500)
+                return Response(content="Error interno en el prerender", status_code=500)
 
         return await call_next(request)
 
 # Agregar el middleware de Prerender.io antes que cualquier otro middleware
 app.add_middleware(PrerenderMiddleware)
 
-# Middleware para loguear todas las peticiones y ver si Render recibe Prerender.io
-@app.middleware("http")
-async def log_all_requests(request: Request, call_next):
-    user_agent = request.headers.get("User-Agent", "")
-    client_ip = request.client.host or ""
-    
-    print(f"🚀 Request recibida: {request.method} {request.url} - User-Agent: {user_agent} - IP: {client_ip}")
-    
-    response = await call_next(request)
-    
-    print(f"📡 Respuesta enviada: {response.status_code}")
-    
-    return response
-
-# Middleware para agregar encabezados de seguridad (COOP y COEP)
+# Middleware para agregar encabezados de seguridad
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     response = await call_next(request)
@@ -129,7 +104,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=int(os.getenv("PORT", 10000)),  # Usa el puerto que Render proporciona si existe
+        port=int(os.getenv("PORT", 10000)),
         log_level="info",
         timeout_keep_alive=120,  
         limit_concurrency=100,
