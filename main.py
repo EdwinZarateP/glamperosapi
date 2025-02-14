@@ -22,7 +22,7 @@ app.version = "1.0"
 # Token de Prerender.io
 PRERENDER_TOKEN = os.getenv("PRERENDER_TOKEN", "KNtCIH1CTMX2w5K9XMT4")
 
-# Palabras clave para detectar bots, prerender y navegadores headless
+# Lista de bots incluyendo Prerender y navegadores headless
 BOT_KEYWORDS = [
     "bot", "crawler", "spider", "prerender", "headlesschrome", 
     "Googlebot", "Bingbot", "Yahoo", "Twitterbot", "FacebookExternalHit",
@@ -31,8 +31,14 @@ BOT_KEYWORDS = [
 
 def is_bot(user_agent: str) -> bool:
     """Verifica si la petición proviene de un bot de búsqueda o Prerender."""
-    user_agent = user_agent.lower() if user_agent else ""
-    return any(keyword in user_agent for keyword in BOT_KEYWORDS)
+    if not user_agent:
+        return False
+
+    user_agent_lower = user_agent.lower()
+    detected = any(keyword in user_agent_lower for keyword in BOT_KEYWORDS)
+
+    print(f"🕵️‍♂️ User-Agent: {user_agent} | Es bot: {detected}")  # Log para depuración
+    return detected
 
 class PrerenderMiddleware(BaseHTTPMiddleware):
     """Middleware que intercepta bots y redirige a Prerender.io."""
