@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request
-from fastapi.middleware.origins import CORSMiddleware
+from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 import requests
