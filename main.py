@@ -4,7 +4,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 import requests
 import os
-import re  # Para detección más precisa de bots
+import re  # Para mejor detección de bots
 
 # Importación de rutas
 from rutas.usuarios import ruta_usuario
@@ -24,7 +24,9 @@ app.version = "1.0"
 PRERENDER_TOKEN = os.getenv("PRERENDER_TOKEN", "KNtCIH1CTMX2w5K9XMT4")
 
 # Expresión regular para detectar bots y navegadores headless
-BOT_REGEX = re.compile(r"bot|crawler|spider|prerender|headlesschrome", re.IGNORECASE)
+BOT_REGEX = re.compile(
+    r"bot|crawler|spider|prerender|headlesschrome|chrome-lighthouse|googlebot", re.IGNORECASE
+)
 
 def is_bot(user_agent: str) -> bool:
     """Verifica si la petición proviene de un bot de búsqueda o Prerender."""
