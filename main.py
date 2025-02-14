@@ -4,7 +4,6 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 import requests
 import os
-import re  # Para mejor detección de bots
 
 # Importación de rutas
 from rutas.usuarios import ruta_usuario
@@ -23,28 +22,27 @@ app.version = "1.0"
 # Token de Prerender.io
 PRERENDER_TOKEN = os.getenv("PRERENDER_TOKEN", "KNtCIH1CTMX2w5K9XMT4")
 
-# Expresión regular para detectar bots y navegadores headless
-BOT_REGEX = re.compile(
-    r"bot|crawler|spider|prerender|headlesschrome|chrome-lighthouse|googlebot", re.IGNORECASE
-)
+# Lista de bots y palabras clave para detectar Prerender
+BOT_KEYWORDS = [
+    "bot", "crawler", "spider", "Googlebot", "Bingbot", 
+    "Yahoo", "Twitterbot", "FacebookExternalHit", "LinkedInBot", 
+    "Slackbot", "Prerender", "HeadlessChrome"
+]
 
 def is_bot(user_agent: str) -> bool:
-    """Verifica si la petición proviene de un bot de búsqueda o Prerender."""
+    """Verifica si el User-Agent pertenece a un bot."""
     if not user_agent:
         return False
     
-    detected = bool(BOT_REGEX.search(user_agent))
-    print(f"🕵️‍♂️ User-Agent: {user_agent} | Es bot: {detected}")  # Log para depuración
+    # 🔥 FORZAMOS la detección de cualquier User-Agent que contenga 'Prerender'
+    detected = any(keyword.lower() in user_agent.lower() for keyword in BOT_KEYWORDS)
+    print(f"🕵️‍♂️ Analizando User-Agent: {user_agent} → Bot detectado: {detected}")
     return detected
 
 class PrerenderMiddleware(BaseHTTPMiddleware):
     """Middleware que intercepta bots y redirige a Prerender.io."""
     
     async def dispatch(self, request: Request, call_next):
-        # Evitar bucle: si la solicitud viene de Prerender, no procesar
-        if request.headers.get("X-Prerender"):
-            return await call_next(request)
-        
         user_agent = request.headers.get("User-Agent", "")
         url = request.url.path
 
