@@ -37,11 +37,11 @@ BOT_USER_AGENTS = [
     "LinkedInBot", "Slackbot"
 ]
 
-# Lista de IPs permitidas para Prerender.io (para evitar bloqueos en Render y Cloudflare)
+# Lista de IPs permitidas para Prerender.io (actualizadas)
 PRERENDER_IPS = [
-    "54.241.5.235",
-    "54.241.5.236",
-    "54.241.5.237"
+    "54.241.5.235", "54.241.5.236", "54.241.5.237",
+    "104.224.12.0/22", "103.207.40.0/22", "157.90.99.0/27",
+    "159.69.172.160/27", "168.119.133.64/27", "188.34.148.112/28"
 ]
 
 def is_bot(user_agent: str) -> bool:
@@ -49,9 +49,9 @@ def is_bot(user_agent: str) -> bool:
     return any(bot in user_agent for bot in BOT_USER_AGENTS)
 
 def is_prerender_request(request: Request) -> bool:
-    """Verifica si la solicitud viene de Prerender.io según su IP."""
+    """Verifica si la solicitud viene de Prerender.io según su IP o parámetros en la URL."""
     client_ip = request.client.host or ""
-    return client_ip in PRERENDER_IPS
+    return client_ip in PRERENDER_IPS or "_escaped_fragment_" in request.url.path
 
 class PrerenderMiddleware(BaseHTTPMiddleware):
     """Middleware que intercepta bots y redirige a Prerender.io."""
@@ -60,28 +60,20 @@ class PrerenderMiddleware(BaseHTTPMiddleware):
         user_agent = request.headers.get("User-Agent", "")
         client_ip = request.client.host or ""
 
-        print(f"🕵️‍♂️ User-Agent recibido: {user_agent} - IP: {client_ip}")  # Debugging
-        
         if is_bot(user_agent) or is_prerender_request(request):
             prerender_url = f"https://service.prerender.io/{request.url}"
             headers = {"X-Prerender-Token": PRERENDER_TOKEN}
 
-            print(f"🕷️ Prerender activado para {user_agent} - URL: {prerender_url}")
-
             try:
                 response = requests.get(prerender_url, headers=headers, timeout=5)
-                print(f"🔄 Respuesta de Prerender: {response.status_code}")
 
                 if response.status_code == 200:
-                    print(f"📢 Respondiendo con Prerender.io para: {request.url}")
                     return Response(content=response.content, media_type="text/html")
                 else:
-                    print(f"⚠️ Prerender.io devolvió estado {response.status_code}")
-                    return Response(content="Error al cargar contenido pre-renderizado", status_code=500)
+                    return Response(content="Error en Prerender.io", status_code=500)
 
             except requests.exceptions.RequestException as e:
-                print(f"❌ Error al conectar con Prerender.io: {e}")
-                return Response(content="Error interno en el prerender", status_code=500)
+                return Response(content=f"Error en prerender: {str(e)}", status_code=500)
 
         return await call_next(request)
 
