@@ -1,5 +1,5 @@
 from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.origins import CORSMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 import requests
@@ -43,6 +43,10 @@ class PrerenderMiddleware(BaseHTTPMiddleware):
     """Middleware que intercepta bots y redirige a Prerender.io."""
     
     async def dispatch(self, request: Request, call_next):
+        # Evitar bucle: si la solicitud viene de Prerender, no procesar
+        if request.headers.get("X-Prerender"):
+            return await call_next(request)
+        
         user_agent = request.headers.get("User-Agent", "")
         url = request.url.path
 
