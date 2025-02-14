@@ -28,7 +28,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Token de Prerender.io (se recomienda configurar como variable de entorno en Render)
+# Token de Prerender.io
 PRERENDER_TOKEN = os.getenv("PRERENDER_TOKEN", "KNtCIH1CTMX2w5K9XMT4")
 
 # Lista de bots que deben recibir la versión pre-renderizada
@@ -60,25 +60,47 @@ class PrerenderMiddleware(BaseHTTPMiddleware):
         user_agent = request.headers.get("User-Agent", "")
         client_ip = request.client.host or ""
 
+        print(f"🕵️‍♂️ Request recibida: {request.method} {request.url} - User-Agent: {user_agent} - IP: {client_ip}")
+        
         if is_bot(user_agent) or is_prerender_request(request):
             prerender_url = f"https://service.prerender.io/{request.url}"
             headers = {"X-Prerender-Token": PRERENDER_TOKEN}
 
+            print(f"🕷️ Prerender activado para {user_agent} - URL: {prerender_url}")
+
             try:
                 response = requests.get(prerender_url, headers=headers, timeout=5)
+                print(f"🔄 Respuesta de Prerender: {response.status_code}")
 
                 if response.status_code == 200:
+                    print(f"📢 Respondiendo con Prerender.io para: {request.url}")
                     return Response(content=response.content, media_type="text/html")
                 else:
+                    print(f"⚠️ Prerender.io devolvió estado {response.status_code}")
                     return Response(content="Error en Prerender.io", status_code=500)
 
             except requests.exceptions.RequestException as e:
+                print(f"❌ Error al conectar con Prerender.io: {e}")
                 return Response(content=f"Error en prerender: {str(e)}", status_code=500)
 
         return await call_next(request)
 
 # Agregar el middleware de Prerender.io antes que cualquier otro middleware
 app.add_middleware(PrerenderMiddleware)
+
+# Middleware para loguear todas las peticiones y ver si Render recibe Prerender.io
+@app.middleware("http")
+async def log_all_requests(request: Request, call_next):
+    user_agent = request.headers.get("User-Agent", "")
+    client_ip = request.client.host or ""
+    
+    print(f"🚀 Request recibida: {request.method} {request.url} - User-Agent: {user_agent} - IP: {client_ip}")
+    
+    response = await call_next(request)
+    
+    print(f"📡 Respuesta enviada: {response.status_code}")
+    
+    return response
 
 # Middleware para agregar encabezados de seguridad (COOP y COEP)
 @app.middleware("http")
