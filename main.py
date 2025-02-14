@@ -28,7 +28,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Token de Prerender.io (se recomienda configurar como variable de entorno)
+# Token de Prerender.io (Se recomienda configurar como variable de entorno)
 PRERENDER_TOKEN = os.getenv("PRERENDER_TOKEN", "KNtCIH1CTMX2w5K9XMT4")
 
 # Lista de bots que deben recibir la versión pre-renderizada
@@ -48,7 +48,7 @@ def is_bot(user_agent: str) -> bool:
     """Verifica si la petición proviene de un bot de búsqueda."""
     if user_agent:
         print(f"🕵️‍♂️ Analizando User-Agent: {user_agent}")  # Debugging en logs de Render
-    return any(bot in user_agent for bot in BOT_USER_AGENTS)
+    return any(bot.lower() in user_agent.lower() for bot in BOT_USER_AGENTS)
 
 def is_prerender_request(request: Request) -> bool:
     """Verifica si la solicitud viene de Prerender.io según su IP o User-Agent."""
@@ -89,7 +89,6 @@ class PrerenderMiddleware(BaseHTTPMiddleware):
                 return Response(content=f"Error en prerender: {str(e)}", status_code=500)
 
         return await call_next(request)
-
 
 # Agregar el middleware de Prerender.io antes que cualquier otro middleware
 app.add_middleware(PrerenderMiddleware)
