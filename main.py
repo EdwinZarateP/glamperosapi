@@ -19,27 +19,19 @@ app = FastAPI()
 app.title = "Glamperos"
 app.version = "1.0"
 
-# Configuración de CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
 # Token de Prerender.io
 PRERENDER_TOKEN = os.getenv("PRERENDER_TOKEN", "KNtCIH1CTMX2w5K9XMT4")
 
 # Lista de bots que deben recibir la versión prerenderizada
 BOT_USER_AGENTS = [
-    "Googlebot", "Bingbot", "Yahoo", "Twitterbot", "FacebookExternalHit",
-    "LinkedInBot", "Slackbot", "Prerender.io"
+    "bot", "crawler", "spider", "Googlebot", "Bingbot", "Yahoo", 
+    "Twitterbot", "FacebookExternalHit", "LinkedInBot", "Slackbot", "Prerender.io"
 ]
 
 def is_bot(user_agent: str) -> bool:
     """Verifica si la petición proviene de un bot de búsqueda."""
-    return any(bot.lower() in user_agent.lower() for bot in BOT_USER_AGENTS)
+    user_agent = user_agent.lower() if user_agent else ""
+    return any(bot.lower() in user_agent for bot in BOT_USER_AGENTS)
 
 class PrerenderMiddleware(BaseHTTPMiddleware):
     """Middleware que intercepta bots y redirige a Prerender.io."""
@@ -75,6 +67,15 @@ class PrerenderMiddleware(BaseHTTPMiddleware):
 # Agregar el middleware de Prerender.io antes que cualquier otro middleware
 app.add_middleware(PrerenderMiddleware)
 
+# Configuración de CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Middleware para agregar encabezados de seguridad
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
@@ -96,7 +97,14 @@ app.include_router(ruta_reserva)
 async def root():
     return {"message": "Hola Glampero"}
 
-# Debug: Ruta para probar la integración con Prerender.io
+# ✅ Debug: Ruta para verificar detección de bots
+@app.get("/check-bot")
+async def check_bot(request: Request):
+    user_agent = request.headers.get("User-Agent", "")
+    is_bot_detected = is_bot(user_agent)
+    return {"user_agent": user_agent, "is_bot": is_bot_detected}
+
+# ✅ Debug: Ruta para probar la integración con Prerender.io
 @app.get("/debug-prerender")
 async def debug_prerender():
     prerender_url = "https://service.prerender.io/https://glamperos.com"
