@@ -37,42 +37,59 @@ BOT_USER_AGENTS = [
     "LinkedInBot", "Slackbot", "Prerender.io"
 ]
 
-# Verifica si la petición viene de un bot de búsqueda
+# Lista de IPs permitidas para Prerender.io
+PRERENDER_IPS = [
+    "54.241.5.235", "54.241.5.236", "54.241.5.237",
+    "104.224.12.0/22", "103.207.40.0/22", "157.90.99.0/27",
+    "159.69.172.160/27", "168.119.133.64/27", "188.34.148.112/28"
+]
+
 def is_bot(user_agent: str) -> bool:
+    """Verifica si la petición proviene de un bot de búsqueda."""
     if user_agent:
-        print(f"🕵️‍♂️ Analizando User-Agent: {user_agent}")  # Debugging
+        print(f"🕵️‍♂️ Analizando User-Agent: {user_agent}")  # Debugging en logs de Render
     return any(bot in user_agent for bot in BOT_USER_AGENTS)
+
+def is_prerender_request(request: Request) -> bool:
+    """Verifica si la solicitud viene de Prerender.io según su IP o User-Agent."""
+    client_ip = request.client.host or ""
+    if client_ip in PRERENDER_IPS:
+        print(f"✅ La IP {client_ip} pertenece a Prerender.io")
+    return client_ip in PRERENDER_IPS or "_escaped_fragment_" in request.url.path
 
 class PrerenderMiddleware(BaseHTTPMiddleware):
     """Middleware que intercepta bots y redirige a Prerender.io."""
-
+    
     async def dispatch(self, request: Request, call_next):
         user_agent = request.headers.get("User-Agent", "")
-        full_url = str(request.url)
-        
-        # Si es un bot, redirige a Prerender.io
-        if is_bot(user_agent):
-            prerender_url = f"https://service.prerender.io/{full_url}"
+        client_ip = request.client.host or ""
+        url = request.url.path
+
+        print(f"🔍 Recibida solicitud: {url} - User-Agent: {user_agent} - IP: {client_ip}")  
+
+        if is_bot(user_agent) or is_prerender_request(request):
+            prerender_url = f"https://service.prerender.io/{request.url}"
             headers = {"X-Prerender-Token": PRERENDER_TOKEN}
 
-            print(f"🕷️ Prerender activado para {user_agent} - URL: {prerender_url}")
+            print(f"🕷️ Redirigiendo a Prerender.io -> {prerender_url}")
 
             try:
                 response = requests.get(prerender_url, headers=headers, timeout=5)
-                print(f"🔄 Respuesta de Prerender.io: {response.status_code}")
+                print(f"🔍 Respuesta de Prerender.io: {response.status_code}")
 
                 if response.status_code == 200:
-                    print(f"📢 Respondiendo con HTML pre-renderizado para: {request.url}")
+                    print(f"✅ Prerender.io respondió correctamente para {request.url}")
                     return Response(content=response.content, media_type="text/html")
                 else:
-                    print(f"⚠️ Prerender.io devolvió estado {response.status_code}")
-                    return Response(content="Error al cargar contenido pre-renderizado", status_code=500)
+                    print(f"⚠️ Error en Prerender.io: {response.status_code}")
+                    return Response(content="Error en prerenderizado", status_code=500)
 
             except requests.exceptions.RequestException as e:
-                print(f"❌ Error al conectar con Prerender.io: {e}")
-                return Response(content="Error interno en el prerender", status_code=500)
+                print(f"❌ Error al conectar con Prerender.io: {str(e)}")
+                return Response(content=f"Error en prerender: {str(e)}", status_code=500)
 
         return await call_next(request)
+
 
 # Agregar el middleware de Prerender.io antes que cualquier otro middleware
 app.add_middleware(PrerenderMiddleware)
