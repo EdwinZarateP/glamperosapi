@@ -37,7 +37,7 @@ class Usuario(BaseModel):
     banco: str = None  # Campo opcional para la banco
     numeroCuenta: str = None  # Campo opcional para numeroCuenta
     tipoCuenta: str = None  # Campo opcional para tipoCuenta 
-    certificadoBancario: str = None  # Campo opcional para la foto
+    tipoDocumento: str = None  # Campo opcional para la foto
 
 
 def modelo_usuario(usuario) -> dict:
@@ -51,7 +51,7 @@ def modelo_usuario(usuario) -> dict:
         "banco": usuario["banco"],
         "numeroCuenta": usuario["numeroCuenta"],
         "tipoCuenta": usuario["tipoCuenta"],
-        "certificadoBancario": usuario["certificadoBancario"],
+        "tipoDocumento": usuario["tipoDocumento"],
     }
 
 
@@ -121,7 +121,7 @@ async def crear_usuario(usuario: Usuario):
         "banco": usuario.banco, # Campo opcional
         "numeroCuenta": usuario.numeroCuenta, # Campo opcional
         "tipoCuenta": usuario.tipoCuenta, # Campo opcional  
-        "certificadoBancario": usuario.certificadoBancario # Campo opcional                
+        "tipoDocumento": usuario.tipoDocumento # Campo opcional                
     }
     
     # Insertar el nuevo usuario en la base de datos
@@ -251,6 +251,7 @@ async def buscar_usuario(email: str):
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return modelo_usuario(usuario)
+
 
 @ruta_usuario.put("/{usuario_id}/banco", response_model=dict)
 async def actualizar_datos_bancarios(

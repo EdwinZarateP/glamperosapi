@@ -10,7 +10,7 @@ def modelo_usuario(usuario) -> dict:
         "banco": usuario.get("banco"),  # Campo opcional
         "numeroCuenta": usuario.get("numeroCuenta"),  # Campo opcional
         "tipoCuenta": usuario.get("tipoCuenta"),  # Campo opcional
-        "certificadoBancario": usuario.get("certificadoBancario"),  # Campo opcional
+        "tipoDocumento": usuario.get("tipoDocumento"),  # Campo opcional
     }
 
 def modelo_usuarios(usuarios)->list:
