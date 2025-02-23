@@ -252,14 +252,13 @@ async def buscar_usuario(email: str):
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
     return modelo_usuario(usuario)
 
-
 @ruta_usuario.put("/{usuario_id}/banco", response_model=dict)
 async def actualizar_datos_bancarios(
     usuario_id: str,
     banco: str = Body(None, embed=True),
     numeroCuenta: str = Body(None, embed=True),
     tipoCuenta: str = Body(None, embed=True),
-    certificadoBancario: UploadFile = File(None),
+    tipoDocumento: str = Body(None, embed=True),
 ):
     try:
         # Buscar al usuario por su ID
@@ -269,7 +268,7 @@ async def actualizar_datos_bancarios(
         
         actualizaciones = {}
         
-         # Actualizar número de cuenta si se proporciona
+        # Actualizar banco si se proporciona
         if banco:
             actualizaciones["banco"] = banco
 
@@ -281,10 +280,9 @@ async def actualizar_datos_bancarios(
         if tipoCuenta:
             actualizaciones["tipoCuenta"] = tipoCuenta
         
-        # Subir el certificado bancario si se proporciona
-        if certificadoBancario:
-            url_certificado = subir_a_google_storage(certificadoBancario, carpeta="certificadosBancarios")
-            actualizaciones["certificadoBancario"] = url_certificado
+        # Actualizar tipo de documento si se proporciona
+        if tipoDocumento:
+            actualizaciones["tipoDocumento"] = tipoDocumento
         
         # Si no hay cambios, no hacer actualización
         if not actualizaciones:
