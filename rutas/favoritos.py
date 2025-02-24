@@ -4,6 +4,7 @@ from bson import ObjectId
 from typing import List
 from pydantic import BaseModel
 from datetime import datetime, timezone
+from fastapi import Query
 import os
 
 # Configuración de la base de datos
@@ -63,14 +64,14 @@ async def listar_favoritos(usuario_id: str):
     return [favorito["glamping_id"] for favorito in favoritos]
 
 
-
 # Endpoint para eliminar un favorito
 @ruta_favoritos.delete("/", response_model=dict)
-async def eliminar_favorito(usuario_id: str, glamping_id: str):
+async def eliminar_favorito(usuario_id: str = Query(...), glamping_id: str = Query(...)):
     resultado = db.favoritos.delete_one({"usuario_id": usuario_id, "glamping_id": glamping_id})
     if resultado.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Favorito no encontrado")
     return {"mensaje": "Favorito eliminado"}
+
 
 # Endpoint para buscar un favorito
 @ruta_favoritos.get("/buscar", response_model=dict)
@@ -84,3 +85,5 @@ async def buscar_favorito(usuario_id: str, glamping_id: str):
     else:
         # Si no se encuentra, respondemos con 'favorito_existe: false'
         return {"favorito_existe": False}
+
+
