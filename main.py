@@ -1,7 +1,17 @@
 from fastapi import FastAPI, Request
 from starlette.middleware.cors import CORSMiddleware
-from starlette.responses import Response
 import os
+from dotenv import load_dotenv
+
+# Cargar variables de entorno
+load_dotenv()
+
+# Verificar variables necesarias
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+MONGO_URI = os.getenv("MONGO_URI")
+
+if not DEEPSEEK_API_KEY or not MONGO_URI:
+    raise ValueError("❌ ERROR: Las variables DEEPSEEK_API_KEY o MONGO_URI no están configuradas.")
 
 # Importación de rutas
 from rutas.usuarios import ruta_usuario
@@ -12,21 +22,20 @@ from rutas.evaluacion import ruta_evaluaciones
 from rutas.mensajeria import ruta_mensajes
 from rutas.whatsapp import ruta_whatsapp
 from rutas.reserva import ruta_reserva
+from rutas.deepseek import ruta_deepseek
 
-app = FastAPI()
-app.title = "Glamperos"
-app.version = "1.0"
+app = FastAPI(title="Glamperos", version="1.0")
 
 # Configuración de CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Permitir todas las solicitudes (mejor restringir en producción)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Middleware para agregar encabezados de seguridad
+# Middleware de seguridad
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     response = await call_next(request)
@@ -42,19 +51,8 @@ app.include_router(ruta_evaluaciones)
 app.include_router(ruta_mensajes)
 app.include_router(ruta_whatsapp)
 app.include_router(ruta_reserva)
+app.include_router(ruta_deepseek)
 
 @app.get("/", tags=["Home"])
 async def root():
     return {"message": "Hola Glampero"}
-
-# Ejecuta el servidor
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=int(os.getenv("PORT", 10000)),
-        log_level="info",
-        timeout_keep_alive=120,  
-        limit_concurrency=100,
-    )
