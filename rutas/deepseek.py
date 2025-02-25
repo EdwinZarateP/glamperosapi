@@ -1,11 +1,13 @@
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
 import os
 import requests
-from typing import Dict
 from pymongo import MongoClient
 
 # Obtener la API Key desde variables de entorno
-DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "tu_api_key_aqui")
+DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+if not DEEPSEEK_API_KEY:
+    raise ValueError("❌ ERROR: La variable DEEPSEEK_API_KEY no está configurada.")
 
 # Conexión a MongoDB
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
@@ -19,31 +21,37 @@ ruta_deepseek = APIRouter(
     responses={404: {"description": "No encontrado"}},
 )
 
+# Definir el esquema del request body con Pydantic
+class DeepSeekRequest(BaseModel):
+    message: str
+
 @ruta_deepseek.post("/")
-async def chat_deepseek(data: Dict[str, str]):
+async def chat_deepseek(request: DeepSeekRequest):
     """
     Chatbot que responde preguntas sobre glampings usando DeepSeek AI.
     
     **Parámetro de entrada (JSON):**  
-    - `message`: La pregunta del usuario.
-    
-    **Ejemplo de uso:**
     ```json
     { "message": "¿Cuáles son los mejores glampings en Cali?" }
     ```
-    
+
     **Respuesta esperada:**
     ```json
     { "response": "Los mejores glampings en Cali son..." }
     ```
     """
-    message = data.get("message")
-    
+    message = request.message.strip()  # Limpiar espacios en blanco
+
     if not message:
-        raise HTTPException(status_code=400, detail="El mensaje es obligatorio")
+        raise HTTPException(status_code=400, detail="El mensaje no puede estar vacío.")
 
     # Extraer información de glampings desde MongoDB
     glampings = list(db["glampings"].find({}, {"_id": 0, "nombreGlamping": 1, "ciudad_departamento": 1, "descripcionGlamping": 1}))
+
+    if not glampings:
+        raise HTTPException(status_code=500, detail="No se encontraron datos de glampings en la base de datos.")
+
+    # Crear un contexto con la información de los glampings
     contexto = "\n".join([f"{g['nombreGlamping']} en {g['ciudad_departamento']}: {g['descripcionGlamping']}" for g in glampings])
 
     # Configurar la solicitud a la API de DeepSeek
@@ -64,7 +72,8 @@ async def chat_deepseek(data: Dict[str, str]):
     try:
         response = requests.post("https://api.deepseek.com/v1/chat/completions", json=payload, headers=headers)
         response.raise_for_status()
-        respuesta_bot = response.json()["choices"][0]["message"]["content"]
+        respuesta_bot = response.json().get("choices", [{}])[0].get("message", {}).get("content", "No se pudo obtener una respuesta.")
+
         return {"response": respuesta_bot}
     
     except requests.exceptions.RequestException as e:
