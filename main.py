@@ -22,7 +22,7 @@ from rutas.evaluacion import ruta_evaluaciones
 from rutas.mensajeria import ruta_mensajes
 from rutas.whatsapp import ruta_whatsapp
 from rutas.reserva import ruta_reserva
-from rutas.deepseek import ruta_deepseek
+from rutas.openai import ruta_openai
 
 app = FastAPI(title="Glamperos", version="1.0")
 
@@ -51,7 +51,7 @@ app.include_router(ruta_evaluaciones)
 app.include_router(ruta_mensajes)
 app.include_router(ruta_whatsapp)
 app.include_router(ruta_reserva)
-app.include_router(ruta_deepseek)
+app.include_router(ruta_openai)
 
 @app.get("/", tags=["Home"])
 async def root():
