@@ -82,7 +82,7 @@ async def chat_openai(data: Dict[str, str]):
         "Authorization": f"Bearer {OPENAI_API_KEY}"
     }
 
-    # 7. Llamar a la API de OpenAI
+    # 7. Llamar a la API de OpenAI nueva
     try:
         response = requests.post("https://api.openai.com/v1/chat/completions", json=payload, headers=headers)
         response.raise_for_status()
