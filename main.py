@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Verificar variables necesarias
-OPENAI_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 MONGO_URI = os.getenv("MONGO_URI")
 
 if not OPENAI_API_KEY or not MONGO_URI:
