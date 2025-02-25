@@ -3,13 +3,14 @@ from pydantic import BaseModel
 import os
 import requests
 from pymongo import MongoClient
+from typing import List
 
 # Obtener la API Key desde variables de entorno
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 if not DEEPSEEK_API_KEY:
     raise ValueError("❌ ERROR: La variable DEEPSEEK_API_KEY no está configurada.")
 
-# Conexión a MongoDB
+# Conexión a MongoDB (cambia la URI si usas otro servidor)
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017")
 ConexionMongo = MongoClient(MONGO_URI)
 db = ConexionMongo["glamperos"]
@@ -45,14 +46,17 @@ async def chat_deepseek(request: DeepSeekRequest):
     if not message:
         raise HTTPException(status_code=400, detail="El mensaje no puede estar vacío.")
 
-    # Extraer información de glampings desde MongoDB
-    glampings = list(db["glampings"].find({}, {"_id": 0, "nombreGlamping": 1, "ciudad_departamento": 1, "descripcionGlamping": 1}))
+    # Obtener información de los glampings desde MongoDB
+    glampings = list(db["glampings"].find({}, {"_id": 0, "nombreGlamping": 1, "ciudad_departamento": 1, "descripcionGlamping": 1, "calificacion": 1}))
 
     if not glampings:
         raise HTTPException(status_code=500, detail="No se encontraron datos de glampings en la base de datos.")
 
-    # Crear un contexto con la información de los glampings
-    contexto = "\n".join([f"{g['nombreGlamping']} en {g['ciudad_departamento']}: {g['descripcionGlamping']}" for g in glampings])
+    # Formatear la información de los glampings para el contexto de DeepSeek
+    contexto = "\n".join([
+        f"{g['nombreGlamping']} en {g['ciudad_departamento']}: {g['descripcionGlamping']} (Calificación: {g['calificacion']})"
+        for g in glampings
+    ])
 
     # Configurar la solicitud a la API de DeepSeek
     payload = {
@@ -61,7 +65,7 @@ async def chat_deepseek(request: DeepSeekRequest):
             {"role": "system", "content": "Eres un asistente de reservas de Glamping en Colombia. Usa la información del contexto para responder."},
             {"role": "user", "content": f"Contexto:\n{contexto}\n\nPregunta: {message}"}
         ],
-        "max_tokens": 200
+        "max_tokens": 300
     }
 
     headers = {
