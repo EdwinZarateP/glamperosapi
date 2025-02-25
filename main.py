@@ -7,10 +7,10 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Verificar variables necesarias
-DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY")
+OPENAI_API_KEY = os.getenv("DEEPSEEK_API_KEY")
 MONGO_URI = os.getenv("MONGO_URI")
 
-if not DEEPSEEK_API_KEY or not MONGO_URI:
+if not OPENAI_API_KEY or not MONGO_URI:
     raise ValueError("❌ ERROR: Las variables DEEPSEEK_API_KEY o MONGO_URI no están configuradas.")
 
 # Importación de rutas
