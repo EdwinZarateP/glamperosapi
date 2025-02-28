@@ -301,13 +301,16 @@ async def solicitar_pago(payload: dict = Body(...)):
             )
 
         # Obtener las reservas pendientes (completadas y sin pago)
-        reservas_pendientes = base_datos.reservas.find({
+        reservas_pendientes = list(base_datos.reservas.find({
             "idPropietario": idPropietario,
             "EstadoPago": "Pendiente",
             "EstadoReserva": "Completada"
-        })
+        }))
+        # Para depurar, imprimir (o loguear) las reservas encontradas:
+        print(f"Reservas pendientes para {idPropietario}: {reservas_pendientes}")
 
-        saldo_disponible = sum(reserva["CostoGlamping"] for reserva in reservas_pendientes)
+        saldo_disponible = sum(reserva.get("CostoGlamping", 0) for reserva in reservas_pendientes)
+        print(f"Saldo disponible calculado: {saldo_disponible}")
 
         if saldo_disponible <= 0:
             raise HTTPException(
@@ -327,14 +330,18 @@ async def solicitar_pago(payload: dict = Body(...)):
         }
 
         result = base_datos.solicitudes_pago.insert_one(nueva_solicitud)
+        print(f"Solicitud insertada con ID: {result.inserted_id}")
 
         return {"mensaje": "Solicitud de pago enviada exitosamente"}
+    except HTTPException as he:
+        raise he
     except Exception as e:
+        # Aquí se captura cualquier error inesperado
+        print(f"Error en solicitar_pago: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Error al solicitar el pago: {str(e)}"
         )
-
 
 # historial de sus solicitudes
 @ruta_reserva.get("/solicitudes_pago/{idPropietario}", response_model=list)
