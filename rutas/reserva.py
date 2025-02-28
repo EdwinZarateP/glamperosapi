@@ -18,7 +18,9 @@ ruta_reserva = APIRouter(
     responses={status.HTTP_404_NOT_FOUND: {"message": "No encontrado"}},
 )
 
-# Modelo de reserva
+# ------------------------------
+# Modelos de datos
+# ------------------------------
 class Reserva(BaseModel):
     idCliente: str
     idPropietario: str
@@ -42,20 +44,18 @@ class Reserva(BaseModel):
     FechaPago: datetime = None
     ReferenciaPago: str = None
 
-# Modelo para actualización de estado de reserva y comentarios
 class ActualizarReserva(BaseModel):
     EstadoReserva: str
     ComentariosCancelacion: str
 
-# Modelo para actualización del pago
 class ActualizarPago(BaseModel):
-    EstadoPago: str      # Por ejemplo: "Pagado" o "Pendiente"
-    MetodoPago: str      # Ejemplo: "Transferencia Bancaria", "Nequi", "PayPal", etc.
+    EstadoPago: str      # "Pagado" o "Pendiente"
+    MetodoPago: str      # "Transferencia Bancaria", "Nequi", "PayPal", etc.
     FechaPago: datetime
     ReferenciaPago: str
 
-# Modelo de respuesta de reserva
 def modelo_reserva(reserva) -> dict:
+    """Convierte un documento de MongoDB en un dict listo para ser devuelto por la API."""
     return {
         "id": str(reserva["_id"]),
         "idCliente": reserva["idCliente"],
@@ -79,19 +79,21 @@ def modelo_reserva(reserva) -> dict:
         "EstadoPago": reserva.get("EstadoPago", "Pendiente"),
         "MetodoPago": reserva.get("MetodoPago"),
         "FechaPago": reserva.get("FechaPago"),
-        "ReferenciaPago": reserva.get("ReferenciaPago")
+        "ReferenciaPago": reserva.get("ReferenciaPago"),
     }
 
 # Definir la zona horaria de Colombia
 ZONA_HORARIA_COLOMBIA = timezone("America/Bogota")
 
+# ------------------------------
 # Crear una nueva reserva
+# ------------------------------
 @ruta_reserva.post("/", response_model=dict)
 async def crear_reserva(reserva: Reserva):
     try:
         # Generar un código único con los primeros 8 caracteres del ObjectId
         codigo_reserva = str(ObjectId())[:8]
-        # Convertir la fecha de creación a la hora de Colombia (UTC-5)
+        # Convertir la fecha de creación a la hora de Colombia
         fecha_creacion_colombia = datetime.now().astimezone(ZONA_HORARIA_COLOMBIA)
         
         nueva_reserva = {
@@ -113,24 +115,29 @@ async def crear_reserva(reserva: Reserva):
             "fechaCreacion": fecha_creacion_colombia,
             "codigoReserva": codigo_reserva,
             "ComentariosCancelacion": reserva.ComentariosCancelacion,
-            # Inicializar los campos de pago
+            # Inicializar campos de pago
             "EstadoPago": reserva.EstadoPago,
             "MetodoPago": reserva.MetodoPago,
             "FechaPago": reserva.FechaPago,
-            "ReferenciaPago": reserva.ReferenciaPago
+            "ReferenciaPago": reserva.ReferenciaPago,
         }
         
         result = base_datos.reservas.insert_one(nueva_reserva)
         nueva_reserva["_id"] = result.inserted_id
 
-        return {"mensaje": "Reserva creada exitosamente", "reserva": modelo_reserva(nueva_reserva)}
+        return {
+            "mensaje": "Reserva creada exitosamente",
+            "reserva": modelo_reserva(nueva_reserva),
+        }
     except Exception as e:
         raise HTTPException(
             status_code=500,
             detail=f"Error al crear la reserva: {str(e)}"
         )
 
+# ------------------------------
 # Consultar reservas del propietario
+# ------------------------------
 @ruta_reserva.get("/documentos/{idPropietario}", response_model=list)
 async def obtener_documentos_por_propietario(idPropietario: str):
     try:
@@ -148,7 +155,9 @@ async def obtener_documentos_por_propietario(idPropietario: str):
             detail=f"Error al obtener los documentos del propietario: {str(e)}"
         )
 
+# ------------------------------
 # Consultar reservas del cliente
+# ------------------------------
 @ruta_reserva.get("/documentos_cliente/{idCliente}", response_model=list)
 async def obtener_documentos_por_cliente(idCliente: str):
     try:
@@ -166,7 +175,9 @@ async def obtener_documentos_por_cliente(idCliente: str):
             detail=f"Error al obtener los documentos del cliente: {str(e)}"
         )
 
+# ------------------------------
 # Actualizar estado de reserva y comentarios
+# ------------------------------
 @ruta_reserva.put("/{reserva_id}", response_model=dict)
 async def actualizar_estado_reserva(
     reserva_id: str,
@@ -180,10 +191,12 @@ async def actualizar_estado_reserva(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Formato de ID inválido"
             )
+
         update_data = {
             "EstadoReserva": actualizacion.EstadoReserva,
             "ComentariosCancelacion": actualizacion.ComentariosCancelacion
         }
+
         resultado = base_datos.reservas.update_one(
             {"_id": object_id},
             {"$set": update_data}
@@ -193,10 +206,11 @@ async def actualizar_estado_reserva(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Reserva no encontrada"
             )
+
         reserva_actualizada = base_datos.reservas.find_one({"_id": object_id})
         return {
             "mensaje": "Reserva actualizada correctamente",
-            "reserva": modelo_reserva(reserva_actualizada)
+            "reserva": modelo_reserva(reserva_actualizada),
         }
     except HTTPException as he:
         raise he
@@ -206,7 +220,9 @@ async def actualizar_estado_reserva(
             detail=f"Error al actualizar reserva: {str(e)}"
         )
 
+# ------------------------------
 # Actualizar el estado de pago de una reserva
+# ------------------------------
 @ruta_reserva.put("/pago/{reserva_id}", response_model=dict)
 async def actualizar_pago_reserva(
     reserva_id: str,
@@ -220,12 +236,14 @@ async def actualizar_pago_reserva(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Formato de ID inválido"
             )
+
         update_data = {
             "EstadoPago": pago.EstadoPago,
             "MetodoPago": pago.MetodoPago,
             "FechaPago": pago.FechaPago,
-            "ReferenciaPago": pago.ReferenciaPago
+            "ReferenciaPago": pago.ReferenciaPago,
         }
+
         resultado = base_datos.reservas.update_one(
             {"_id": object_id},
             {"$set": update_data}
@@ -235,10 +253,11 @@ async def actualizar_pago_reserva(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Reserva no encontrada o pago ya actualizado"
             )
+
         reserva_actualizada = base_datos.reservas.find_one({"_id": object_id})
         return {
             "mensaje": "Pago actualizado correctamente",
-            "reserva": modelo_reserva(reserva_actualizada)
+            "reserva": modelo_reserva(reserva_actualizada),
         }
     except HTTPException as he:
         raise he
@@ -248,17 +267,29 @@ async def actualizar_pago_reserva(
             detail=f"Error al actualizar el pago: {str(e)}"
         )
 
-# Obtener reservas pendientes de pago
+# ------------------------------
+# Obtener reservas pendientes de pago (solo las COMPLETADAS)
+# ------------------------------
 @ruta_reserva.get("/pendientes_pago", response_model=list)
 async def obtener_reservas_pendientes_pago():
+    """
+    Devuelve las reservas que tienen:
+    - EstadoPago: Pendiente
+    - EstadoReserva: Completada
+    """
     try:
-        reservas_pendientes = base_datos.reservas.find({"EstadoPago": "Pendiente"})
+        reservas_pendientes = base_datos.reservas.find({
+            "EstadoPago": "Pendiente",
+            "EstadoReserva": "Completada"
+        })
         reservas_lista = [modelo_reserva(reserva) for reserva in reservas_pendientes]
+
         if not reservas_lista:
             raise HTTPException(
                 status_code=404,
                 detail="No hay reservas pendientes de pago"
             )
+
         return reservas_lista
     except Exception as e:
         raise HTTPException(
@@ -266,7 +297,9 @@ async def obtener_reservas_pendientes_pago():
             detail=f"Error al obtener reservas pendientes de pago: {str(e)}"
         )
 
+# ------------------------------
 # Consultar reserva por código de reserva
+# ------------------------------
 @ruta_reserva.get("/codigo/{codigoReserva}", response_model=dict)
 async def obtener_reserva_por_codigo(codigoReserva: str):
     try:
@@ -278,7 +311,7 @@ async def obtener_reserva_por_codigo(codigoReserva: str):
             )
         return {
             "mensaje": "Reserva encontrada",
-            "reserva": modelo_reserva(reserva)
+            "reserva": modelo_reserva(reserva),
         }
     except HTTPException as he:
         raise he
@@ -288,25 +321,32 @@ async def obtener_reserva_por_codigo(codigoReserva: str):
             detail=f"Error al buscar la reserva: {str(e)}"
         )
 
+# ------------------------------
 # Solicitar pago por parte de los propietarios
+# ------------------------------
 @ruta_reserva.post("/solicitar_pago", response_model=dict)
 async def solicitar_pago(payload: dict = Body(...)):
+    """
+    Crea una solicitud de pago usando todas las reservas COMPLETADAS y con EstadoPago=Pendiente.
+    Toma el método de pago desde 'metodoPago' y el idPropietario.
+    """
     try:
         idPropietario = payload.get("idPropietario")
         metodoPago = payload.get("metodoPago")
+
         if not idPropietario or not metodoPago:
             raise HTTPException(
                 status_code=400,
                 detail="Se requieren idPropietario y metodoPago"
             )
 
-        # Obtener las reservas pendientes (completadas y sin pago)
+        # Obtener las reservas completadas y pendientes de pago
         reservas_pendientes = list(base_datos.reservas.find({
             "idPropietario": idPropietario,
             "EstadoPago": "Pendiente",
             "EstadoReserva": "Completada"
         }))
-        # Para depurar, imprimir (o loguear) las reservas encontradas:
+
         print(f"Reservas pendientes para {idPropietario}: {reservas_pendientes}")
 
         saldo_disponible = sum(reserva.get("CostoGlamping", 0) for reserva in reservas_pendientes)
@@ -336,22 +376,25 @@ async def solicitar_pago(payload: dict = Body(...)):
     except HTTPException as he:
         raise he
     except Exception as e:
-        # Aquí se captura cualquier error inesperado
         print(f"Error en solicitar_pago: {str(e)}")
         raise HTTPException(
             status_code=500,
             detail=f"Error al solicitar el pago: {str(e)}"
         )
 
-# historial de sus solicitudes
+# ------------------------------
+# Historial de solicitudes de pago
+# ------------------------------
 @ruta_reserva.get("/solicitudes_pago/{idPropietario}", response_model=list)
 async def obtener_solicitudes_pago(idPropietario: str):
+    """
+    Retorna todas las solicitudes de pago realizadas por un propietario específico.
+    """
     try:
         solicitudes = base_datos.solicitudes_pago.find({"idPropietario": idPropietario})
         solicitudes_lista = []
         for sol in solicitudes:
             sol["_id"] = str(sol["_id"])
-            # Convertir FechaSolicitud a string si es necesario (o dejarla en formato ISO)
             solicitudes_lista.append(sol)
         return solicitudes_lista
     except Exception as e:
