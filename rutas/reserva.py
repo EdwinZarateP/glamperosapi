@@ -268,17 +268,19 @@ async def actualizar_pago_reserva(
         )
 
 # ------------------------------
-# Obtener reservas pendientes de pago (solo las COMPLETADAS)
+# Obtener reservas pendientes de pago (solo las COMPLETADAS) para un propietario específico
 # ------------------------------
-@ruta_reserva.get("/pendientes_pago", response_model=list)
-async def obtener_reservas_pendientes_pago():
+@ruta_reserva.get("/pendientes_pago/{idPropietario}", response_model=list)
+async def obtener_reservas_pendientes_pago(idPropietario: str):
     """
     Devuelve las reservas que tienen:
     - EstadoPago: Pendiente
     - EstadoReserva: Completada
+    Para el propietario indicado.
     """
     try:
         reservas_pendientes = base_datos.reservas.find({
+            "idPropietario": idPropietario,
             "EstadoPago": "Pendiente",
             "EstadoReserva": "Completada"
         })
@@ -287,7 +289,7 @@ async def obtener_reservas_pendientes_pago():
         if not reservas_lista:
             raise HTTPException(
                 status_code=404,
-                detail="No hay reservas pendientes de pago"
+                detail="No hay reservas pendientes de pago para este propietario"
             )
 
         return reservas_lista
@@ -327,8 +329,8 @@ async def obtener_reserva_por_codigo(codigoReserva: str):
 @ruta_reserva.post("/solicitar_pago", response_model=dict)
 async def solicitar_pago(payload: dict = Body(...)):
     """
-    Crea una solicitud de pago usando todas las reservas COMPLETADAS y con EstadoPago=Pendiente.
-    Toma el método de pago desde 'metodoPago' y el idPropietario.
+    Crea una solicitud de pago usando todas las reservas COMPLETADAS y con EstadoPago=Pendiente
+    para el propietario indicado. Se utiliza el método de pago provisto.
     """
     try:
         idPropietario = payload.get("idPropietario")
@@ -340,7 +342,7 @@ async def solicitar_pago(payload: dict = Body(...)):
                 detail="Se requieren idPropietario y metodoPago"
             )
 
-        # Obtener las reservas completadas y pendientes de pago
+        # Obtener las reservas completadas y pendientes de pago para este propietario
         reservas_pendientes = list(base_datos.reservas.find({
             "idPropietario": idPropietario,
             "EstadoPago": "Pendiente",
@@ -383,12 +385,12 @@ async def solicitar_pago(payload: dict = Body(...)):
         )
 
 # ------------------------------
-# Historial de solicitudes de pago
+# Historial de solicitudes de pago para un propietario
 # ------------------------------
 @ruta_reserva.get("/solicitudes_pago/{idPropietario}", response_model=list)
 async def obtener_solicitudes_pago(idPropietario: str):
     """
-    Retorna todas las solicitudes de pago realizadas por un propietario específico.
+    Retorna todas las solicitudes de pago realizadas por el propietario especificado.
     """
     try:
         solicitudes = base_datos.solicitudes_pago.find({"idPropietario": idPropietario})
