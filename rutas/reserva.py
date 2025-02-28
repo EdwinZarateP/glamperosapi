@@ -334,3 +334,21 @@ async def solicitar_pago(payload: dict = Body(...)):
             status_code=500,
             detail=f"Error al solicitar el pago: {str(e)}"
         )
+
+
+# historial de sus solicitudes
+@ruta_reserva.get("/solicitudes_pago/{idPropietario}", response_model=list)
+async def obtener_solicitudes_pago(idPropietario: str):
+    try:
+        solicitudes = base_datos.solicitudes_pago.find({"idPropietario": idPropietario})
+        solicitudes_lista = []
+        for sol in solicitudes:
+            sol["_id"] = str(sol["_id"])
+            # Convertir FechaSolicitud a string si es necesario (o dejarla en formato ISO)
+            solicitudes_lista.append(sol)
+        return solicitudes_lista
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al obtener solicitudes de pago: {str(e)}"
+        )
