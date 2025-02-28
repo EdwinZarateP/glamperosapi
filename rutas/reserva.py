@@ -290,9 +290,17 @@ async def obtener_reserva_por_codigo(codigoReserva: str):
 
 # Solicitar pago por parte de los propietarios
 @ruta_reserva.post("/solicitar_pago", response_model=dict)
-async def solicitar_pago(idPropietario: str, monto: float, metodoPago: str):
+async def solicitar_pago(payload: dict = Body(...)):
     try:
-        # Verificar si el propietario tiene reservas con saldo disponible
+        idPropietario = payload.get("idPropietario")
+        metodoPago = payload.get("metodoPago")
+        if not idPropietario or not metodoPago:
+            raise HTTPException(
+                status_code=400,
+                detail="Se requieren idPropietario y metodoPago"
+            )
+
+        # Obtener las reservas pendientes (completadas y sin pago)
         reservas_pendientes = base_datos.reservas.find({
             "idPropietario": idPropietario,
             "EstadoPago": "Pendiente",
@@ -301,16 +309,16 @@ async def solicitar_pago(idPropietario: str, monto: float, metodoPago: str):
 
         saldo_disponible = sum(reserva["CostoGlamping"] for reserva in reservas_pendientes)
 
-        if monto > saldo_disponible:
+        if saldo_disponible <= 0:
             raise HTTPException(
                 status_code=400,
-                detail="El monto solicitado excede el saldo disponible"
+                detail="No hay saldo disponible para retirar"
             )
 
-        # Crear la solicitud de pago
+        # Crear la solicitud de pago usando el saldo disponible
         nueva_solicitud = {
             "idPropietario": idPropietario,
-            "MontoSolicitado": monto,
+            "MontoSolicitado": saldo_disponible,
             "Estado": "Pendiente",
             "MetodoPago": metodoPago,
             "FechaSolicitud": datetime.now().astimezone(ZONA_HORARIA_COLOMBIA),
