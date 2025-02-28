@@ -331,6 +331,7 @@ async def solicitar_pago(payload: dict = Body(...)):
     """
     Crea una solicitud de pago usando todas las reservas COMPLETADAS y con EstadoPago=Pendiente
     para el propietario indicado. Se utiliza el método de pago provisto.
+    Al solicitar el pago, se actualiza el campo EstadoPago de esas reservas a "Solicitado".
     """
     try:
         idPropietario = payload.get("idPropietario")
@@ -360,6 +361,14 @@ async def solicitar_pago(payload: dict = Body(...)):
                 detail="No hay saldo disponible para retirar"
             )
 
+        # Actualizar las reservas usadas para la solicitud: cambiar su EstadoPago a "Solicitado"
+        update_result = base_datos.reservas.update_many({
+            "idPropietario": idPropietario,
+            "EstadoPago": "Pendiente",
+            "EstadoReserva": "Completada"
+        }, {"$set": {"EstadoPago": "Solicitado"}})
+        print(f"Reservas actualizadas: {update_result.modified_count}")
+
         # Crear la solicitud de pago usando el saldo disponible
         nueva_solicitud = {
             "idPropietario": idPropietario,
@@ -383,6 +392,7 @@ async def solicitar_pago(payload: dict = Body(...)):
             status_code=500,
             detail=f"Error al solicitar el pago: {str(e)}"
         )
+
 
 # ------------------------------
 # Historial de solicitudes de pago para un propietario
