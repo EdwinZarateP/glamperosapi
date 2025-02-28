@@ -384,3 +384,18 @@ async def registro_facebook(accessToken: str = Body(..., embed=True)):
     nuevo_usuario["_id"] = str(result.inserted_id)
 
     return {"mensaje": "Usuario creado exitosamente", "usuario": nuevo_usuario}
+
+
+@ruta_usuario.get("/{usuario_id}/banco", response_model=dict)
+async def obtener_datos_bancarios(usuario_id: str):
+    """Obtiene los datos bancarios del propietario"""
+    usuario = base_datos.usuarios.find_one({"_id": ObjectId(usuario_id)})
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    return {
+        "banco": usuario.get("banco"),
+        "numeroCuenta": usuario.get("numeroCuenta"),
+        "tipoCuenta": usuario.get("tipoCuenta"),
+        "tipoDocumento": usuario.get("tipoDocumento"),
+    }
