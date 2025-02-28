@@ -287,3 +287,42 @@ async def obtener_reserva_por_codigo(codigoReserva: str):
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al buscar la reserva: {str(e)}"
         )
+
+# Solicitar pago por parte de los propietarios
+@ruta_reserva.post("/solicitar_pago", response_model=dict)
+async def solicitar_pago(idPropietario: str, monto: float, metodoPago: str):
+    try:
+        # Verificar si el propietario tiene reservas con saldo disponible
+        reservas_pendientes = base_datos.reservas.find({
+            "idPropietario": idPropietario,
+            "EstadoPago": "Pendiente",
+            "EstadoReserva": "Completada"
+        })
+
+        saldo_disponible = sum(reserva["CostoGlamping"] for reserva in reservas_pendientes)
+
+        if monto > saldo_disponible:
+            raise HTTPException(
+                status_code=400,
+                detail="El monto solicitado excede el saldo disponible"
+            )
+
+        # Crear la solicitud de pago
+        nueva_solicitud = {
+            "idPropietario": idPropietario,
+            "MontoSolicitado": monto,
+            "Estado": "Pendiente",
+            "MetodoPago": metodoPago,
+            "FechaSolicitud": datetime.now().astimezone(ZONA_HORARIA_COLOMBIA),
+            "FechaPago": None,
+            "ReferenciaPago": None
+        }
+
+        result = base_datos.solicitudes_pago.insert_one(nueva_solicitud)
+
+        return {"mensaje": "Solicitud de pago enviada exitosamente"}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al solicitar el pago: {str(e)}"
+        )
