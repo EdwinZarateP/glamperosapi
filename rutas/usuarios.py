@@ -38,6 +38,8 @@ class Usuario(BaseModel):
     numeroCuenta: str = None  # Campo opcional para numeroCuenta
     tipoCuenta: str = None  # Campo opcional para tipoCuenta 
     tipoDocumento: str = None  # Campo opcional para la foto
+    numeroDocumento: str = None  # Campo opcional para la foto
+    nombreTitular: str = None
 
 
 def modelo_usuario(usuario) -> dict:
@@ -52,6 +54,8 @@ def modelo_usuario(usuario) -> dict:
         "numeroCuenta": usuario["numeroCuenta"],
         "tipoCuenta": usuario["tipoCuenta"],
         "tipoDocumento": usuario["tipoDocumento"],
+        "numeroDocumento": usuario["numeroDocumento"],
+        "nombreTitular": usuario["nombreTitular"],
     }
 
 
@@ -121,7 +125,9 @@ async def crear_usuario(usuario: Usuario):
         "banco": usuario.banco, # Campo opcional
         "numeroCuenta": usuario.numeroCuenta, # Campo opcional
         "tipoCuenta": usuario.tipoCuenta, # Campo opcional  
-        "tipoDocumento": usuario.tipoDocumento # Campo opcional                
+        "tipoDocumento": usuario.tipoDocumento, # Campo opcional 
+        "numeroDocumento": usuario.numeroDocumento, # Campo opcional 
+        "nombreTitular": usuario.nombreTitular                
     }
     
     # Insertar el nuevo usuario en la base de datos
@@ -260,6 +266,9 @@ async def actualizar_datos_bancarios(
     numeroCuenta: str = Body(None, embed=True),
     tipoCuenta: str = Body(None, embed=True),
     tipoDocumento: str = Body(None, embed=True),
+    numeroDocumento: str = Body(None, embed=True),
+    nombreTitular: str = Body(None, embed=True),
+    
 ):
     try:
         # Buscar al usuario por su ID
@@ -284,6 +293,14 @@ async def actualizar_datos_bancarios(
         # Actualizar tipo de documento si se proporciona
         if tipoDocumento:
             actualizaciones["tipoDocumento"] = tipoDocumento
+        
+        # Actualizar numeroDocumento si se proporciona
+        if numeroDocumento:
+            actualizaciones["numeroDocumento"] = numeroDocumento
+
+        # Actualizar nombreTitular si se proporciona
+        if nombreTitular:
+            actualizaciones["nombreTitular"] = nombreTitular        
         
         # Si no hay cambios, no hacer actualización
         if not actualizaciones:
@@ -378,6 +395,8 @@ async def registro_facebook(accessToken: str = Body(..., embed=True)):
         "numeroCuenta": None,
         "tipoCuenta": None,
         "tipoDocumento": None,
+        "numeroDocumento": None,
+        "nombreTitular": None,
     }
 
     result = base_datos.usuarios.insert_one(nuevo_usuario)
@@ -398,4 +417,6 @@ async def obtener_datos_bancarios(usuario_id: str):
         "numeroCuenta": usuario.get("numeroCuenta"),
         "tipoCuenta": usuario.get("tipoCuenta"),
         "tipoDocumento": usuario.get("tipoDocumento"),
+        "numeroDocumento": usuario.get("numeroDocumento"),
+        "nombreTitular": usuario.get("nombreTitular"),        
     }
