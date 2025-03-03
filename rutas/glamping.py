@@ -639,3 +639,48 @@ async def eliminar_fechas_reservadas(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"🔥 Error al eliminar las fechas reservadas: {str(e)}")
+
+
+@ruta_glampings.put("/{glamping_id}/rotate_image")
+async def rotar_imagen(
+    glamping_id: str,
+    imagenUrl: str = Body(...),
+    grados: int = Body(...)
+):
+    """Rota una imagen almacenada en Google Cloud Storage."""
+    try:
+        # Verificar si el glamping existe
+        glamping = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
+        if not glamping:
+            raise HTTPException(status_code=404, detail="Glamping no encontrado")
+
+        # Verificar si la imagen pertenece al glamping
+        if imagenUrl not in glamping.get("imagenes", []):
+            raise HTTPException(status_code=400, detail="La imagen no pertenece a este glamping.")
+
+        # Obtener el nombre del archivo de Google Cloud Storage
+        archivo_nombre = imagenUrl.split(f"https://storage.googleapis.com/{BUCKET_NAME}/")[-1]
+
+        # Descargar la imagen del bucket
+        cliente = storage.Client()
+        bucket = cliente.bucket(BUCKET_NAME)
+        blob = bucket.blob(archivo_nombre)
+
+        imagen_bytes = blob.download_as_bytes()
+        imagen = Image.open(BytesIO(imagen_bytes))
+
+        # Rotar la imagen
+        imagen = imagen.rotate(grados, expand=True)
+
+        # Guardar la imagen en un buffer
+        buffer = BytesIO()
+        imagen.save(buffer, format="WEBP", optimize=True, quality=75)
+        buffer.seek(0)
+
+        # Subir la imagen nuevamente
+        blob.upload_from_file(buffer, content_type="image/webp")
+
+        return {"mensaje": "Imagen rotada correctamente", "imagenUrl": imagenUrl}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al rotar la imagen: {str(e)}")
