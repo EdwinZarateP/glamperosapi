@@ -15,6 +15,8 @@ from bd.models.glamping import ModeloGlamping
 from PIL import Image, ExifTags
 from io import BytesIO
 
+BUCKET_NAME = "glamperos-imagenes"
+
 # Configuración inicial para Google Cloud Storage
 credenciales_base64 = os.environ.get("GOOGLE_CLOUD_CREDENTIALS")
 if credenciales_base64:
@@ -39,6 +41,7 @@ ruta_glampings = APIRouter(
 
 
 def corregir_orientacion(imagen: Image.Image) -> Image.Image:
+    """Corrige la orientación de la imagen según los metadatos EXIF."""
     try:
         # Obtener la clave de orientación en ExifTags
         for orientation_tag in ExifTags.TAGS.keys():
@@ -49,7 +52,7 @@ def corregir_orientacion(imagen: Image.Image) -> Image.Image:
         if exif:
             orientation = exif.get(orientation_tag, None)
 
-            # Según la etiqueta, rotamos la imagen
+            # Rotar la imagen según la orientación EXIF
             if orientation == 3:
                 imagen = imagen.rotate(180, expand=True)
             elif orientation == 6:
@@ -57,12 +60,12 @@ def corregir_orientacion(imagen: Image.Image) -> Image.Image:
             elif orientation == 8:
                 imagen = imagen.rotate(90, expand=True)
     except Exception:
-        # Si no tiene metadata o algo falla, pasamos de largo
-        pass
+        pass  # Si la imagen no tiene EXIF o hay un error, se usa la imagen tal cual.
 
     return imagen
 
 def optimizar_imagen(archivo: UploadFile, formato: str = "WEBP", max_width: int = 1200, max_height: int = 800) -> BytesIO:
+    """Corrige la orientación, redimensiona y convierte la imagen a WebP."""
     try:
         imagen = Image.open(archivo.file)
         
@@ -80,15 +83,22 @@ def optimizar_imagen(archivo: UploadFile, formato: str = "WEBP", max_width: int 
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Error al optimizar la imagen: {str(e)}")
 
+
 # Función para subir archivos optimizados al bucket de Google Cloud Storage
+
 def subir_a_google_storage(archivo: UploadFile, carpeta: str = "glampings") -> str:
+    """Sube la imagen corregida y optimizada a Google Cloud Storage."""
     try:
         cliente = storage.Client()
         bucket = cliente.bucket(BUCKET_NAME)
+
+        # Optimizar y corregir la imagen antes de subirla
         archivo_optimizado = optimizar_imagen(archivo)
+
         nombre_archivo = f"{carpeta}/{uuid.uuid4().hex}.webp"
         blob = bucket.blob(nombre_archivo)
         blob.upload_from_file(archivo_optimizado, content_type="image/webp")
+
         return f"https://storage.googleapis.com/{BUCKET_NAME}/{nombre_archivo}"
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al subir la imagen a Google Storage: {str(e)}")
@@ -513,7 +523,7 @@ async def agregar_imagenes_glamping(
 ):
     """
     - `glamping_id`: ID del glamping al que se agregarán las imágenes.
-    - `imagenes`: Lista de imágenes para subir al glamping.
+    - `imagenes`: Lista de imágenes a subir.
     """
     try:
         # Validar si el glamping existe
@@ -521,20 +531,16 @@ async def agregar_imagenes_glamping(
         if not glamping:
             raise HTTPException(status_code=404, detail="Glamping no encontrado")
 
-        # Validar y procesar cada imagen
+        # Validar y corregir las imágenes antes de subirlas
         imagen_urls = []
         for imagen in imagenes:
             try:
-                # Subir la imagen al almacenamiento y obtener la URL
                 url_imagen = subir_a_google_storage(imagen)
                 imagen_urls.append(url_imagen)
             except HTTPException as e:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Error con la imagen '{imagen.filename}': {e.detail}",
-                )
+                raise HTTPException(status_code=400, detail=f"Error con la imagen '{imagen.filename}': {e.detail}")
 
-        # Actualizar las imágenes del glamping en la base de datos
+        # Actualizar las imágenes en la base de datos
         db["glampings"].update_one(
             {"_id": ObjectId(glamping_id)},
             {"$push": {"imagenes": {"$each": imagen_urls}}}
@@ -545,10 +551,8 @@ async def agregar_imagenes_glamping(
         return ModeloGlamping(**convertir_objectid(glamping_actualizado))
 
     except HTTPException as he:
-        # Errores específicos
         raise he
     except Exception as e:
-        # Errores generales
         raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
 
 
