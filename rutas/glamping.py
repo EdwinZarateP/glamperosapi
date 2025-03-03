@@ -12,6 +12,8 @@ import base64
 import uuid
 import json
 from bd.models.glamping import ModeloGlamping
+from PIL import Image, ExifTags
+from io import BytesIO
 
 # Configuración inicial para Google Cloud Storage
 credenciales_base64 = os.environ.get("GOOGLE_CLOUD_CREDENTIALS")
@@ -35,11 +37,42 @@ ruta_glampings = APIRouter(
     responses={404: {"description": "No encontrado"}},
 )
 
-# Función para optimizar imágenes y convertirlas a WebP
+
+def corregir_orientacion(imagen: Image.Image) -> Image.Image:
+    try:
+        # Obtener la clave de orientación en ExifTags
+        for orientation_tag in ExifTags.TAGS.keys():
+            if ExifTags.TAGS[orientation_tag] == 'Orientation':
+                break
+
+        exif = imagen._getexif()
+        if exif:
+            orientation = exif.get(orientation_tag, None)
+
+            # Según la etiqueta, rotamos la imagen
+            if orientation == 3:
+                imagen = imagen.rotate(180, expand=True)
+            elif orientation == 6:
+                imagen = imagen.rotate(270, expand=True)
+            elif orientation == 8:
+                imagen = imagen.rotate(90, expand=True)
+    except Exception:
+        # Si no tiene metadata o algo falla, pasamos de largo
+        pass
+
+    return imagen
+
 def optimizar_imagen(archivo: UploadFile, formato: str = "WEBP", max_width: int = 1200, max_height: int = 800) -> BytesIO:
     try:
         imagen = Image.open(archivo.file)
+        
+        # 1. Corregir la orientación EXIF antes de redimensionar
+        imagen = corregir_orientacion(imagen)
+        
+        # 2. Redimensionar y convertir
         imagen.thumbnail((max_width, max_height), Image.Resampling.LANCZOS)
+        
+        # 3. Guardar en un buffer
         buffer = BytesIO()
         imagen.save(buffer, format=formato, optimize=True, quality=75)
         buffer.seek(0)
