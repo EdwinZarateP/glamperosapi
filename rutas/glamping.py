@@ -647,40 +647,61 @@ async def rotar_imagen(
     imagenUrl: str = Body(...),
     grados: int = Body(...)
 ):
-    """Rota una imagen almacenada en Google Cloud Storage."""
+    """
+    Gira la imagen del Glamping en GCS pero usando un NUEVO nombre de archivo.
+    Luego, reemplaza la URL antigua en la BD por la nueva.
+    """
     try:
-        # Verificar si el glamping existe
+        # 1. Verificar si el glamping existe
         glamping = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
         if not glamping:
             raise HTTPException(status_code=404, detail="Glamping no encontrado")
 
-        # Verificar si la imagen pertenece al glamping
+        # 2. Verificar si la imagenUrl está en la lista de imágenes del glamping
         if imagenUrl not in glamping.get("imagenes", []):
             raise HTTPException(status_code=400, detail="La imagen no pertenece a este glamping.")
 
-        # Obtener el nombre del archivo de Google Cloud Storage
-        archivo_nombre = imagenUrl.split(f"https://storage.googleapis.com/{BUCKET_NAME}/")[-1]
+        # 3. Obtener el nombre del archivo (antiguo) en GCS
+        archivo_nombre_anterior = imagenUrl.split(f"https://storage.googleapis.com/{BUCKET_NAME}/")[-1]
 
-        # Descargar la imagen del bucket
+        # 4. Descargar la imagen desde GCS
         cliente = storage.Client()
         bucket = cliente.bucket(BUCKET_NAME)
-        blob = bucket.blob(archivo_nombre)
+        blob_anterior = bucket.blob(archivo_nombre_anterior)
+        imagen_bytes = blob_anterior.download_as_bytes()
 
-        imagen_bytes = blob.download_as_bytes()
-        imagen = Image.open(BytesIO(imagen_bytes))
+        # 5. Rotar la imagen en memoria
+        imagen_pil = Image.open(BytesIO(imagen_bytes))
+        imagen_pil = imagen_pil.rotate(grados, expand=True)
 
-        # Rotar la imagen
-        imagen = imagen.rotate(grados, expand=True)
+        # 6. Crear un nuevo nombre para la imagen rotada
+        nombre_archivo_nuevo = f"glampings/{uuid.uuid4().hex}.webp"
 
-        # Guardar la imagen en un buffer
+        # 7. Subir la imagen rotada con un nombre distinto
+        blob_nuevo = bucket.blob(nombre_archivo_nuevo)
         buffer = BytesIO()
-        imagen.save(buffer, format="WEBP", optimize=True, quality=75)
+        imagen_pil.save(buffer, format="WEBP", optimize=True, quality=75)
         buffer.seek(0)
+        blob_nuevo.upload_from_file(buffer, content_type="image/webp")
 
-        # Subir la imagen nuevamente
-        blob.upload_from_file(buffer, content_type="image/webp")
+        nueva_url = f"https://storage.googleapis.com/{BUCKET_NAME}/{nombre_archivo_nuevo}"
 
-        return {"mensaje": "Imagen rotada correctamente", "imagenUrl": imagenUrl}
+        # 8. Actualizar la referencia a la imagen en MongoDB
+        #    Reemplazamos la url antigua (imagenUrl) por la nueva (nueva_url)
+        db["glampings"].update_one(
+            {"_id": ObjectId(glamping_id), "imagenes": imagenUrl},
+            {"$set": {"imagenes.$": nueva_url}}
+        )
 
+        # Opcional: Eliminar el archivo anterior de GCS si ya no lo quieres
+        # blob_anterior.delete()
+
+        # 9. Devolver la nueva URL o el glamping completo
+        glamping_actualizado = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
+        return {
+            "mensaje": "Imagen rotada correctamente y subida con nuevo nombre",
+            "nueva_url": nueva_url,
+            "imagenes": glamping_actualizado.get("imagenes", [])
+        }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al rotar la imagen: {str(e)}")
