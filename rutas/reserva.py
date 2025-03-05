@@ -380,10 +380,10 @@ async def obtener_solicitudes_pago(idPropietario: str):
 # ACTUALIZAR SOLICITUD DE PAGO (POR ÁREA FINANCIERA)
 # ------------------------------
 @ruta_reserva.put("/actualizar_solicitud_pago/{solicitud_id}", response_model=dict)
-async def actualizar_solicitud_pago(solictud_id: str, actualizacion: ActualizarSolicitudPago = Body(...)):
+async def actualizar_solicitud_pago(solicitud_id: str, actualizacion: ActualizarSolicitudPago = Body(...)):
     try:
         try:
-            object_id = ObjectId(solictud_id)
+            object_id = ObjectId(solicitud_id)
         except:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -415,4 +415,120 @@ async def actualizar_solicitud_pago(solictud_id: str, actualizacion: ActualizarS
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error al actualizar la solicitud de pago: {str(e)}"
+        )
+
+# ============================================================
+#               NUEVOS ENDPOINTS: REAGENDAR
+# ============================================================
+
+class ReagendamientoRequest(BaseModel):
+    codigoReserva: str
+    FechaIngreso: datetime
+    FechaSalida: datetime
+
+class ActualizarReagendamiento(BaseModel):
+    estado: str  # "Aprobado" o "Rechazado"
+
+# 1) CREAR REAGENDAMIENTO
+@ruta_reserva.post("/reagendamientos", response_model=dict)
+async def solicitar_reagendamiento(data: ReagendamientoRequest):
+    """
+    Crea un documento en la colección 'reagendamientos' con estado='Pendiente Aprobacion'
+    """
+    try:
+        # Verificamos primero que exista la reserva original
+        reserva_original = base_datos.reservas.find_one({"codigoReserva": data.codigoReserva})
+        if not reserva_original:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No existe una reserva con el código {data.codigoReserva}"
+            )
+        
+        # Creamos el documento de reagendamiento
+        nuevo_reagendamiento = {
+            "codigoReserva": data.codigoReserva,
+            "FechaIngreso": data.FechaIngreso,
+            "FechaSalida": data.FechaSalida,
+            "estado": "Pendiente Aprobacion",
+            "fechaSolicitud": datetime.now().astimezone(ZONA_HORARIA_COLOMBIA),
+        }
+
+        resultado = base_datos.reagendamientos.insert_one(nuevo_reagendamiento)
+        nuevo_reagendamiento["_id"] = str(resultado.inserted_id)
+
+        return {
+            "mensaje": "Reagendamiento solicitado exitosamente",
+            "reagendamiento": nuevo_reagendamiento
+        }
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al solicitar el reagendamiento: {str(e)}"
+        )
+
+# 2) APROBAR O RECHAZAR REAGENDAMIENTO
+@ruta_reserva.put("/reagendamientos/{codigoReserva}", response_model=dict)
+async def responder_reagendamiento(
+    codigoReserva: str,
+    actualizacion: ActualizarReagendamiento = Body(...)
+):
+    """
+    Cambia el estado de un reagendamiento a 'Aprobado' o 'Rechazado'.
+    Si es 'Aprobado', actualiza las fechas en la colección 'reservas'.
+    """
+    try:
+        # Buscar el reagendamiento
+        reagendamiento = base_datos.reagendamientos.find_one({"codigoReserva": codigoReserva})
+        if not reagendamiento:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No se encontró un reagendamiento para el código {codigoReserva}"
+            )
+        
+        # Actualizamos el estado
+        base_datos.reagendamientos.update_one(
+            {"_id": reagendamiento["_id"]},
+            {"$set": {"estado": actualizacion.estado}}
+        )
+
+        # Si es Aprobado, actualizamos las fechas en la reserva original
+        if actualizacion.estado.lower() == "aprobado":
+            # Obtener las nuevas fechas
+            nueva_entrada = reagendamiento["FechaIngreso"]
+            nueva_salida = reagendamiento["FechaSalida"]
+
+            # Actualizar la reserva
+            resultado_reserva = base_datos.reservas.update_one(
+                {"codigoReserva": codigoReserva},
+                {
+                    "$set": {
+                        "FechaIngreso": nueva_entrada,
+                        "FechaSalida": nueva_salida
+                    }
+                }
+            )
+            
+            if resultado_reserva.modified_count == 0:
+                raise HTTPException(
+                    status_code=404,
+                    detail="No se pudo actualizar la reserva (¿código no coincide?)"
+                )
+
+        # Retornamos la información del reagendamiento con su nuevo estado
+        reagendamiento_actualizado = base_datos.reagendamientos.find_one({"_id": reagendamiento["_id"]})
+        reagendamiento_actualizado["_id"] = str(reagendamiento_actualizado["_id"])
+
+        return {
+            "mensaje": f"Reagendamiento {actualizacion.estado} correctamente",
+            "reagendamiento": reagendamiento_actualizado
+        }
+
+    except HTTPException as he:
+        raise he
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al responder al reagendamiento: {str(e)}"
         )
