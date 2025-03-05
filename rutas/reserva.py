@@ -432,9 +432,6 @@ class ActualizarReagendamiento(BaseModel):
 # 1) CREAR REAGENDAMIENTO
 @ruta_reserva.post("/reagendamientos", response_model=dict)
 async def solicitar_reagendamiento(data: ReagendamientoRequest):
-    """
-    Crea un documento en la colección 'reagendamientos' con estado='Pendiente Aprobacion'
-    """
     try:
         # Verificamos primero que exista la reserva original
         reserva_original = base_datos.reservas.find_one({"codigoReserva": data.codigoReserva})
@@ -474,10 +471,6 @@ async def responder_reagendamiento(
     codigoReserva: str,
     actualizacion: ActualizarReagendamiento = Body(...)
 ):
-    """
-    Cambia el estado de un reagendamiento a 'Aprobado' o 'Rechazado'.
-    Si es 'Aprobado', actualiza las fechas en la colección 'reservas'.
-    """
     try:
         # Buscar el reagendamiento
         reagendamiento = base_datos.reagendamientos.find_one({"codigoReserva": codigoReserva})
@@ -487,13 +480,13 @@ async def responder_reagendamiento(
                 detail=f"No se encontró un reagendamiento para el código {codigoReserva}"
             )
         
-        # Actualizamos el estado
+        # Actualizamos el estado del reagendamiento
         base_datos.reagendamientos.update_one(
             {"_id": reagendamiento["_id"]},
             {"$set": {"estado": actualizacion.estado}}
         )
 
-        # Si es Aprobado, actualizamos las fechas en la reserva original
+        # Si es Aprobado, actualizamos las fechas y el estado en la reserva original
         if actualizacion.estado.lower() == "aprobado":
             # Obtener las nuevas fechas
             nueva_entrada = reagendamiento["FechaIngreso"]
@@ -505,7 +498,8 @@ async def responder_reagendamiento(
                 {
                     "$set": {
                         "FechaIngreso": nueva_entrada,
-                        "FechaSalida": nueva_salida
+                        "FechaSalida": nueva_salida,
+                        "EstadoReserva": "Reagendado"  # Cambio de estado
                     }
                 }
             )
