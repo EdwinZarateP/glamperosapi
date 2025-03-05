@@ -15,6 +15,7 @@ class ModeloGlamping(BaseModel):
     diasCancelacion:Optional[float] = 3
     Cantidad_Huespedes: float = 1  
     Cantidad_Huespedes_Adicional: float = 0 
+    minimoNoches: float = 1 
     descuento:float = 0 
     descripcionGlamping: str = "Un lugar increíble rodeado de naturaleza."
     imagenes: List[str] = ["https://example.com/image1.jpg", "https://example.com/image2.jpg"]  # Ejemplo de URLs de imágenes
