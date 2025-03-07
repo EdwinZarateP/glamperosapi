@@ -372,15 +372,16 @@ async def solicitar_pago(payload: dict = Body(...)):
         )
 
         nueva_solicitud = {
-            "idPropietario": idPropietario,
-            "MontoSolicitado": saldo_disponible,
-            "Estado": "Pendiente",
-            "MetodoPago": metodoPago,
-            "FechaSolicitud": datetime.now().astimezone(ZONA_HORARIA_COLOMBIA),
-            "FechaPago": None,
-            "ReferenciaPago": None,
-            "codigosReserva": codigos_reserva
+        "idPropietario": idPropietario,
+        "MontoSolicitado": saldo_disponible,
+        "Estado": "Pendiente",  # Estado asegurado
+        "MetodoPago": metodoPago,
+        "FechaSolicitud": datetime.now().astimezone(ZONA_HORARIA_COLOMBIA),
+        "FechaPago": None,
+        "ReferenciaPago": None,
+        "codigosReserva": codigos_reserva if codigos_reserva else ["No disponibles"],  # Asegurar que no esté vacío
         }
+
         result = base_datos.solicitudes_pago.insert_one(nueva_solicitud)
         return {"mensaje": "Solicitud de pago enviada exitosamente"}
 
@@ -401,8 +402,13 @@ async def obtener_solicitudes_pago(idPropietario: str):
         solicitudes = base_datos.solicitudes_pago.find({"idPropietario": idPropietario})
         solicitudes_lista = []
         for sol in solicitudes:
-            sol["_id"] = str(sol["_id"])
-            solicitudes_lista.append(sol)
+          sol["_id"] = str(sol["_id"])  # Convertir ObjectId a string
+          sol["Estado"] = sol.get("Estado", "Pendiente")
+          sol["FechaSolicitud"] = sol.get("FechaSolicitud", "No disponible")
+          sol["FechaPago"] = sol.get("FechaPago", "Pendiente")
+          sol["ReferenciaPago"] = sol.get("ReferenciaPago", "No disponible")
+          solicitudes_lista.append(sol)
+
         return solicitudes_lista
     except Exception as e:
         raise HTTPException(
