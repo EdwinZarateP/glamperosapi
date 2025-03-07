@@ -12,4 +12,4 @@ jobs:
     steps:
       - name: Llamar API de actualización de reservas
         run: |
-          curl -X POST https://tu-api-en-render.com/reservas/actualizar-reservas
+          curl -X POST https://glamperosapi.onrender.com/reservas/actualizar-reservas
