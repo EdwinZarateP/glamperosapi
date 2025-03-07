@@ -2,7 +2,7 @@ name: Actualizar Reservas
 
 on:
   schedule:
-    - cron: "01 21 * * *"  # 3:45 PM hora de Colombia (UTC-5)
+    - cron: "04 21 * * *"  # 3:45 PM hora de Colombia (UTC-5)
   workflow_dispatch:  # Permite ejecución manual también
 
 jobs:
