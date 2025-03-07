@@ -2,7 +2,7 @@ name: Actualizar Reservas
 
 on:
   schedule:
-    - cron: "0 5 * * *"  # Se ejecuta todos los días a las 5:00 AM UTC (12:00 AM Colombia)
+    - cron: "42 20 * * *"  # Se ejecuta todos los días a las 5:00 AM UTC (12:00 AM Colombia)
   workflow_dispatch:  # 👈 Esto permite ejecutar manualmente el workflow
 
 jobs:
