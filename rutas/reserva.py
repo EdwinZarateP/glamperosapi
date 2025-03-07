@@ -470,15 +470,20 @@ class ActualizarReagendamiento(BaseModel):
 # ------------------------------
 @ruta_reserva.post("/reagendamientos", response_model=dict)
 async def solicitar_reagendamiento(data: ReagendamientoRequest):
-
     try:
-        reserva_original = base_datos.reservas.find_one({"codigoReserva": data.codigoReserva})
-        if not reserva_original:
+        # 🔥 Un solo acceso a la base de datos: buscar y actualizar
+        resultado = base_datos.reservas.find_one_and_update(
+            {"codigoReserva": data.codigoReserva},
+            {"$set": {"EstadoReserva": "Solicitud Reagendamiento"}}
+        )
+
+        if not resultado:
             raise HTTPException(
                 status_code=404,
                 detail=f"No existe una reserva con el código {data.codigoReserva}"
             )
-        
+
+        # Crear el nuevo reagendamiento
         nuevo_reagendamiento = {
             "codigoReserva": data.codigoReserva,
             "FechaIngreso": data.FechaIngreso,
@@ -486,21 +491,19 @@ async def solicitar_reagendamiento(data: ReagendamientoRequest):
             "estado": "Pendiente Aprobacion",
             "fechaSolicitud": datetime.now().astimezone(ZONA_HORARIA_COLOMBIA),
         }
-
-        resultado = base_datos.reagendamientos.insert_one(nuevo_reagendamiento)
-        nuevo_reagendamiento["_id"] = str(resultado.inserted_id)
+        base_datos.reagendamientos.insert_one(nuevo_reagendamiento)
 
         return {
             "mensaje": "Reagendamiento solicitado exitosamente",
             "reagendamiento": nuevo_reagendamiento
         }
-    except HTTPException as he:
-        raise he
+
     except Exception as e:
         raise HTTPException(
             status_code=500,
             detail=f"Error al solicitar el reagendamiento: {str(e)}"
         )
+
 
 # ------------------------------
 #  2) APROBAR O RECHAZAR REAGENDAMIENTO
@@ -525,10 +528,12 @@ async def responder_reagendamiento(
         )
 
         if actualizacion.estado.lower() == "aprobado":
+            if "FechaIngreso" not in reagendamiento or "FechaSalida" not in reagendamiento:
+                raise HTTPException(status_code=400, detail="Faltan fechas en el reagendamiento")
+
             nueva_entrada = reagendamiento["FechaIngreso"]
             nueva_salida = reagendamiento["FechaSalida"]
 
-            # Actualizar la reserva con las nuevas fechas y estado
             resultado_reserva = base_datos.reservas.update_one(
                 {"codigoReserva": codigoReserva},
                 {
@@ -590,24 +595,25 @@ async def obtener_reagendamientos_pendientes():
             detail=f"Error al obtener los reagendamientos pendientes: {str(e)}"
         )
 
-
 @ruta_reserva.put("/estado/{codigoReserva}", response_model=dict)
 async def actualizar_estado_reserva_por_codigo(codigoReserva: str, actualizacion: dict = Body(...)):
-    """
-    Actualiza el estado de una reserva específica usando el código de reserva.
-    """
     try:
+        # 🔥 Buscar la reserva primero
+        reserva_actual = base_datos.reservas.find_one({"codigoReserva": codigoReserva})
+        if not reserva_actual:
+            raise HTTPException(status_code=404, detail="No se encontró la reserva")
+
+        # 🔥 Evitar actualizar si ya tiene el mismo estado
+        if reserva_actual["EstadoReserva"] == actualizacion.get("EstadoReserva"):
+            return {"mensaje": "El estado ya estaba actualizado", "reserva": modelo_reserva(reserva_actual)}
+
+        # Actualizar solo si es necesario
         resultado = base_datos.reservas.update_one(
             {"codigoReserva": codigoReserva},
             {"$set": {"EstadoReserva": actualizacion.get("EstadoReserva")}}
         )
 
-        if resultado.modified_count == 0:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="No se encontró la reserva o el estado ya estaba actualizado"
-            )
-
+        # Obtener la reserva actualizada
         reserva_actualizada = base_datos.reservas.find_one({"codigoReserva": codigoReserva})
         return {
             "mensaje": "Estado de la reserva actualizado correctamente",
