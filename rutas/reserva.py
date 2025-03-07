@@ -63,10 +63,6 @@ class ActualizarSolicitudPago(BaseModel):
     ReferenciaPago: str
 
 def modelo_reserva(reserva) -> dict:
-    """
-    Convierte un documento de MongoDB a un diccionario Python
-    con las claves en formato legible y el id como string.
-    """
     return {
         "id": str(reserva["_id"]),
         "idCliente": reserva["idCliente"],
@@ -103,10 +99,7 @@ ZONA_HORARIA_COLOMBIA = timezone("America/Bogota")
 # ============================================================================
 @ruta_reserva.post("/", response_model=dict)
 async def crear_reserva(reserva: Reserva):
-    """
-    Crea una nueva reserva en la colección 'reservas'.
-    Genera un codigoReserva automático usando ObjectId.
-    """
+
     try:
         codigo_reserva = str(ObjectId())[:8]
         fecha_creacion_colombia = datetime.now().astimezone(ZONA_HORARIA_COLOMBIA)
@@ -155,9 +148,7 @@ async def crear_reserva(reserva: Reserva):
 # ============================================================================
 @ruta_reserva.get("/documentos/{idPropietario}", response_model=list)
 async def obtener_documentos_por_propietario(idPropietario: str):
-    """
-    Obtiene todas las reservas donde 'idPropietario' sea igual al propietario recibido.
-    """
+
     try:
         documentos = base_datos.reservas.find({"idPropietario": idPropietario})
         documentos_lista = [modelo_reserva(doc) for doc in documentos]
@@ -178,9 +169,6 @@ async def obtener_documentos_por_propietario(idPropietario: str):
 # ============================================================================
 @ruta_reserva.get("/documentos_cliente/{idCliente}", response_model=list)
 async def obtener_documentos_por_cliente(idCliente: str):
-    """
-    Obtiene todas las reservas donde 'idCliente' sea igual al cliente recibido.
-    """
     try:
         documentos = base_datos.reservas.find({"idCliente": idCliente})
         documentos_lista = [modelo_reserva(doc) for doc in documentos]
@@ -204,9 +192,7 @@ async def actualizar_estado_reserva(
     reserva_id: str,
     actualizacion: ActualizarReserva = Body(...)
 ):
-    """
-    Actualiza el EstadoReserva y ComentariosCancelacion de la reserva con _id = reserva_id.
-    """
+
     try:
         try:
             object_id = ObjectId(reserva_id)
@@ -253,9 +239,7 @@ async def actualizar_pago_reserva(
     reserva_id: str,
     pago: ActualizarPago = Body(...)
 ):
-    """
-    Actualiza el EstadoPago, MetodoPago, FechaPago y ReferenciaPago de la reserva.
-    """
+
     try:
         try:
             object_id = ObjectId(reserva_id)
@@ -301,9 +285,7 @@ async def actualizar_pago_reserva(
 # ============================================================================
 @ruta_reserva.get("/pendientes_pago/{idPropietario}", response_model=list)
 async def obtener_reservas_pendientes_pago(idPropietario: str):
-    """
-    Encuentra todas las reservas de un propietario que tengan EstadoPago="Pendiente" y EstadoReserva="Completada".
-    """
+
     try:
         reservas_pendientes = base_datos.reservas.find({
             "idPropietario": idPropietario,
@@ -355,10 +337,7 @@ async def obtener_reserva_por_codigo(codigoReserva: str):
 # ============================================================================
 @ruta_reserva.post("/solicitar_pago", response_model=dict)
 async def solicitar_pago(payload: dict = Body(...)):
-    """
-    Marca como "Solicitado" las reservas "Pendientes" y "Completadas" de un propietario,
-    y crea un documento en la colección 'solicitudes_pago'.
-    """
+
     try:
         idPropietario = payload.get("idPropietario")
         metodoPago = payload.get("metodoPago")
@@ -417,9 +396,6 @@ async def solicitar_pago(payload: dict = Body(...)):
 # ============================================================================
 @ruta_reserva.get("/solicitudes_pago/{idPropietario}", response_model=list)
 async def obtener_solicitudes_pago(idPropietario: str):
-    """
-    Obtiene todas las solicitudes de pago realizadas por un propietario.
-    """
     try:
         solicitudes = base_datos.solicitudes_pago.find({"idPropietario": idPropietario})
         solicitudes_lista = []
@@ -438,10 +414,6 @@ async def obtener_solicitudes_pago(idPropietario: str):
 # ============================================================================
 @ruta_reserva.put("/actualizar_solicitud_pago/{solicitud_id}", response_model=dict)
 async def actualizar_solicitud_pago(solicitud_id: str, actualizacion: ActualizarSolicitudPago = Body(...)):
-    """
-    El área financiera actualiza la solicitud de pago, estableciendo su estado
-    (por ejemplo 'Aprobada' o 'Rechazada'), FechaPago y ReferenciaPago.
-    """
     try:
         try:
             object_id = ObjectId(solicitud_id)
@@ -498,10 +470,7 @@ class ActualizarReagendamiento(BaseModel):
 # ------------------------------
 @ruta_reserva.post("/reagendamientos", response_model=dict)
 async def solicitar_reagendamiento(data: ReagendamientoRequest):
-    """
-    Crea un documento en la colección 'reagendamientos' con estado='Pendiente Aprobacion',
-    relacionado a la reserva indicada por 'codigoReserva'.
-    """
+
     try:
         reserva_original = base_datos.reservas.find_one({"codigoReserva": data.codigoReserva})
         if not reserva_original:
@@ -541,11 +510,6 @@ async def responder_reagendamiento(
     codigoReserva: str,
     actualizacion: ActualizarReagendamiento = Body(...)
 ):
-    """
-    Cambia el estado de un reagendamiento a 'Aprobado' o 'Rechazado'.
-    Si es 'Aprobado', también actualiza la reserva original con las nuevas fechas y
-    marca su EstadoReserva como 'Reagendado'.
-    """
     try:
         reagendamiento = base_datos.reagendamientos.find_one({"codigoReserva": codigoReserva})
         if not reagendamiento:
@@ -624,4 +588,34 @@ async def obtener_reagendamientos_pendientes():
         raise HTTPException(
             status_code=500,
             detail=f"Error al obtener los reagendamientos pendientes: {str(e)}"
+        )
+
+
+@ruta_reserva.put("/estado/{codigoReserva}", response_model=dict)
+async def actualizar_estado_reserva_por_codigo(codigoReserva: str, actualizacion: dict = Body(...)):
+    """
+    Actualiza el estado de una reserva específica usando el código de reserva.
+    """
+    try:
+        resultado = base_datos.reservas.update_one(
+            {"codigoReserva": codigoReserva},
+            {"$set": {"EstadoReserva": actualizacion.get("EstadoReserva")}}
+        )
+
+        if resultado.modified_count == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No se encontró la reserva o el estado ya estaba actualizado"
+            )
+
+        reserva_actualizada = base_datos.reservas.find_one({"codigoReserva": codigoReserva})
+        return {
+            "mensaje": "Estado de la reserva actualizado correctamente",
+            "reserva": modelo_reserva(reserva_actualizada),
+        }
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al actualizar el estado de la reserva: {str(e)}"
         )
