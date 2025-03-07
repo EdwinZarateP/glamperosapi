@@ -471,7 +471,6 @@ class ActualizarReagendamiento(BaseModel):
 @ruta_reserva.post("/reagendamientos", response_model=dict)
 async def solicitar_reagendamiento(data: ReagendamientoRequest):
     try:
-        # 🔥 Un solo acceso a la base de datos: buscar y actualizar
         resultado = base_datos.reservas.find_one_and_update(
             {"codigoReserva": data.codigoReserva},
             {"$set": {"EstadoReserva": "Solicitud Reagendamiento"}}
@@ -491,7 +490,11 @@ async def solicitar_reagendamiento(data: ReagendamientoRequest):
             "estado": "Pendiente Aprobacion",
             "fechaSolicitud": datetime.now().astimezone(ZONA_HORARIA_COLOMBIA),
         }
-        base_datos.reagendamientos.insert_one(nuevo_reagendamiento)
+        result = base_datos.reagendamientos.insert_one(nuevo_reagendamiento)
+
+        # Verifica si realmente se insertó
+        if not result.inserted_id:
+            raise HTTPException(status_code=500, detail="Error al insertar el reagendamiento en la base de datos")
 
         return {
             "mensaje": "Reagendamiento solicitado exitosamente",
