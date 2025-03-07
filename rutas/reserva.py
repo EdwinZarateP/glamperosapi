@@ -483,12 +483,13 @@ async def solicitar_reagendamiento(data: ReagendamientoRequest):
             )
 
         # Crear el nuevo reagendamiento
+        # En el endpoint POST /reagendamientos
         nuevo_reagendamiento = {
             "codigoReserva": data.codigoReserva,
-            "FechaIngreso": data.FechaIngreso,
-            "FechaSalida": data.FechaSalida,
+            "FechaIngreso": data.FechaIngreso.isoformat(),  # Convertir a string
+            "FechaSalida": data.FechaSalida.isoformat(),
             "estado": "Pendiente Aprobacion",
-            "fechaSolicitud": datetime.now().astimezone(ZONA_HORARIA_COLOMBIA),
+            "fechaSolicitud": datetime.now().astimezone(ZONA_HORARIA_COLOMBIA).isoformat(),
         }
         result = base_datos.reagendamientos.insert_one(nuevo_reagendamiento)
 
