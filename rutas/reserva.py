@@ -482,20 +482,15 @@ async def solicitar_reagendamiento(data: ReagendamientoRequest):
                 detail=f"No existe una reserva con el código {data.codigoReserva}"
             )
 
-        # Crear el nuevo reagendamiento
-        # En el endpoint POST /reagendamientos
         nuevo_reagendamiento = {
             "codigoReserva": data.codigoReserva,
-            "FechaIngreso": data.FechaIngreso.isoformat(),  # Convertir a string
+            "FechaIngreso": data.FechaIngreso.isoformat(),
             "FechaSalida": data.FechaSalida.isoformat(),
             "estado": "Pendiente Aprobacion",
             "fechaSolicitud": datetime.now().astimezone(ZONA_HORARIA_COLOMBIA).isoformat(),
         }
         result = base_datos.reagendamientos.insert_one(nuevo_reagendamiento)
-
-        # Verifica si realmente se insertó
-        if not result.inserted_id:
-            raise HTTPException(status_code=500, detail="Error al insertar el reagendamiento en la base de datos")
+        nuevo_reagendamiento["_id"] = str(result.inserted_id)  # 🔥 Convertir ObjectId a string
 
         return {
             "mensaje": "Reagendamiento solicitado exitosamente",
