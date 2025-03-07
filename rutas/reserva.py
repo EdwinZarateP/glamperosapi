@@ -520,7 +520,7 @@ async def responder_reagendamiento(
                 detail=f"No se encontró un reagendamiento para el código {codigoReserva}"
             )
         
-        # Actualizar el estado del reagendamiento
+        # 🔹 Actualizar el estado del reagendamiento en la colección 'reagendamientos'
         base_datos.reagendamientos.update_one(
             {"_id": reagendamiento["_id"]},
             {"$set": {"estado": actualizacion.estado}}
@@ -533,6 +533,7 @@ async def responder_reagendamiento(
             nueva_entrada = reagendamiento["FechaIngreso"]
             nueva_salida = reagendamiento["FechaSalida"]
 
+            # 🔹 Si se aprueba, actualizar fechas en la colección 'reservas' pero NO el estado
             resultado_reserva = base_datos.reservas.update_one(
                 {"codigoReserva": codigoReserva},
                 {
@@ -548,6 +549,18 @@ async def responder_reagendamiento(
                 raise HTTPException(
                     status_code=404,
                     detail="No se pudo actualizar la reserva (¿código no coincide?)"
+                )
+
+        else:  # 🔹 Si se rechaza, actualizar la reserva a "Reserva no reagendada"
+            resultado_reserva = base_datos.reservas.update_one(
+                {"codigoReserva": codigoReserva},
+                {"$set": {"EstadoReserva": "Reserva no reagendada"}}
+            )
+
+            if resultado_reserva.modified_count == 0:
+                raise HTTPException(
+                    status_code=404,
+                    detail="No se pudo actualizar la reserva tras rechazar el reagendamiento"
                 )
 
         reagendamiento_actualizado = base_datos.reagendamientos.find_one({"_id": reagendamiento["_id"]})
