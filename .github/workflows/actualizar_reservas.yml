@@ -2,14 +2,13 @@ name: Actualizar Reservas
 
 on:
   schedule:
-    - cron: "42 20 * * *"  # Se ejecuta todos los días a las 5:00 AM UTC (12:00 AM Colombia)
-  workflow_dispatch:  # 👈 Esto permite ejecutar manualmente el workflow
+    - cron: "45 20 * * *"  # 3:45 PM Colombia (UTC-5)
+  workflow_dispatch:  # Esto permite ejecución manual también
 
 jobs:
   actualizar:
     runs-on: ubuntu-latest
-
     steps:
       - name: Llamar API de actualización de reservas
         run: |
-          curl -X POST https://glamperosapi.onrender.com/reservas/actualizar-reservas
+          curl -X POST https://tu-api-en-render.com/reservas/actualizar-reservas
