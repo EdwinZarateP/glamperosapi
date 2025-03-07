@@ -1,0 +1,14 @@
+name: Actualizar Reservas
+
+on:
+  schedule:
+    - cron: "25 21 * * *" 
+  workflow_dispatch:  # Permite ejecución manual también
+
+jobs:
+  actualizar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Llamar API de actualización de reservas
+        run: |
+          curl -X POST https://glamperosapi.onrender.com/reservas/actualizar-reservas
