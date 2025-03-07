@@ -3,6 +3,7 @@ from pymongo import MongoClient
 from bson import ObjectId
 from datetime import datetime
 from pydantic import BaseModel
+import pytz
 from pytz import timezone
 import os
 
@@ -637,3 +638,35 @@ async def actualizar_estado_reserva_por_codigo(codigoReserva: str, actualizacion
             status_code=500,
             detail=f"Error al actualizar el estado de la reserva: {str(e)}"
         )
+
+
+# ========================================================================
+# AGREGAR ENDPOINT PARA ACTUALIZAR AUTOMÁTICAMENTE RESERVAS A "Completada"
+# ========================================================================
+@ruta_reserva.post("/actualizar-reservas", response_model=dict)
+async def actualizar_reservas():
+    """
+    Este endpoint revisa todas las reservas cuya FechaSalida sea hoy
+    y actualiza su EstadoReserva a "Completada".
+    """
+    try:
+        # Obtener la fecha actual en la zona horaria de Colombia
+        ZONA_HORARIA_COLOMBIA = pytz.timezone("America/Bogota")
+        hoy = datetime.now(ZONA_HORARIA_COLOMBIA).date()
+
+        # Buscar reservas cuya FechaSalida sea hoy y su EstadoReserva no sea "Completada"
+        filtro = {
+            "FechaSalida": {
+                "$gte": datetime(hoy.year, hoy.month, hoy.day, 0, 0, 0),
+                "$lt": datetime(hoy.year, hoy.month, hoy.day, 23, 59, 59)
+            },
+            "EstadoReserva": {"$ne": "Completada"}
+        }
+
+        # Actualizar esas reservas
+        resultado = base_datos.reservas.update_many(filtro, {"$set": {"EstadoReserva": "Completada"}})
+
+        return {"message": f"✅ {resultado.modified_count} reservas han sido marcadas como 'Completada'."}
+    
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"❌ Error al actualizar reservas: {str(e)}")
