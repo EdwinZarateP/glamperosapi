@@ -338,7 +338,6 @@ async def obtener_reserva_por_codigo(codigoReserva: str):
 # ============================================================================
 @ruta_reserva.post("/solicitar_pago", response_model=dict)
 async def solicitar_pago(payload: dict = Body(...)):
-
     try:
         idPropietario = payload.get("idPropietario")
         metodoPago = payload.get("metodoPago")
@@ -348,11 +347,13 @@ async def solicitar_pago(payload: dict = Body(...)):
                 detail="Se requieren idPropietario y metodoPago"
             )
 
+        # Obtener reservas pendientes
         reservas_pendientes = list(base_datos.reservas.find({
             "idPropietario": idPropietario,
             "EstadoPago": "Pendiente",
             "EstadoReserva": "Completada"
         }))
+
         saldo_disponible = sum(reserva.get("CostoGlamping", 0) for reserva in reservas_pendientes)
         if saldo_disponible <= 0:
             raise HTTPException(
@@ -362,7 +363,8 @@ async def solicitar_pago(payload: dict = Body(...)):
 
         codigos_reserva = [reserva.get("codigoReserva") for reserva in reservas_pendientes]
 
-        update_result = base_datos.reservas.update_many(
+        # Marcar reservas como "Solicitado"
+        base_datos.reservas.update_many(
             {
                 "idPropietario": idPropietario,
                 "EstadoPago": "Pendiente",
@@ -371,19 +373,26 @@ async def solicitar_pago(payload: dict = Body(...)):
             {"$set": {"EstadoPago": "Solicitado"}}
         )
 
+        # Crear solicitud de pago
         nueva_solicitud = {
-        "idPropietario": idPropietario,
-        "MontoSolicitado": saldo_disponible,
-        "Estado": "Pendiente",  # Estado asegurado
-        "MetodoPago": metodoPago,
-        "FechaSolicitud": datetime.now().astimezone(ZONA_HORARIA_COLOMBIA),
-        "FechaPago": None,
-        "ReferenciaPago": None,
-        "codigosReserva": codigos_reserva if codigos_reserva else ["No disponibles"],  # Asegurar que no esté vacío
+            "idPropietario": idPropietario,
+            "MontoSolicitado": saldo_disponible,
+            "Estado": "Pendiente",
+            "MetodoPago": metodoPago,
+            "FechaSolicitud": datetime.now().astimezone(ZONA_HORARIA_COLOMBIA),
+            "FechaPago": None,
+            "ReferenciaPago": None,
+            "codigosReserva": codigos_reserva if codigos_reserva else ["No disponibles"],
         }
 
+        # Insertar en la base de datos y recuperar el ID
         result = base_datos.solicitudes_pago.insert_one(nueva_solicitud)
-        return {"mensaje": "Solicitud de pago enviada exitosamente"}
+        nueva_solicitud["_id"] = str(result.inserted_id)  # Convertir ObjectId a string
+
+        return {
+            "mensaje": "Solicitud de pago enviada exitosamente",
+            "solicitud": nueva_solicitud,  # 🔹 Ahora se devuelve el objeto completo
+        }
 
     except HTTPException as he:
         raise he
