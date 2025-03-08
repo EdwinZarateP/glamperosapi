@@ -4,7 +4,7 @@ from datetime import datetime
 
 class ModeloGlamping(BaseModel):
     id: Optional[str] = Field(None, alias="_id")
-    habilitado: Optional[bool] = Field(False)
+    habilitado: Optional[bool] = Field(True)
     nombreGlamping: str = "Glamping Estrella Verde" 
     tipoGlamping: str = "choza"
     Acepta_Mascotas: bool = True     
