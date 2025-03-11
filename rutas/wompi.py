@@ -81,12 +81,13 @@ async def crear_transaccion(payload: CrearTransaccionRequest):
         data_wompi = {
             "amount_in_cents": monto_en_centavos,
             "currency": payload.moneda,
-            "customer_email": "correo@cliente.com",  # Ajusta según tu caso
+            "customer_email": "correo@cliente.com",  # Ajusta según tu caso o recibe el email desde el front
             "payment_method": {
                 "installments": 1
             },
             "reference": payload.referenciaInterna,  # Referencia única de tu sistema
-            "payment_method_type": "CARD",  # O "NEQUI", etc., según lo que manejes
+            "payment_method_type": "CARD",  # O "NEQUI", etc.
+            "redirect_url": "https://glamperos.com/gracias"  # URL a la que Wompi redirige tras pagar
         }
 
         # 2. Llamada a la API de Wompi
@@ -98,7 +99,7 @@ async def crear_transaccion(payload: CrearTransaccionRequest):
         respuesta_wompi = response.json()
 
         # Verifica si hubo error en la llamada
-        if response.status_code != 200 and response.status_code != 201:
+        if response.status_code not in [200, 201]:
             raise HTTPException(
                 status_code=response.status_code,
                 detail=f"Error Wompi: {respuesta_wompi}"
@@ -162,14 +163,7 @@ async def webhook_wompi(request: Request):
             {"$set": {"status": status}}
         )
 
-        # Si no existe en DB, podría ser un caso especial
-        if resultado.matched_count == 0:
-            # O creas una nueva, o simplemente lo registras como error
-            pass
-
-        # Aquí podrías disparar lógica extra:
-        #   - Actualizar reserva a "Pagado"
-        #   - Enviar notificaciones, etc.
+        # Aquí podrías disparar lógica extra (por ejemplo, actualizar la reserva a 'Pagada')
 
         return {"mensaje": "Webhook recibido correctamente", "estado": status}
 
