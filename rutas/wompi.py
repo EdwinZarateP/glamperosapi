@@ -146,10 +146,13 @@ CORREO_API_URL = "https://glamperosapi.onrender.com/correos/send-email"
 @ruta_wompi.post("/webhook", response_model=dict)
 async def webhook_wompi(request: Request):
     """
-    Recibe notificaciones de Wompi y envía correos al propietario y al cliente si el pago es aprobado.
+    Recibe notificaciones de Wompi y, si el pago es aprobado, actualiza el estado de la reserva
+    y envía correos al propietario y al cliente de forma automática.
     """
     try:
         evento = await request.json()
+        print("📩 Webhook recibido:", evento)
+
         transaction = evento.get("data", {}).get("transaction", {})
         transaction_id = transaction.get("id")
         status = transaction.get("status")
@@ -158,7 +161,7 @@ async def webhook_wompi(request: Request):
         if not transaction_id or not status or not referencia_interna:
             raise HTTPException(status_code=400, detail="Faltan datos en el webhook de Wompi")
 
-        # Actualizar el estado del pago en la BD
+        # Actualizar el estado del pago en la base de datos
         base_datos.transacciones_wompi.update_one(
             {"wompi_transaction_id": transaction_id},
             {"$set": {"status": status}}
@@ -170,14 +173,15 @@ async def webhook_wompi(request: Request):
             # Buscar la reserva correspondiente
             reserva = base_datos.reservas.find_one({"codigoReserva": referencia_interna})
             if not reserva:
-                print("⚠️ No se encontró la reserva en la base de datos.")
+                print("⚠️ No se encontró la reserva en la BD.")
                 return {"mensaje": "Reserva no encontrada"}
 
-            # Actualizar estado de la reserva a "Pagado"
+            # Actualizar el estado de la reserva a "Pagado"
             base_datos.reservas.update_one(
                 {"codigoReserva": referencia_interna},
                 {"$set": {"EstadoPago": "Pagado"}}
             )
+            print("🔄 Reserva actualizada a 'Pagado'")
 
             # Obtener datos del propietario y del cliente
             propietario = base_datos.usuarios.find_one({"_id": reserva["idPropietario"]})
@@ -237,15 +241,24 @@ async def webhook_wompi(request: Request):
                     """
                 }
 
-                # Enviar correos usando la API de correos
-                requests.post(CORREO_API_URL, json=correo_propietario)
-                requests.post(CORREO_API_URL, json=correo_cliente)
+                # Enviar correos usando la API de correos y mostrar respuestas para depurar
+                try:
+                    response_propietario = requests.post(CORREO_API_URL, json=correo_propietario)
+                    response_cliente = requests.post(CORREO_API_URL, json=correo_cliente)
+                    print("📧 Respuesta API Correo Propietario:", response_propietario.status_code, response_propietario.text)
+                    print("📧 Respuesta API Correo Cliente:", response_cliente.status_code, response_cliente.text)
+                except Exception as emailError:
+                    print("❌ Error al enviar correos:", emailError)
 
-                print("✅ Correos enviados correctamente.")
+                print("✅ Correos enviados (o se intentó enviar) correctamente.")
+
+            else:
+                print("⚠️ No se encontraron datos completos de usuario (propietario o cliente).")
 
         return {"mensaje": "Webhook recibido correctamente", "estado": status}
 
     except Exception as e:
+        print(f"⚠️ Error en el webhook: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error en webhook: {str(e)}")
 
 # ====================================================================
