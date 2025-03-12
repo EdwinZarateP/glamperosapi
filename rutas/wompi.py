@@ -1,11 +1,10 @@
-# wompi.py
-
 from fastapi import APIRouter, HTTPException, status, Body, Request
 from pymongo import MongoClient
 from datetime import datetime
 from pydantic import BaseModel
 import os
 import requests
+import hashlib
 
 # ============================================================================
 # CONFIGURACIÓN DE LA BASE DE DATOS
@@ -61,10 +60,34 @@ WOMPI_PRIVATE_KEY = os.environ.get("WOMPI_PRIVATE_KEY", "tu_llave_privada_sandbo
 WOMPI_PUBLIC_KEY = os.environ.get("WOMPI_PUBLIC_KEY", "tu_llave_publica_sandbox")
 WOMPI_API_URL = "https://sandbox.wompi.co/v1/transactions"
 
+# 🔑 Secreto de Integridad (modo sandbox o producción)
+SECRETO_INTEGRIDAD = os.environ.get("WOMPI_INTEGRITY_SECRET", "prod_integrity_XXXXXXX")  
+# Cambia esto por el tuyo, e.g. "test_integrity_abcd1234..."
+
 # ============================================================================
 # COLECCIÓN DE TRANSACCIONES
 # ============================================================================
 coleccion_transacciones = base_datos["transacciones_wompi"]
+
+# ============================================================================
+# ENDPOINT PARA GENERAR FIRMA DE INTEGRIDAD
+# ============================================================================
+@ruta_wompi.get("/generar-firma", response_model=dict)
+async def generar_firma(referencia: str, monto: int, moneda: str = "COP"):
+    """
+    Genera la firma de integridad (SHA-256) para Wompi.
+    Formato: <referencia><monto><moneda><secreto_integridad>
+    """
+    try:
+        cadena_concatenada = f"{referencia}{monto}{moneda}{SECRETO_INTEGRIDAD}"
+        firma_integridad = hashlib.sha256(cadena_concatenada.encode()).hexdigest()
+
+        return {"firma_integridad": firma_integridad}
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al generar la firma: {str(e)}"
+        )
 
 # ============================================================================
 # 1) CREAR TRANSACCIÓN
@@ -81,13 +104,13 @@ async def crear_transaccion(payload: CrearTransaccionRequest):
         data_wompi = {
             "amount_in_cents": monto_en_centavos,
             "currency": payload.moneda,
-            "customer_email": "correo@cliente.com",  # Ajusta según tu caso o recibe el email desde el front
+            "customer_email": "correo@cliente.com",  # Ajusta según tu caso
             "payment_method": {
                 "installments": 1
             },
             "reference": payload.referenciaInterna,  # Referencia única de tu sistema
-            "payment_method_type": "CARD",  # O "NEQUI", etc.
-            "redirect_url": "https://glamperos.com/gracias"  # URL a la que Wompi redirige tras pagar
+            "payment_method_type": "CARD",
+            "redirect_url": f"https://glamperos.com/gracias?referencia={payload.referenciaInterna}"
         }
 
         # 2. Llamada a la API de Wompi
@@ -141,10 +164,6 @@ async def webhook_wompi(request: Request):
     try:
         evento = await request.json()
 
-        # (Opcional) Verificar firma de Wompi
-        # signature = request.headers.get("X-Wompi-Signature", "")
-        # ... Lógica para validar la firma, si quieres implementar la seguridad.
-
         # Extraer info relevante
         data = evento.get("data", {})
         transaction_id = data.get("transaction", {}).get("id")
@@ -158,12 +177,12 @@ async def webhook_wompi(request: Request):
             )
 
         # Actualizar la transacción en DB
-        resultado = coleccion_transacciones.update_one(
+        coleccion_transacciones.update_one(
             {"wompi_transaction_id": transaction_id},
             {"$set": {"status": status}}
         )
 
-        # Aquí podrías disparar lógica extra (por ejemplo, actualizar la reserva a 'Pagada')
+        # Lógica adicional (e.g., actualizar reserva a 'Pagada')...
 
         return {"mensaje": "Webhook recibido correctamente", "estado": status}
 
