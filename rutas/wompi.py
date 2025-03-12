@@ -60,9 +60,8 @@ WOMPI_PRIVATE_KEY = os.environ.get("WOMPI_PRIVATE_KEY", "tu_llave_privada_sandbo
 WOMPI_PUBLIC_KEY = os.environ.get("WOMPI_PUBLIC_KEY", "tu_llave_publica_sandbox")
 WOMPI_API_URL = "https://sandbox.wompi.co/v1/transactions"
 
-# 🔑 Secreto de Integridad (modo sandbox o producción)
-SECRETO_INTEGRIDAD = os.environ.get("WOMPI_INTEGRITY_SECRET", "prod_integrity_XXXXXXX")  
-# Cambia esto por el tuyo, e.g. "test_integrity_abcd1234..."
+# Secreto de Integridad (modo sandbox o producción)
+SECRETO_INTEGRIDAD = os.environ.get("WOMPI_INTEGRITY_SECRET", "test_integrity_Yrpy71FNU9fwbR8BrLPWBUHKHiu9hVua")
 
 # ============================================================================
 # COLECCIÓN DE TRANSACCIONES
@@ -81,7 +80,6 @@ async def generar_firma(referencia: str, monto: int, moneda: str = "COP"):
     try:
         cadena_concatenada = f"{referencia}{monto}{moneda}{SECRETO_INTEGRIDAD}"
         firma_integridad = hashlib.sha256(cadena_concatenada.encode()).hexdigest()
-
         return {"firma_integridad": firma_integridad}
     except Exception as e:
         raise HTTPException(
@@ -95,25 +93,20 @@ async def generar_firma(referencia: str, monto: int, moneda: str = "COP"):
 @ruta_wompi.post("/crear-transaccion", response_model=dict)
 async def crear_transaccion(payload: CrearTransaccionRequest):
     """
-    Crea una transacción con Wompi usando la llave privada y guarda el registro en la DB.
-    Retorna el response de Wompi y la info que guardamos.
+    Crea un registro de transacción pendiente en la DB y llama a la API de Wompi.
+    La reserva real se actualizará cuando se confirme el pago vía webhook.
     """
     try:
-        # 1. Prepara el payload para Wompi
-        monto_en_centavos = int(payload.valorReserva * 100)  # Wompi usa centavos
+        monto_en_centavos = int(payload.valorReserva * 100)
         data_wompi = {
             "amount_in_cents": monto_en_centavos,
             "currency": payload.moneda,
-            "customer_email": "correo@cliente.com",  # Ajusta según tu caso
-            "payment_method": {
-                "installments": 1
-            },
-            "reference": payload.referenciaInterna,  # Referencia única de tu sistema
+            "customer_email": "correo@cliente.com",  # Puedes ajustar para recibirlo desde el front
+            "payment_method": {"installments": 1},
+            "reference": payload.referenciaInterna,
             "payment_method_type": "CARD",
             "redirect_url": f"https://glamperos.com/gracias?referencia={payload.referenciaInterna}"
         }
-
-        # 2. Llamada a la API de Wompi
         headers = {
             "Authorization": f"Bearer {WOMPI_PRIVATE_KEY}",
             "Content-Type": "application/json"
@@ -121,17 +114,15 @@ async def crear_transaccion(payload: CrearTransaccionRequest):
         response = requests.post(WOMPI_API_URL, json=data_wompi, headers=headers)
         respuesta_wompi = response.json()
 
-        # Verifica si hubo error en la llamada
         if response.status_code not in [200, 201]:
             raise HTTPException(
                 status_code=response.status_code,
                 detail=f"Error Wompi: {respuesta_wompi}"
             )
 
-        # 3. Guardar la transacción en la DB
         nueva_transaccion = {
             "referenciaInterna": payload.referenciaInterna,
-            "wompi_transaction_id": respuesta_wompi["data"]["id"],  # ID de Wompi
+            "wompi_transaction_id": respuesta_wompi["data"]["id"],
             "monto": payload.valorReserva,
             "currency": payload.moneda,
             "status": respuesta_wompi["data"]["status"],
@@ -145,7 +136,6 @@ async def crear_transaccion(payload: CrearTransaccionRequest):
             "transaccion": modelo_transaccion_db(nueva_transaccion),
             "respuesta_wompi": respuesta_wompi
         }
-
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -155,42 +145,111 @@ async def crear_transaccion(payload: CrearTransaccionRequest):
 # ============================================================================
 # 2) WEBHOOK DE WOMPI
 # ============================================================================
+from fastapi import APIRouter, HTTPException, Request
+from pymongo import MongoClient
+import os
+import resend
+
+# ============================================================================  
+# CONFIGURACIÓN DE LA BASE DE DATOS  
+# ============================================================================  
+MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017")  
+ConexionMongo = MongoClient(MONGO_URI)  
+base_datos = ConexionMongo["glamperos"]
+
+# ============================================================================  
+# CONFIGURACIÓN RESEND (ENVÍO DE CORREOS)  
+# ============================================================================  
+resend.api_key = os.getenv("RESEND_API_KEY")  
+
+ruta_wompi = APIRouter(
+    prefix="/wompi",
+    tags=["Wompi"],
+)
+
+# ============================================================================  
+# FUNCIÓN PARA ENVIAR CORREO AL PROPIETARIO  
+# ============================================================================  
+def enviar_correo_propietario(destinatario, nombre_propietario, reserva):
+    """Envía un correo de confirmación de pago al dueño del glamping."""
+    try:
+        asunto = "Nueva Reserva Pagada en Glamperos 🚀"
+        html_content = f"""
+        <h2>Hola {nombre_propietario},</h2>
+        <p>¡Una nueva reserva ha sido confirmada en tu glamping!</p>
+        <ul>
+            <li><b>Código de reserva:</b> {reserva['codigoReserva']}</li>
+            <li><b>Fecha de ingreso:</b> {reserva['FechaIngreso']}</li>
+            <li><b>Fecha de salida:</b> {reserva['FechaSalida']}</li>
+            <li><b>Noches:</b> {reserva['Noches']}</li>
+            <li><b>Huéspedes:</b> {reserva['adultos']} adultos, {reserva['ninos']} niños</li>
+            <li><b>Valor total:</b> COP {reserva['ValorReserva']:,.0f}</li>
+        </ul>
+        <p>Revisa los detalles en tu perfil de Glamperos.</p>
+        <p>¡Gracias por ser parte de nuestra comunidad!</p>
+        """
+
+        response = resend.Emails.send({
+            "from": "reservas@glamperos.com",
+            "to": [destinatario],
+            "subject": asunto,
+            "html": html_content,
+        })
+        print("✅ Correo enviado al propietario:", response)
+    except Exception as e:
+        print("❌ Error al enviar correo:", str(e))
+
+# ============================================================================  
+# WEBHOOK DE WOMPI (ACTUALIZADO CON ENVÍO DE CORREO)  
+# ============================================================================  
 @ruta_wompi.post("/webhook", response_model=dict)
 async def webhook_wompi(request: Request):
-    """
-    Endpoint para recibir notificaciones de Wompi (estado de la transacción).
-    Aquí se actualiza el estado en la DB y se responde 200 si todo está OK.
-    """
+    """Recibe notificaciones de Wompi y envía un correo al propietario si el pago es aprobado."""
     try:
         evento = await request.json()
-
-        # Extraer info relevante
-        data = evento.get("data", {})
-        transaction_id = data.get("transaction", {}).get("id")
-        status = data.get("transaction", {}).get("status")
-        referencia_interna = data.get("transaction", {}).get("reference")
+        transaction = evento.get("data", {}).get("transaction", {})
+        transaction_id = transaction.get("id")
+        status = transaction.get("status")
+        referencia_interna = transaction.get("reference")
 
         if not transaction_id or not status or not referencia_interna:
-            raise HTTPException(
-                status_code=400,
-                detail="Faltan datos en el webhook de Wompi"
-            )
+            raise HTTPException(status_code=400, detail="Faltan datos en el webhook de Wompi")
 
-        # Actualizar la transacción en DB
-        coleccion_transacciones.update_one(
+        # Actualizar el estado del pago en la BD
+        base_datos.transacciones_wompi.update_one(
             {"wompi_transaction_id": transaction_id},
             {"$set": {"status": status}}
         )
 
-        # Lógica adicional (e.g., actualizar reserva a 'Pagada')...
+        if status == "APPROVED":
+            print(f"✅ Pago aprobado para la referencia {referencia_interna}")
+
+            # Buscar la reserva correspondiente
+            reserva = base_datos.reservas.find_one({"codigoReserva": referencia_interna})
+            if not reserva:
+                print("⚠️ No se encontró la reserva en la base de datos.")
+                return {"mensaje": "Reserva no encontrada"}
+
+            # Actualizar estado de la reserva a "Pagado"
+            base_datos.reservas.update_one(
+                {"codigoReserva": referencia_interna},
+                {"$set": {"EstadoPago": "Pagado"}}
+            )
+
+            # Obtener datos del propietario
+            propietario = base_datos.usuarios.find_one({"_id": reserva["idPropietario"]})
+            if propietario and "email" in propietario:
+                enviar_correo_propietario(
+                    destinatario=propietario["email"],
+                    nombre_propietario=propietario["nombre"],
+                    reserva=reserva
+                )
 
         return {"mensaje": "Webhook recibido correctamente", "estado": status}
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error en webhook: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error en webhook: {str(e)}")
+
 
 # ============================================================================
 # 3) CONSULTAR TRANSACCIÓN (opcional)
@@ -198,7 +257,7 @@ async def webhook_wompi(request: Request):
 @ruta_wompi.get("/transaccion/{referencia}", response_model=dict)
 async def obtener_transaccion_por_referencia(referencia: str):
     """
-    Devuelve la info de una transacción guardada en la DB por su referencia interna.
+    Devuelve la info de una transacción registrada en la DB usando la referencia.
     """
     try:
         transaccion = coleccion_transacciones.find_one({"referenciaInterna": referencia})
