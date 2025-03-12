@@ -6,25 +6,27 @@ import os
 import requests
 import hashlib
 
-# ============================================================================
+# ====================================================================
 # CONFIGURACIÓN DE LA BASE DE DATOS
-# ============================================================================
+# ====================================================================
 MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
 ConexionMongo = MongoClient(MONGO_URI)
 base_datos = ConexionMongo["glamperos"]
+coleccion_transacciones = base_datos["transacciones_wompi"]
 
-# ============================================================================
+# ====================================================================
 # CONFIGURACIÓN DE FASTAPI
-# ============================================================================
+# ====================================================================
+# Definición única del router
 ruta_wompi = APIRouter(
     prefix="/wompi",
     tags=["Wompi"],
     responses={status.HTTP_404_NOT_FOUND: {"message": "No encontrado"}},
 )
 
-# ============================================================================
+# ====================================================================
 # MODELOS DE DATOS
-# ============================================================================
+# ====================================================================
 class CrearTransaccionRequest(BaseModel):
     """Modelo para la creación de transacciones con Wompi."""
     valorReserva: float
@@ -53,24 +55,17 @@ def modelo_transaccion_db(doc) -> dict:
         "created_at": doc["created_at"],
     }
 
-# ============================================================================
+# ====================================================================
 # CONFIGURACIÓN WOMPI
-# ============================================================================
+# ====================================================================
 WOMPI_PRIVATE_KEY = os.environ.get("WOMPI_PRIVATE_KEY", "tu_llave_privada_sandbox")
 WOMPI_PUBLIC_KEY = os.environ.get("WOMPI_PUBLIC_KEY", "tu_llave_publica_sandbox")
 WOMPI_API_URL = "https://sandbox.wompi.co/v1/transactions"
-
-# Secreto de Integridad (modo sandbox o producción)
 SECRETO_INTEGRIDAD = os.environ.get("WOMPI_INTEGRITY_SECRET", "test_integrity_Yrpy71FNU9fwbR8BrLPWBUHKHiu9hVua")
 
-# ============================================================================
-# COLECCIÓN DE TRANSACCIONES
-# ============================================================================
-coleccion_transacciones = base_datos["transacciones_wompi"]
-
-# ============================================================================
+# ====================================================================
 # ENDPOINT PARA GENERAR FIRMA DE INTEGRIDAD
-# ============================================================================
+# ====================================================================
 @ruta_wompi.get("/generar-firma", response_model=dict)
 async def generar_firma(referencia: str, monto: int, moneda: str = "COP"):
     """
@@ -87,9 +82,9 @@ async def generar_firma(referencia: str, monto: int, moneda: str = "COP"):
             detail=f"Error al generar la firma: {str(e)}"
         )
 
-# ============================================================================
-# 1) CREAR TRANSACCIÓN
-# ============================================================================
+# ====================================================================
+# ENDPOINT PARA CREAR TRANSACCIÓN
+# ====================================================================
 @ruta_wompi.post("/crear-transaccion", response_model=dict)
 async def crear_transaccion(payload: CrearTransaccionRequest):
     """
@@ -101,7 +96,7 @@ async def crear_transaccion(payload: CrearTransaccionRequest):
         data_wompi = {
             "amount_in_cents": monto_en_centavos,
             "currency": payload.moneda,
-            "customer_email": "correo@cliente.com",  # Puedes ajustar para recibirlo desde el front
+            "customer_email": "correo@cliente.com",  # Ajusta según lo recibido desde el front
             "payment_method": {"installments": 1},
             "reference": payload.referenciaInterna,
             "payment_method_type": "CARD",
@@ -142,38 +137,17 @@ async def crear_transaccion(payload: CrearTransaccionRequest):
             detail=f"Error al crear la transacción: {str(e)}"
         )
 
-# ============================================================================
-# 2) WEBHOOK DE WOMPI
-# ============================================================================
-from fastapi import APIRouter, HTTPException, Request
-from pymongo import MongoClient
-import os
-import requests  # ✅ Usaremos requests para llamar a la API de correos
+# ====================================================================
+# ENDPOINT PARA WEBHOOK DE WOMPI CON ENVÍO DE CORREO
+# ====================================================================
+# URL de la API de correos (ajústala según tu configuración)
+CORREO_API_URL = "https://glamperosapi.onrender.com/correos/send-email"
 
-# ============================================================================  
-# CONFIGURACIÓN DE LA BASE DE DATOS  
-# ============================================================================  
-MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017")  
-ConexionMongo = MongoClient(MONGO_URI)  
-base_datos = ConexionMongo["glamperos"]
-
-# ============================================================================  
-# CONFIGURACIÓN FASTAPI  
-# ============================================================================  
-ruta_wompi = APIRouter(
-    prefix="/wompi",
-    tags=["Wompi"],
-)
-
-# URL de la API de correos (ajústala si está en otro dominio o puerto)
-CORREO_API_URL = "https://glamperosapi.onrender.com/correos/send-email"  # ⚠️ Ajusta según tu configuración
-
-# ============================================================================  
-# WEBHOOK DE WOMPI CON ENVÍO DE CORREO  
-# ============================================================================  
 @ruta_wompi.post("/webhook", response_model=dict)
 async def webhook_wompi(request: Request):
-    """Recibe notificaciones de Wompi y envía correos al propietario y cliente si el pago es aprobado."""
+    """
+    Recibe notificaciones de Wompi y envía correos al propietario y al cliente si el pago es aprobado.
+    """
     try:
         evento = await request.json()
         transaction = evento.get("data", {}).get("transaction", {})
@@ -210,7 +184,7 @@ async def webhook_wompi(request: Request):
             cliente = base_datos.usuarios.find_one({"_id": reserva["idCliente"]})
 
             if propietario and cliente:
-                # ✅ Construir el contenido del correo para el propietario
+                # Construir el contenido del correo para el propietario
                 correo_propietario = {
                     "from_email": "reservas@glamperos.com",
                     "name": propietario["nombre"],
@@ -238,7 +212,7 @@ async def webhook_wompi(request: Request):
                     """
                 }
 
-                # ✅ Construir el contenido del correo para el cliente
+                # Construir el contenido del correo para el cliente
                 correo_cliente = {
                     "from_email": "reservas@glamperos.com",
                     "name": cliente["nombre"],
@@ -263,7 +237,7 @@ async def webhook_wompi(request: Request):
                     """
                 }
 
-                # ✅ Enviar correos usando la API de correos
+                # Enviar correos usando la API de correos
                 requests.post(CORREO_API_URL, json=correo_propietario)
                 requests.post(CORREO_API_URL, json=correo_cliente)
 
@@ -274,10 +248,9 @@ async def webhook_wompi(request: Request):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error en webhook: {str(e)}")
 
-
-# ============================================================================
-# 3) CONSULTAR TRANSACCIÓN (opcional)
-# ============================================================================
+# ====================================================================
+# ENDPOINT PARA CONSULTAR TRANSACCIÓN (opcional)
+# ====================================================================
 @ruta_wompi.get("/transaccion/{referencia}", response_model=dict)
 async def obtener_transaccion_por_referencia(referencia: str):
     """
