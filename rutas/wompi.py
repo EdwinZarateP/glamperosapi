@@ -145,10 +145,7 @@ CORREO_API_URL = "https://glamperosapi.onrender.com/correos/send-email"
 
 @ruta_wompi.post("/webhook", response_model=dict)
 async def webhook_wompi(request: Request):
-    """
-    Recibe notificaciones de Wompi y, si el pago es aprobado, actualiza el estado de la reserva
-    y envía correos al propietario y al cliente de forma automática.
-    """
+
     try:
         evento = await request.json()
         print("📩 Webhook recibido:", evento)
@@ -173,8 +170,19 @@ async def webhook_wompi(request: Request):
             # Buscar la reserva correspondiente
             reserva = base_datos.reservas.find_one({"codigoReserva": referencia_interna})
             if not reserva:
-                print("⚠️ No se encontró la reserva en la BD.")
-                return {"mensaje": "Reserva no encontrada"}
+                print("⚠️ No se encontró la reserva en la BD. Creando reserva automáticamente...")
+
+                # Crear reserva en la base de datos si no existe
+                nueva_reserva = {
+                    "codigoReserva": referencia_interna,
+                    "EstadoPago": "Pagado",
+                    "fechaCreacion": datetime.utcnow(),
+                }
+                base_datos.reservas.insert_one(nueva_reserva)
+                reserva = nueva_reserva  # Para usarla en el resto del código
+
+                print("✅ Reserva creada automáticamente con estado 'Pagado'.")
+
 
             # Actualizar el estado de la reserva a "Pagado"
             base_datos.reservas.update_one(
