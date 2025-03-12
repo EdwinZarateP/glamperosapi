@@ -167,20 +167,24 @@ async def webhook_wompi(request: Request):
         if status == "APPROVED":
             print(f"✅ Pago aprobado para la referencia {referencia_interna}")
 
-            # Buscar la reserva correspondiente
+           # Buscar la reserva en la base de datos
             reserva = base_datos.reservas.find_one({"codigoReserva": referencia_interna})
-            if not reserva:
-                print("⚠️ No se encontró la reserva en la BD. Creando reserva automáticamente...")
 
-                # Crear reserva en la base de datos si no existe
+            if reserva:
+                print(f"✅ Reserva {referencia_interna} ya existe, actualizando EstadoPago a 'Pagado'.")
+                base_datos.reservas.update_one(
+                    {"codigoReserva": referencia_interna},
+                    {"$set": {"EstadoPago": "Pagado"}}
+                )
+            else:
+                print("⚠️ No se encontró la reserva en la BD. Creando reserva automáticamente...")
+                
                 nueva_reserva = {
                     "codigoReserva": referencia_interna,
                     "EstadoPago": "Pagado",
                     "fechaCreacion": datetime.utcnow(),
                 }
                 base_datos.reservas.insert_one(nueva_reserva)
-                reserva = nueva_reserva  # Para usarla en el resto del código
-
                 print("✅ Reserva creada automáticamente con estado 'Pagado'.")
 
 
