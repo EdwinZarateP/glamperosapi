@@ -148,7 +148,7 @@ async def crear_transaccion(payload: CrearTransaccionRequest):
 from fastapi import APIRouter, HTTPException, Request
 from pymongo import MongoClient
 import os
-import resend
+import requests  # ✅ Usaremos requests para llamar a la API de correos
 
 # ============================================================================  
 # CONFIGURACIÓN DE LA BASE DE DATOS  
@@ -158,53 +158,22 @@ ConexionMongo = MongoClient(MONGO_URI)
 base_datos = ConexionMongo["glamperos"]
 
 # ============================================================================  
-# CONFIGURACIÓN RESEND (ENVÍO DE CORREOS)  
+# CONFIGURACIÓN FASTAPI  
 # ============================================================================  
-resend.api_key = os.getenv("RESEND_API_KEY")  
-
 ruta_wompi = APIRouter(
     prefix="/wompi",
     tags=["Wompi"],
 )
 
-# ============================================================================  
-# FUNCIÓN PARA ENVIAR CORREO AL PROPIETARIO  
-# ============================================================================  
-def enviar_correo_propietario(destinatario, nombre_propietario, reserva):
-    """Envía un correo de confirmación de pago al dueño del glamping."""
-    try:
-        asunto = "Nueva Reserva Pagada en Glamperos 🚀"
-        html_content = f"""
-        <h2>Hola {nombre_propietario},</h2>
-        <p>¡Una nueva reserva ha sido confirmada en tu glamping!</p>
-        <ul>
-            <li><b>Código de reserva:</b> {reserva['codigoReserva']}</li>
-            <li><b>Fecha de ingreso:</b> {reserva['FechaIngreso']}</li>
-            <li><b>Fecha de salida:</b> {reserva['FechaSalida']}</li>
-            <li><b>Noches:</b> {reserva['Noches']}</li>
-            <li><b>Huéspedes:</b> {reserva['adultos']} adultos, {reserva['ninos']} niños</li>
-            <li><b>Valor total:</b> COP {reserva['ValorReserva']:,.0f}</li>
-        </ul>
-        <p>Revisa los detalles en tu perfil de Glamperos.</p>
-        <p>¡Gracias por ser parte de nuestra comunidad!</p>
-        """
-
-        response = resend.Emails.send({
-            "from": "reservas@glamperos.com",
-            "to": [destinatario],
-            "subject": asunto,
-            "html": html_content,
-        })
-        print("✅ Correo enviado al propietario:", response)
-    except Exception as e:
-        print("❌ Error al enviar correo:", str(e))
+# URL de la API de correos (ajústala si está en otro dominio o puerto)
+CORREO_API_URL = "https://glamperosapi.onrender.com/correos/send-email"  # ⚠️ Ajusta según tu configuración
 
 # ============================================================================  
-# WEBHOOK DE WOMPI (ACTUALIZADO CON ENVÍO DE CORREO)  
+# WEBHOOK DE WOMPI CON ENVÍO DE CORREO  
 # ============================================================================  
 @ruta_wompi.post("/webhook", response_model=dict)
 async def webhook_wompi(request: Request):
-    """Recibe notificaciones de Wompi y envía un correo al propietario si el pago es aprobado."""
+    """Recibe notificaciones de Wompi y envía correos al propietario y cliente si el pago es aprobado."""
     try:
         evento = await request.json()
         transaction = evento.get("data", {}).get("transaction", {})
@@ -236,14 +205,69 @@ async def webhook_wompi(request: Request):
                 {"$set": {"EstadoPago": "Pagado"}}
             )
 
-            # Obtener datos del propietario
+            # Obtener datos del propietario y del cliente
             propietario = base_datos.usuarios.find_one({"_id": reserva["idPropietario"]})
-            if propietario and "email" in propietario:
-                enviar_correo_propietario(
-                    destinatario=propietario["email"],
-                    nombre_propietario=propietario["nombre"],
-                    reserva=reserva
-                )
+            cliente = base_datos.usuarios.find_one({"_id": reserva["idCliente"]})
+
+            if propietario and cliente:
+                # ✅ Construir el contenido del correo para el propietario
+                correo_propietario = {
+                    "from_email": "reservas@glamperos.com",
+                    "name": propietario["nombre"],
+                    "email": propietario["email"],
+                    "subject": "🚀 ¡Nueva Reserva Confirmada en tu Glamping!",
+                    "html_content": f"""
+                        <h2>Hola {propietario['nombre']},</h2>
+                        <p>¡Has recibido una nueva reserva en tu glamping!</p>
+                        <h3>Detalles de la reserva:</h3>
+                        <ul>
+                            <li><b>Cliente:</b> {cliente['nombre']}</li>
+                            <li><b>Correo del cliente:</b> {cliente['email']}</li>
+                            <li><b>Teléfono del cliente:</b> {cliente.get('telefono', 'No disponible')}</li>
+                            <li><b>Código de reserva:</b> {reserva['codigoReserva']}</li>
+                            <li><b>Glamping:</b> {reserva['idGlamping']}</li>
+                            <li><b>Ciudad:</b> {reserva['ciudad_departamento']}</li>
+                            <li><b>Fecha de ingreso:</b> {reserva['FechaIngreso']}</li>
+                            <li><b>Fecha de salida:</b> {reserva['FechaSalida']}</li>
+                            <li><b>Noches:</b> {reserva['Noches']}</li>
+                            <li><b>Huéspedes:</b> {reserva['adultos']} adultos, {reserva['ninos']} niños</li>
+                            <li><b>Valor total:</b> COP {reserva['ValorReserva']:,.0f}</li>
+                        </ul>
+                        <p>Revisa más detalles en tu perfil de Glamperos.</p>
+                        <p>¡Gracias por ser parte de nuestra comunidad!</p>
+                    """
+                }
+
+                # ✅ Construir el contenido del correo para el cliente
+                correo_cliente = {
+                    "from_email": "reservas@glamperos.com",
+                    "name": cliente["nombre"],
+                    "email": cliente["email"],
+                    "subject": "🏕️ ¡Tu Reserva en Glamperos está Confirmada!",
+                    "html_content": f"""
+                        <h2>Hola {cliente['nombre']},</h2>
+                        <p>¡Tu reserva en Glamperos ha sido confirmada!</p>
+                        <h3>Detalles de la reserva:</h3>
+                        <ul>
+                            <li><b>Código de reserva:</b> {reserva['codigoReserva']}</li>
+                            <li><b>Glamping:</b> {reserva['idGlamping']}</li>
+                            <li><b>Ciudad:</b> {reserva['ciudad_departamento']}</li>
+                            <li><b>Fecha de ingreso:</b> {reserva['FechaIngreso']}</li>
+                            <li><b>Fecha de salida:</b> {reserva['FechaSalida']}</li>
+                            <li><b>Noches:</b> {reserva['Noches']}</li>
+                            <li><b>Huéspedes:</b> {reserva['adultos']} adultos, {reserva['ninos']} niños</li>
+                            <li><b>Valor total:</b> COP {reserva['ValorReserva']:,.0f}</li>
+                        </ul>
+                        <p>¡Esperamos que disfrutes tu estadía! Puedes ver más detalles en tu perfil de Glamperos.</p>
+                        <p>Gracias por reservar con nosotros. 🌿</p>
+                    """
+                }
+
+                # ✅ Enviar correos usando la API de correos
+                requests.post(CORREO_API_URL, json=correo_propietario)
+                requests.post(CORREO_API_URL, json=correo_cliente)
+
+                print("✅ Correos enviados correctamente.")
 
         return {"mensaje": "Webhook recibido correctamente", "estado": status}
 
