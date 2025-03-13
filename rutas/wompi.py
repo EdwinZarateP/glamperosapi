@@ -6,6 +6,7 @@ import os
 import requests
 import hashlib
 import time
+from bson import ObjectId
 
 
 # ====================================================================
@@ -184,23 +185,36 @@ async def webhook_wompi(request: Request):
             id_propietario = reserva.get("idPropietario")
             id_cliente = reserva.get("idCliente")
 
-            propietario = base_datos.usuarios.find_one({"_id": id_propietario})
-            cliente = base_datos.usuarios.find_one({"_id": id_cliente})
+            print(f"📌 ID Propietario recibido: {id_propietario}, ID Cliente recibido: {id_cliente}")
 
-            print(f"📌 ID Propietario: {propietario}, ID Cliente: {cliente}")
-            # Verificar si los datos existen antes de imprimirlos
+            # Validar si los IDs son ObjectId válidos antes de hacer la conversión
+            propietario = None
+            cliente = None
+
+            try:
+                if id_propietario and ObjectId.is_valid(id_propietario):
+                    propietario = base_datos.usuarios.find_one({"_id": ObjectId(id_propietario)})
+                else:
+                    print("⚠️ id_propietario no es un ObjectId válido.")
+
+                if id_cliente and ObjectId.is_valid(id_cliente):
+                    cliente = base_datos.usuarios.find_one({"_id": ObjectId(id_cliente)})
+                else:
+                    print("⚠️ id_cliente no es un ObjectId válido.")
+            except Exception as e:
+                print(f"❌ Error al convertir IDs a ObjectId: {e}")
+
+            # Verificar si se encontraron los datos
             if propietario:
                 print(f"👤 Propietario encontrado: {propietario.get('nombre', 'Desconocido')}")
-                print(f"📧 Email Propietario: {propietario.get('email', 'No disponible')}")
             else:
                 print("⚠️ No se encontró el propietario en la base de datos.")
 
             if cliente:
                 print(f"👤 Cliente encontrado: {cliente.get('nombre', 'Desconocido')}")
-                print(f"📧 Email Cliente: {cliente.get('email', 'No disponible')}")
             else:
                 print("⚠️ No se encontró el cliente en la base de datos.")
-                        
+
 
             if propietario and cliente:
                 correo_propietario = {
