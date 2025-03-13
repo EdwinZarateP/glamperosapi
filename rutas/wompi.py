@@ -184,8 +184,12 @@ async def webhook_wompi(request: Request):
             id_propietario = reserva.get("idPropietario")
             id_cliente = reserva.get("idCliente")
 
-            propietario = base_datos.usuarios.find_one({"_id": id_propietario})
-            cliente = base_datos.usuarios.find_one({"_id": id_cliente})
+            try:
+                propietario = base_datos.usuarios.find_one({"_id": ObjectId(id_propietario)})
+                cliente = base_datos.usuarios.find_one({"_id": ObjectId(id_cliente)})
+            except:
+                propietario = None
+                cliente = None
 
             if propietario and cliente:
                 correo_propietario = {
