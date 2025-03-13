@@ -6,7 +6,7 @@ import os
 import requests
 import hashlib
 import time
-from bson import ObjectId
+
 
 # ====================================================================
 # CONFIGURACIÓN DE LA BASE DE DATOS
@@ -184,8 +184,8 @@ async def webhook_wompi(request: Request):
             id_propietario = reserva.get("idPropietario")
             id_cliente = reserva.get("idCliente")
 
-            propietario = base_datos.usuarios.find_one({"_id": ObjectId(id_propietario)})
-            cliente = base_datos.usuarios.find_one({"_id": ObjectId(id_cliente)})
+            propietario = base_datos.usuarios.find_one({"_id": id_propietario})
+            cliente = base_datos.usuarios.find_one({"_id": id_cliente})
 
             print(f"📌 ID Propietario: {propietario}, ID Cliente: {cliente}")
             # Verificar si los datos existen antes de imprimirlos
