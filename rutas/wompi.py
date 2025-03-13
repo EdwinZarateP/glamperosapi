@@ -6,9 +6,11 @@ import os
 import requests
 import hashlib
 import time
-import requests
 import httpx
 import asyncio
+
+# Importar funciones de WhatsApp desde whatsapp_utils
+from whatsapp_utils import enviar_whatsapp_cliente, enviar_whatsapp_propietario
 
 # ====================================================================
 # CONFIGURACIÓN DE LA BASE DE DATOS
@@ -40,18 +42,14 @@ async def obtener_usuario(id_usuario, intentos_maximos=3):
             try:
                 print(f"🔍 Intento {intento + 1}/{intentos_maximos} - Consultando usuario {id_usuario} en {url}...")
                 response = await client.get(url, timeout=10)
-                
                 if response.status_code == 200:
                     return response.json()
-                
                 print(f"⚠️ Error al obtener usuario {id_usuario}: {response.status_code} - {response.text}")
             except httpx.TimeoutException:
                 print(f"⏳ Tiempo de espera agotado en intento {intento + 1}.")
             except httpx.RequestError as e:
                 print(f"❌ Error en la solicitud a la API de usuarios: {e}")
-
             await asyncio.sleep(1)
-
     print(f"🚨 No se pudo obtener información del usuario {id_usuario} después de {intentos_maximos} intentos.")
     return None
 
@@ -60,29 +58,21 @@ ACTUALIZAR_FECHAS_API_URL = "https://glamperosapi.onrender.com/glampings"
 async def reservar_fechas_glamping(id_glamping, fecha_ingreso, fecha_salida):
     """Genera las fechas de la reserva y las actualiza en la API (excluyendo la fecha de salida)."""
     try:
-        # Si las fechas son datetime, convertirlas a string ISO
         if isinstance(fecha_ingreso, datetime):
             fecha_ingreso = fecha_ingreso.isoformat()
         if isinstance(fecha_salida, datetime):
             fecha_salida = fecha_salida.isoformat()
-        
         if not isinstance(fecha_ingreso, str) or not isinstance(fecha_salida, str):
             raise ValueError(f"Las fechas no son cadenas de texto válidas: {fecha_ingreso}, {fecha_salida}")
-        
         fecha_actual = datetime.fromisoformat(fecha_ingreso)
         fecha_fin = datetime.fromisoformat(fecha_salida)
-        
         if fecha_actual >= fecha_fin:
             raise ValueError(f"Fecha de ingreso {fecha_ingreso} no puede ser mayor o igual a fecha de salida {fecha_salida}")
-        
         fechas_a_reservar = []
-        # Generar fechas hasta (pero sin incluir) la fecha de salida
         while fecha_actual < fecha_fin:
             fechas_a_reservar.append(fecha_actual.strftime("%Y-%m-%d"))
             fecha_actual += timedelta(days=1)
-        
         print(f"📅 Fechas reservadas para el glamping {id_glamping}: {fechas_a_reservar}")
-        
         async with httpx.AsyncClient() as client:
             response = await client.patch(
                 f"{ACTUALIZAR_FECHAS_API_URL}/{id_glamping}/fechasReservadas",
@@ -258,11 +248,9 @@ async def webhook_wompi(request: Request):
             propietario = await obtener_usuario(id_propietario)
             cliente = await obtener_usuario(id_cliente)
             glamping = await obtener_glamping(id_glamping)
-            
             # ✅ Reservar las fechas en la API (excluyendo la fecha de salida)
             if "FechaIngreso" in reserva and "FechaSalida" in reserva:
                 await reservar_fechas_glamping(id_glamping, reserva["FechaIngreso"], reserva["FechaSalida"])
-            
             if propietario and cliente:
                 print("📧 Enviando correos de confirmación")
                 def limpiar_numero(numero: str) -> str:
