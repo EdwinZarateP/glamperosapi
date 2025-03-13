@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, status, Body, Request
 from pymongo import MongoClient
-from datetime import datetime
+from datetime import datetime, timedelta
 from pydantic import BaseModel
 import os
 import requests
@@ -32,8 +32,6 @@ ruta_wompi = APIRouter(
 # URL de la API de usuarios
 GLAMPEROS_API_URL = "https://glamperosapi.onrender.com/usuarios"
 
-
-
 async def obtener_usuario(id_usuario, intentos_maximos=3):
     """Consulta la API de usuarios con reintentos en caso de error."""
     url = f"{GLAMPEROS_API_URL}/{id_usuario}"
@@ -58,6 +56,35 @@ async def obtener_usuario(id_usuario, intentos_maximos=3):
     print(f"🚨 No se pudo obtener información del usuario {id_usuario} después de {intentos_maximos} intentos.")
     return None
 
+
+ACTUALIZAR_FECHAS_API_URL = "https://glamperosapi.onrender.com/glampings"
+
+async def reservar_fechas_glamping(id_glamping, fecha_ingreso, fecha_salida):
+    """Genera las fechas de la reserva y las actualiza en la API."""
+    try:
+        # Generar las fechas a reservar EXCLUYENDO la fecha de salida
+        fecha_actual = datetime.fromisoformat(fecha_ingreso)
+        fecha_fin = datetime.fromisoformat(fecha_salida)
+        fechas_a_reservar = []
+
+        while fecha_actual < fecha_fin:
+            fechas_a_reservar.append(fecha_actual.strftime("%Y-%m-%d"))
+            fecha_actual += timedelta(days=1)
+
+        print(f"📅 Fechas reservadas para el glamping {id_glamping}: {fechas_a_reservar}")
+
+        # Enviar la actualización a la API
+        async with httpx.AsyncClient() as client:
+            response = await client.patch(
+                f"{ACTUALIZAR_FECHAS_API_URL}/{id_glamping}/fechasReservadas",
+                json={"fechas": fechas_a_reservar},
+            )
+            if response.status_code == 200:
+                print("✅ Fechas reservadas correctamente en la API.")
+            else:
+                print(f"⚠️ Error al reservar fechas: {response.status_code} - {response.text}")
+    except Exception as e:
+        print(f"❌ Error al generar las fechas de reserva: {str(e)}")
 
 GLAMPEROS_GLAMPINGS_API_URL = "https://glamperosapi.onrender.com/glampings"
 
@@ -230,6 +257,11 @@ async def webhook_wompi(request: Request):
             propietario = await obtener_usuario(id_propietario)
             cliente = await obtener_usuario(id_cliente)
             glamping = await obtener_glamping(id_glamping)
+            
+             # ✅ Reservar las fechas en la API ANTES de enviar los correos
+            if "FechaIngreso" in reserva and "FechaSalida" in reserva:
+                await reservar_fechas_glamping(id_glamping, reserva["FechaIngreso"], reserva["FechaSalida"])
+
 
             if propietario and cliente:
                 print("📧 Enviando correos de confirmación")
