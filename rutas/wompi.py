@@ -214,31 +214,38 @@ async def webhook_wompi(request: Request):
             id_propietario = reserva.get("idPropietario")
             id_cliente = reserva.get("idCliente")
 
-            print(f"📌 ID Propietario recibido: {id_propietario}, ID Cliente recibido: {id_cliente}")
-
             propietario = await obtener_usuario(id_propietario)
             cliente = await obtener_usuario(id_cliente)
 
             if propietario and cliente:
                 print("📧 Enviando correos de confirmación")
 
-                # Convertir fechas a formato amigable con validaciones
-                fecha_inicio_raw = reserva.get("FechaIngreso")
-                fecha_fin_raw = reserva.get("FechaSalida")
+                # ✅ Convertir fechas a formato amigable con validaciones
+                def convertir_fecha(fecha_raw):
+                    if isinstance(fecha_raw, str):
+                        try:
+                            return datetime.strptime(fecha_raw, "%Y-%m-%d").strftime("%d %b %Y")
+                        except ValueError:
+                            return datetime.strptime(fecha_raw, "%Y-%m-%dT%H:%M:%S.%fZ").strftime("%d %b %Y")
+                    return "Fecha no disponible"
 
-                try:
-                    fecha_inicio = datetime.strptime(fecha_inicio_raw, "%Y-%m-%d").strftime("%d %b %Y") if fecha_inicio_raw else "Fecha no disponible"
-                except Exception as e:
-                    print(f"⚠️ Error al formatear FechaIngreso: {e}")
-                    fecha_inicio = "Fecha no disponible"
+                fecha_inicio = convertir_fecha(reserva.get("FechaIngreso"))
+                fecha_fin = convertir_fecha(reserva.get("FechaSalida"))
 
-                try:
-                    fecha_fin = datetime.strptime(fecha_fin_raw, "%Y-%m-%d").strftime("%d %b %Y") if fecha_fin_raw else "Fecha no disponible"
-                except Exception as e:
-                    print(f"⚠️ Error al formatear FechaSalida: {e}")
-                    fecha_fin = "Fecha no disponible"
+                # ✅ Construcción dinámica de la línea de ocupación
+                ocupacion = []
+                if reserva.get("adultos", 0) > 0:
+                    ocupacion.append(f"{reserva.get('adultos', 0)} Adultos")
+                if reserva.get("ninos", 0) > 0:
+                    ocupacion.append(f"{reserva.get('ninos', 0)} Niños")
+                if reserva.get("bebes", 0) > 0:
+                    ocupacion.append(f"{reserva.get('bebes', 0)} Bebés")
+                if reserva.get("mascotas", 0) > 0:
+                    ocupacion.append(f"{reserva.get('mascotas', 0)} Mascotas")
 
-                # Formato de correo del propietario
+                ocupacion_texto = ", ".join(ocupacion)
+
+                # ✅ Formato de correo del propietario
                 correo_propietario = {
                     "from_email": "reservaciones@glamperos.com",
                     "email": propietario.get("email", ""),
@@ -251,9 +258,7 @@ async def webhook_wompi(request: Request):
                         <p><strong>Código de Reserva:</strong> {reserva.get('codigoReserva')}</p>
                         <p><strong>Check-In:</strong> {fecha_inicio}</p>
                         <p><strong>Check-Out:</strong> {fecha_fin}</p>
-                        <p><strong>Adultos:</strong> {reserva.get('adultos', 0)}</p>
-                        <p><strong>Niños:</strong> {reserva.get('ninos', 0)}</p>
-                        <p><strong>Mascotas:</strong> {reserva.get('mascotas', 0)}</p>
+                        <p><strong>Ocupación:</strong> {ocupacion_texto}</p>
                         <p><strong>Huésped:</strong> {cliente.get('nombre', 'Cliente')}</p>
                         <p><strong>Teléfono:</strong> {cliente.get('telefono', 'No disponible')}</p>
                         <p><strong>Correo:</strong> {cliente.get('email', 'No disponible')}</p>
@@ -262,7 +267,7 @@ async def webhook_wompi(request: Request):
                     """
                 }
 
-                # Formato de correo del cliente
+                # ✅ Formato de correo del cliente
                 correo_cliente = {
                     "from_email": "reservas@glamperos.com",
                     "email": cliente.get("email", ""),
@@ -275,9 +280,7 @@ async def webhook_wompi(request: Request):
                         <p><strong>Código de Reserva:</strong> {reserva.get('codigoReserva')}</p>
                         <p><strong>Check-In:</strong> {fecha_inicio}</p>
                         <p><strong>Check-Out:</strong> {fecha_fin}</p>
-                        <p><strong>Adultos:</strong> {reserva.get('adultos', 0)}</p>
-                        <p><strong>Niños:</strong> {reserva.get('ninos', 0)}</p>
-                        <p><strong>Mascotas:</strong> {reserva.get('mascotas', 0)}</p>
+                        <p><strong>Ocupación:</strong> {ocupacion_texto}</p>
                         <p>Si necesitas ayuda, nuestro equipo siempre estará aquí para ti.</p>
                         <hr>
                         <p style="color: #777;">Cualquier duda, puedes contactarnos en Glamperos.</p>
@@ -285,25 +288,17 @@ async def webhook_wompi(request: Request):
                 }
 
                 # 🚀 Enviar correos usando la API
-                try:
-                    async with httpx.AsyncClient() as client:
-                        response_propietario = await client.post(CORREO_API_URL, json=correo_propietario)
-                        response_cliente = await client.post(CORREO_API_URL, json=correo_cliente)
-
-                    print("📧 Respuesta API Correo Propietario:", response_propietario.status_code, response_propietario.text)
-                    print("📧 Respuesta API Correo Cliente:", response_cliente.status_code, response_cliente.text)
-                except Exception as emailError:
-                    print("❌ Error al enviar correos:", emailError)
+                async with httpx.AsyncClient() as client:
+                    await client.post(CORREO_API_URL, json=correo_propietario)
+                    await client.post(CORREO_API_URL, json=correo_cliente)
 
             return {"mensaje": "Webhook recibido correctamente", "estado": status}
-
-        else:
-            print(f"⚠️ No se encontró la reserva en la BD después de {intentos} intentos.")
 
     except Exception as e:
         print(f"⚠️ Error en el webhook: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error en webhook: {str(e)}")
-
+    
+    
 # ====================================================================
 # ENDPOINT PARA CONSULTAR TRANSACCIÓN (opcional)
 # ====================================================================
