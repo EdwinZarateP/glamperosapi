@@ -176,7 +176,7 @@ async def crear_transaccion(payload: CrearTransaccionRequest):
 # ENDPOINT PARA WEBHOOK DE WOMPI CON ENVÍO DE CORREO
 # ====================================================================
 # URL de la API de correos (ajústala según tu configuración)
-CORREO_API_URL = "https://glamperosapi.onrender.com/correos/send_email"
+CORREO_API_URL = "https://glamperosapi.onrender.com/correos/send-email"
 
 @ruta_wompi.post("/webhook", response_model=dict)
 async def webhook_wompi(request: Request):
@@ -268,6 +268,15 @@ async def webhook_wompi(request: Request):
                         </ul>
                     """
                 }
+                try:
+                    async with httpx.AsyncClient() as client:
+                        response_propietario = await client.post(CORREO_API_URL, json=correo_propietario)
+                        response_cliente = await client.post(CORREO_API_URL, json=correo_cliente)
+
+                    print("📧 Respuesta API Correo Propietario:", response_propietario.status_code, response_propietario.text)
+                    print("📧 Respuesta API Correo Cliente:", response_cliente.status_code, response_cliente.text)
+                except Exception as emailError:
+                    print("❌ Error al enviar correos:", emailError)
 
             return {"mensaje": "Webhook recibido correctamente", "estado": status}
 
