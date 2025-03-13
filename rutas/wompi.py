@@ -59,6 +59,20 @@ async def obtener_usuario(id_usuario, intentos_maximos=3):
     return None
 
 
+GLAMPEROS_GLAMPINGS_API_URL = "https://glamperosapi.onrender.com/glampings"
+
+async def obtener_glamping(id_glamping):
+    """Consulta la API de glampings para obtener la ubicación del glamping."""
+    url = f"{GLAMPEROS_GLAMPINGS_API_URL}/{id_glamping}"
+    async with httpx.AsyncClient() as client:
+        try:
+            response = await client.get(url, timeout=10)
+            if response.status_code == 200:
+                return response.json()
+        except httpx.HTTPError:
+            print(f"⚠️ Error al obtener datos del glamping {id_glamping}")
+    return None
+
 # ====================================================================
 # MODELOS DE DATOS
 # ====================================================================
@@ -177,6 +191,7 @@ async def crear_transaccion(payload: CrearTransaccionRequest):
 # ====================================================================
 # URL de la API de correos (ajústala según tu configuración)
 CORREO_API_URL = "https://glamperosapi.onrender.com/correos/send-email"
+
 @ruta_wompi.post("/webhook", response_model=dict)
 async def webhook_wompi(request: Request):
     try:
@@ -210,12 +225,25 @@ async def webhook_wompi(request: Request):
             # Obtener datos del propietario y del cliente desde la API de usuarios
             id_propietario = reserva.get("idPropietario")
             id_cliente = reserva.get("idCliente")
+            id_glamping = reserva.get("idGlamping")
 
             propietario = await obtener_usuario(id_propietario)
             cliente = await obtener_usuario(id_cliente)
+            glamping = await obtener_glamping(id_glamping)
 
             if propietario and cliente:
                 print("📧 Enviando correos de confirmación")
+
+                 # ✅ Obtener la ubicación del glamping y generar link de Google Maps
+                if glamping and "ubicacion" in glamping:
+                    latitud = glamping["ubicacion"].get("latitud")
+                    longitud = glamping["ubicacion"].get("longitud")
+                    if latitud and longitud:
+                        ubicacion_link = f"https://www.google.com/maps?q={latitud},{longitud}"
+                    else:
+                        ubicacion_link = "Ubicación no disponible"
+                else:
+                    ubicacion_link = "Ubicación no disponible"
 
                 # ✅ Convertir fechas a formato amigable con validaciones
                 def convertir_fecha(fecha_raw):
@@ -281,6 +309,7 @@ async def webhook_wompi(request: Request):
                         <p><strong>Check-In:</strong> {fecha_inicio}</p>
                         <p><strong>Check-Out:</strong> {fecha_fin}</p>
                         <p><strong>Ocupación:</strong> {ocupacion_texto}</p>
+                        <p><strong>Ubicación:</strong> <a href="{ubicacion_link}" target="_blank">Ver en Google Maps</a></p>
                         <hr>
                         {mensaje_contacto}
                     """
