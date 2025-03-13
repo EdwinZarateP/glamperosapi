@@ -219,8 +219,9 @@ async def webhook_wompi(request: Request):
 
             print(f"📌 ID Propietario recibido: {id_propietario}, ID Cliente recibido: {id_cliente}")
 
-            propietario = obtener_usuario(id_propietario)
-            cliente = obtener_usuario(id_cliente)
+            propietario = await obtener_usuario(id_propietario)
+            cliente = await obtener_usuario(id_cliente)
+
 
             # Verificar si se encontraron los datos
             if propietario:
