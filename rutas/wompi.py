@@ -176,7 +176,7 @@ async def crear_transaccion(payload: CrearTransaccionRequest):
 # ENDPOINT PARA WEBHOOK DE WOMPI CON ENVÍO DE CORREO
 # ====================================================================
 # URL de la API de correos (ajústala según tu configuración)
-CORREO_API_URL = "https://glamperosapi.onrender.com/correos/send-email"
+CORREO_API_URL = "https://glamperosapi.onrender.com/correos/send_email"
 
 @ruta_wompi.post("/webhook", response_model=dict)
 async def webhook_wompi(request: Request):
