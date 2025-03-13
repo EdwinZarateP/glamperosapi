@@ -177,7 +177,6 @@ async def crear_transaccion(payload: CrearTransaccionRequest):
 # ====================================================================
 # URL de la API de correos (ajústala según tu configuración)
 CORREO_API_URL = "https://glamperosapi.onrender.com/correos/send-email"
-
 @ruta_wompi.post("/webhook", response_model=dict)
 async def webhook_wompi(request: Request):
     try:
@@ -194,8 +193,7 @@ async def webhook_wompi(request: Request):
 
         # 🔄 Intentar buscar la reserva hasta 5 veces con un delay de 2 segundos entre cada intento
         reserva = None
-        intentos = 5
-        for _ in range(intentos):
+        for _ in range(5):
             reserva = base_datos.reservas.find_one({"codigoReserva": referencia_interna})
             if reserva:
                 break
@@ -208,7 +206,6 @@ async def webhook_wompi(request: Request):
                 {"codigoReserva": referencia_interna},
                 {"$set": {"EstadoPago": "Pagado"}}
             )
-            print("🔄 Estado de la reserva actualizado a 'Pagado'")
 
             # Obtener datos del propietario y del cliente desde la API de usuarios
             id_propietario = reserva.get("idPropietario")
@@ -222,11 +219,11 @@ async def webhook_wompi(request: Request):
 
                 # ✅ Convertir fechas a formato amigable con validaciones
                 def convertir_fecha(fecha_raw):
-                    if isinstance(fecha_raw, str):
+                    if fecha_raw:
                         try:
-                            return datetime.strptime(fecha_raw, "%Y-%m-%d").strftime("%d %b %Y")
+                            return datetime.fromisoformat(str(fecha_raw)).strftime("%d %b %Y")
                         except ValueError:
-                            return datetime.strptime(fecha_raw, "%Y-%m-%dT%H:%M:%S.%fZ").strftime("%d %b %Y")
+                            return "Fecha no disponible"
                     return "Fecha no disponible"
 
                 fecha_inicio = convertir_fecha(reserva.get("FechaIngreso"))
@@ -243,7 +240,10 @@ async def webhook_wompi(request: Request):
                 if reserva.get("mascotas", 0) > 0:
                     ocupacion.append(f"{reserva.get('mascotas', 0)} Mascotas")
 
-                ocupacion_texto = ", ".join(ocupacion)
+                ocupacion_texto = ", ".join(ocupacion) if ocupacion else "Sin información"
+
+                # ✅ Mensaje de contacto
+                mensaje_contacto = "<p>Si tienes preguntas, contacta a nuestro equipo en Glamperos al <strong>3218695196</strong>.</p>"
 
                 # ✅ Formato de correo del propietario
                 correo_propietario = {
@@ -263,7 +263,7 @@ async def webhook_wompi(request: Request):
                         <p><strong>Teléfono:</strong> {cliente.get('telefono', 'No disponible')}</p>
                         <p><strong>Correo:</strong> {cliente.get('email', 'No disponible')}</p>
                         <hr>
-                        <p style="color: #777;">Si tienes preguntas, contacta a nuestro equipo en Glamperos.</p>
+                        {mensaje_contacto}
                     """
                 }
 
@@ -281,9 +281,8 @@ async def webhook_wompi(request: Request):
                         <p><strong>Check-In:</strong> {fecha_inicio}</p>
                         <p><strong>Check-Out:</strong> {fecha_fin}</p>
                         <p><strong>Ocupación:</strong> {ocupacion_texto}</p>
-                        <p>Si necesitas ayuda, nuestro equipo siempre estará aquí para ti.</p>
                         <hr>
-                        <p style="color: #777;">Cualquier duda, puedes contactarnos en Glamperos.</p>
+                        {mensaje_contacto}
                     """
                 }
 
@@ -297,7 +296,6 @@ async def webhook_wompi(request: Request):
     except Exception as e:
         print(f"⚠️ Error en el webhook: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error en webhook: {str(e)}")
-    
     
 # ====================================================================
 # ENDPOINT PARA CONSULTAR TRANSACCIÓN (opcional)
