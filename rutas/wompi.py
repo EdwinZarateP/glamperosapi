@@ -188,11 +188,19 @@ async def webhook_wompi(request: Request):
             cliente = base_datos.usuarios.find_one({"_id": id_cliente})
 
             print(f"📌 ID Propietario: {propietario}, ID Cliente: {cliente}")
-            print(propietario.get("nombre", "Propietario"))
-            print(propietario.get("email", ""))
-            print(cliente.get("nombre", "Cliente"))
-            print(cliente.get("email", ""))
-            
+            # Verificar si los datos existen antes de imprimirlos
+            if propietario:
+                print(f"👤 Propietario encontrado: {propietario.get('nombre', 'Desconocido')}")
+                print(f"📧 Email Propietario: {propietario.get('email', 'No disponible')}")
+            else:
+                print("⚠️ No se encontró el propietario en la base de datos.")
+
+            if cliente:
+                print(f"👤 Cliente encontrado: {cliente.get('nombre', 'Desconocido')}")
+                print(f"📧 Email Cliente: {cliente.get('email', 'No disponible')}")
+            else:
+                print("⚠️ No se encontró el cliente en la base de datos.")
+                        
 
             if propietario and cliente:
                 correo_propietario = {
