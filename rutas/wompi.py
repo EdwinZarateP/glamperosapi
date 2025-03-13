@@ -5,6 +5,7 @@ from pydantic import BaseModel
 import os
 import requests
 import hashlib
+import time
 
 # ====================================================================
 # CONFIGURACIÓN DE LA BASE DE DATOS
@@ -157,8 +158,15 @@ async def webhook_wompi(request: Request):
         if not transaction_id or not status or not referencia_interna:
             raise HTTPException(status_code=400, detail="Faltan datos en el webhook de Wompi")
 
-        # Buscar la reserva correspondiente en la base de datos
-        reserva = base_datos.reservas.find_one({"codigoReserva": referencia_interna})
+        # 🔄 Intentar buscar la reserva hasta 5 veces con un delay de 2 segundos entre cada intento
+        reserva = None
+        intentos = 5
+        for _ in range(intentos):
+            reserva = base_datos.reservas.find_one({"codigoReserva": referencia_interna})
+            if reserva:
+                break
+            print("🔄 Esperando a que la reserva aparezca en la BD...")
+            time.sleep(2)  # Esperar antes de intentar de nuevo
 
         if reserva:
             print(f"✅ Reserva {referencia_interna} encontrada, actualizando EstadoPago a '{status}'.")
@@ -230,7 +238,7 @@ async def webhook_wompi(request: Request):
                     """
                 }
 
-                # Enviar correos usando la API de correos y mostrar respuestas para depurar
+                # Enviar correos usando la API de correos y mostrar respuestas para depuración
                 try:
                     response_propietario = requests.post(CORREO_API_URL, json=correo_propietario)
                     response_cliente = requests.post(CORREO_API_URL, json=correo_cliente)
@@ -245,14 +253,13 @@ async def webhook_wompi(request: Request):
                 print("⚠️ No se encontraron datos completos de usuario (propietario o cliente).")
 
         else:
-            print("⚠️ No se encontró la reserva en la BD. NO se creará automáticamente.")
+            print(f"⚠️ No se encontró la reserva en la BD después de {intentos} intentos. NO se actualizará.")
 
         return {"mensaje": "Webhook recibido correctamente", "estado": status}
 
     except Exception as e:
         print(f"⚠️ Error en el webhook: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error en webhook: {str(e)}")
-
 
 # ====================================================================
 # ENDPOINT PARA CONSULTAR TRANSACCIÓN (opcional)
