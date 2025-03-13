@@ -25,7 +25,6 @@ ruta_usuario = APIRouter(
 
 BUCKET_NAME = "glamperos-imagenes"
 
-
 # Modelos de datos
 class Usuario(BaseModel):
     nombre: str
