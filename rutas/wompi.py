@@ -10,7 +10,7 @@ import httpx
 import asyncio
 
 # Importar funciones de WhatsApp desde el módulo whatsapp_utils
-from whatsapp_utils import enviar_whatsapp_cliente, enviar_whatsapp_propietario
+from rutas.whatsapp_utils import enviar_whatsapp_cliente, enviar_whatsapp_propietario
 
 # ====================================================================
 # CONFIGURACIÓN DE LA BASE DE DATOS
