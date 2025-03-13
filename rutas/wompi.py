@@ -184,12 +184,8 @@ async def webhook_wompi(request: Request):
             id_propietario = reserva.get("idPropietario")
             id_cliente = reserva.get("idCliente")
 
-            try:
-                propietario = base_datos.usuarios.find_one({"_id": ObjectId(id_propietario)})
-                cliente = base_datos.usuarios.find_one({"_id": ObjectId(id_cliente)})
-            except:
-                propietario = None
-                cliente = None
+            propietario = base_datos.usuarios.find_one({"_id": id_propietario})
+            cliente = base_datos.usuarios.find_one({"_id": id_cliente})
 
             if propietario and cliente:
                 correo_propietario = {
@@ -271,7 +267,9 @@ async def webhook_wompi(request: Request):
 # ====================================================================
 @ruta_wompi.get("/transaccion/{referencia}", response_model=dict)
 async def obtener_transaccion_por_referencia(referencia: str):
-
+    """
+    Devuelve la info de una transacción registrada en la DB usando la referencia.
+    """
     try:
         transaccion = coleccion_transacciones.find_one({"referenciaInterna": referencia})
         if not transaccion:
