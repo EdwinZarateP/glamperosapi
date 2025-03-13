@@ -339,7 +339,7 @@ async def webhook_wompi(request: Request):
                     nombrePropietario=propietario.get("nombre", "Propietario"),
                     nombreGlamping=glamping.get("nombreGlamping", "Tu Glamping"),
                     fechaInicio=fecha_inicio,
-                    fechaFin=f"{fecha_fin} - el whatsapp de tu cliente es {telefono_cliente}",
+                    fechaFin=f"{fecha_fin} - el whatsapp de tu huésped es {telefono_cliente}",
                     imagenUrl="https://storage.googleapis.com/glamperos-imagenes/Imagenes/animal1.jpeg"
                 )
                 await enviar_whatsapp_cliente(
