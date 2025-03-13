@@ -145,7 +145,6 @@ CORREO_API_URL = "https://glamperosapi.onrender.com/correos/send-email"
 
 @ruta_wompi.post("/webhook", response_model=dict)
 async def webhook_wompi(request: Request):
-
     try:
         evento = await request.json()
         print("📩 Webhook recibido:", evento)
@@ -158,95 +157,73 @@ async def webhook_wompi(request: Request):
         if not transaction_id or not status or not referencia_interna:
             raise HTTPException(status_code=400, detail="Faltan datos en el webhook de Wompi")
 
-        # Actualizar el estado del pago en la base de datos
-        base_datos.transacciones_wompi.update_one(
-            {"wompi_transaction_id": transaction_id},
-            {"$set": {"status": status}}
-        )
+        # Buscar la reserva correspondiente en la base de datos
+        reserva = base_datos.reservas.find_one({"codigoReserva": referencia_interna})
 
-        if status == "APPROVED":
-            print(f"✅ Pago aprobado para la referencia {referencia_interna}")
+        if reserva:
+            print(f"✅ Reserva {referencia_interna} encontrada, actualizando EstadoPago a '{status}'.")
 
-           # Buscar la reserva en la base de datos
-            reserva = base_datos.reservas.find_one({"codigoReserva": referencia_interna})
-
-            if reserva:
-                print(f"✅ Reserva {referencia_interna} ya existe, actualizando EstadoPago a 'Pagado'.")
-                base_datos.reservas.update_one(
-                    {"codigoReserva": referencia_interna},
-                    {"$set": {"EstadoPago": "Pagado"}}
-                )
-            else:
-                print("⚠️ No se encontró la reserva en la BD. Creando reserva automáticamente...")
-                
-                nueva_reserva = {
-                    "codigoReserva": referencia_interna,
-                    "EstadoPago": "Pagado",
-                    "fechaCreacion": datetime.utcnow(),
-                }
-                base_datos.reservas.insert_one(nueva_reserva)
-                print("✅ Reserva creada automáticamente con estado 'Pagado'.")
-
-
-            # Actualizar el estado de la reserva a "Pagado"
+            # Actualizar estado de pago de la reserva
             base_datos.reservas.update_one(
                 {"codigoReserva": referencia_interna},
                 {"$set": {"EstadoPago": "Pagado"}}
             )
-            print("🔄 Reserva actualizada a 'Pagado'")
+
+            print("🔄 Estado de la reserva actualizado a 'Pagado'")
 
             # Obtener datos del propietario y del cliente
-            propietario = base_datos.usuarios.find_one({"_id": reserva["idPropietario"]})
-            cliente = base_datos.usuarios.find_one({"_id": reserva["idCliente"]})
+            id_propietario = reserva.get("idPropietario")
+            id_cliente = reserva.get("idCliente")
+
+            propietario = base_datos.usuarios.find_one({"_id": id_propietario})
+            cliente = base_datos.usuarios.find_one({"_id": id_cliente})
 
             if propietario and cliente:
-                # Construir el contenido del correo para el propietario
                 correo_propietario = {
                     "from_email": "reservas@glamperos.com",
-                    "name": propietario["nombre"],
-                    "email": propietario["email"],
+                    "name": propietario.get("nombre", "Propietario"),
+                    "email": propietario.get("email", ""),
                     "subject": "🚀 ¡Nueva Reserva Confirmada en tu Glamping!",
                     "html_content": f"""
-                        <h2>Hola {propietario['nombre']},</h2>
+                        <h2>Hola {propietario.get('nombre', 'Propietario')},</h2>
                         <p>¡Has recibido una nueva reserva en tu glamping!</p>
                         <h3>Detalles de la reserva:</h3>
                         <ul>
-                            <li><b>Cliente:</b> {cliente['nombre']}</li>
-                            <li><b>Correo del cliente:</b> {cliente['email']}</li>
+                            <li><b>Cliente:</b> {cliente.get('nombre', 'Cliente')}</li>
+                            <li><b>Correo del cliente:</b> {cliente.get('email', 'No disponible')}</li>
                             <li><b>Teléfono del cliente:</b> {cliente.get('telefono', 'No disponible')}</li>
-                            <li><b>Código de reserva:</b> {reserva['codigoReserva']}</li>
-                            <li><b>Glamping:</b> {reserva['idGlamping']}</li>
-                            <li><b>Ciudad:</b> {reserva['ciudad_departamento']}</li>
-                            <li><b>Fecha de ingreso:</b> {reserva['FechaIngreso']}</li>
-                            <li><b>Fecha de salida:</b> {reserva['FechaSalida']}</li>
-                            <li><b>Noches:</b> {reserva['Noches']}</li>
-                            <li><b>Huéspedes:</b> {reserva['adultos']} adultos, {reserva['ninos']} niños</li>
-                            <li><b>Valor total:</b> COP {reserva['ValorReserva']:,.0f}</li>
+                            <li><b>Código de reserva:</b> {reserva.get('codigoReserva')}</li>
+                            <li><b>Glamping:</b> {reserva.get('idGlamping')}</li>
+                            <li><b>Ciudad:</b> {reserva.get('ciudad_departamento')}</li>
+                            <li><b>Fecha de ingreso:</b> {reserva.get('FechaIngreso')}</li>
+                            <li><b>Fecha de salida:</b> {reserva.get('FechaSalida')}</li>
+                            <li><b>Noches:</b> {reserva.get('Noches')}</li>
+                            <li><b>Huéspedes:</b> {reserva.get('adultos')} adultos, {reserva.get('ninos')} niños</li>
+                            <li><b>Valor total:</b> COP {reserva.get('ValorReserva', 0):,.0f}</li>
                         </ul>
                         <p>Revisa más detalles en tu perfil de Glamperos.</p>
                         <p>¡Gracias por ser parte de nuestra comunidad!</p>
                     """
                 }
 
-                # Construir el contenido del correo para el cliente
                 correo_cliente = {
                     "from_email": "reservas@glamperos.com",
-                    "name": cliente["nombre"],
-                    "email": cliente["email"],
+                    "name": cliente.get("nombre", "Cliente"),
+                    "email": cliente.get("email", ""),
                     "subject": "🏕️ ¡Tu Reserva en Glamperos está Confirmada!",
                     "html_content": f"""
-                        <h2>Hola {cliente['nombre']},</h2>
+                        <h2>Hola {cliente.get('nombre', 'Cliente')},</h2>
                         <p>¡Tu reserva en Glamperos ha sido confirmada!</p>
                         <h3>Detalles de la reserva:</h3>
                         <ul>
-                            <li><b>Código de reserva:</b> {reserva['codigoReserva']}</li>
-                            <li><b>Glamping:</b> {reserva['idGlamping']}</li>
-                            <li><b>Ciudad:</b> {reserva['ciudad_departamento']}</li>
-                            <li><b>Fecha de ingreso:</b> {reserva['FechaIngreso']}</li>
-                            <li><b>Fecha de salida:</b> {reserva['FechaSalida']}</li>
-                            <li><b>Noches:</b> {reserva['Noches']}</li>
-                            <li><b>Huéspedes:</b> {reserva['adultos']} adultos, {reserva['ninos']} niños</li>
-                            <li><b>Valor total:</b> COP {reserva['ValorReserva']:,.0f}</li>
+                            <li><b>Código de reserva:</b> {reserva.get('codigoReserva')}</li>
+                            <li><b>Glamping:</b> {reserva.get('idGlamping')}</li>
+                            <li><b>Ciudad:</b> {reserva.get('ciudad_departamento')}</li>
+                            <li><b>Fecha de ingreso:</b> {reserva.get('FechaIngreso')}</li>
+                            <li><b>Fecha de salida:</b> {reserva.get('FechaSalida')}</li>
+                            <li><b>Noches:</b> {reserva.get('Noches')}</li>
+                            <li><b>Huéspedes:</b> {reserva.get('adultos')} adultos, {reserva.get('ninos')} niños</li>
+                            <li><b>Valor total:</b> COP {reserva.get('ValorReserva', 0):,.0f}</li>
                         </ul>
                         <p>¡Esperamos que disfrutes tu estadía! Puedes ver más detalles en tu perfil de Glamperos.</p>
                         <p>Gracias por reservar con nosotros. 🌿</p>
@@ -262,16 +239,20 @@ async def webhook_wompi(request: Request):
                 except Exception as emailError:
                     print("❌ Error al enviar correos:", emailError)
 
-                print("✅ Correos enviados (o se intentó enviar) correctamente.")
+                print("✅ Correos enviados correctamente.")
 
             else:
                 print("⚠️ No se encontraron datos completos de usuario (propietario o cliente).")
+
+        else:
+            print("⚠️ No se encontró la reserva en la BD. NO se creará automáticamente.")
 
         return {"mensaje": "Webhook recibido correctamente", "estado": status}
 
     except Exception as e:
         print(f"⚠️ Error en el webhook: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error en webhook: {str(e)}")
+
 
 # ====================================================================
 # ENDPOINT PARA CONSULTAR TRANSACCIÓN (opcional)
