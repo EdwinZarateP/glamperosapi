@@ -251,9 +251,9 @@ async def webhook_wompi(request: Request):
                         <p><strong>Código de Reserva:</strong> {reserva.get('codigoReserva')}</p>
                         <p><strong>Check-In:</strong> {fecha_inicio}</p>
                         <p><strong>Check-Out:</strong> {fecha_fin}</p>
-                        <p><strong>Adultos:</strong> {reserva.get('Cantidad_Adultos', 0)}</p>
-                        <p><strong>Niños:</strong> {reserva.get('Cantidad_Ninos', 0)}</p>
-                        <p><strong>Mascotas:</strong> {reserva.get('Cantidad_Mascotas', 0)}</p>
+                        <p><strong>Adultos:</strong> {reserva.get('adultos', 0)}</p>
+                        <p><strong>Niños:</strong> {reserva.get('ninos', 0)}</p>
+                        <p><strong>Mascotas:</strong> {reserva.get('mascotas', 0)}</p>
                         <p><strong>Huésped:</strong> {cliente.get('nombre', 'Cliente')}</p>
                         <p><strong>Teléfono:</strong> {cliente.get('telefono', 'No disponible')}</p>
                         <p><strong>Correo:</strong> {cliente.get('email', 'No disponible')}</p>
@@ -275,9 +275,9 @@ async def webhook_wompi(request: Request):
                         <p><strong>Código de Reserva:</strong> {reserva.get('codigoReserva')}</p>
                         <p><strong>Check-In:</strong> {fecha_inicio}</p>
                         <p><strong>Check-Out:</strong> {fecha_fin}</p>
-                        <p><strong>Adultos:</strong> {reserva.get('Cantidad_Adultos', 0)}</p>
-                        <p><strong>Niños:</strong> {reserva.get('Cantidad_Ninos', 0)}</p>
-                        <p><strong>Mascotas:</strong> {reserva.get('Cantidad_Mascotas', 0)}</p>
+                        <p><strong>Adultos:</strong> {reserva.get('adultos', 0)}</p>
+                        <p><strong>Niños:</strong> {reserva.get('ninos', 0)}</p>
+                        <p><strong>Mascotas:</strong> {reserva.get('mascotas', 0)}</p>
                         <p>Si necesitas ayuda, nuestro equipo siempre estará aquí para ti.</p>
                         <hr>
                         <p style="color: #777;">Cualquier duda, puedes contactarnos en Glamperos.</p>
