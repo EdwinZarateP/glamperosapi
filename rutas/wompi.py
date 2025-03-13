@@ -7,6 +7,8 @@ import requests
 import hashlib
 import time
 import requests
+import httpx
+import asyncio
 
 
 # ====================================================================
@@ -30,26 +32,32 @@ ruta_wompi = APIRouter(
 # URL de la API de usuarios
 GLAMPEROS_API_URL = "https://glamperosapi.onrender.com/usuarios"
 
-def obtener_usuario(id_usuario, intentos_maximos=3):
+
+
+async def obtener_usuario(id_usuario, intentos_maximos=3):
     """Consulta la API de usuarios con reintentos en caso de error."""
-    for intento in range(intentos_maximos):
-        try:
-            print(f"🔍 Intento {intento + 1}/{intentos_maximos} - Consultando usuario {id_usuario} en {GLAMPEROS_API_URL}/{id_usuario}...")
-            response = requests.get(f"{GLAMPEROS_API_URL}/{id_usuario}", timeout=3)  # ⏳ Timeout reducido a 3 segundos
-            if response.status_code == 200:
-                return response.json()
-            else:
+    url = f"{GLAMPEROS_API_URL}/{id_usuario}"
+    
+    async with httpx.AsyncClient() as client:
+        for intento in range(intentos_maximos):
+            try:
+                print(f"🔍 Intento {intento + 1}/{intentos_maximos} - Consultando usuario {id_usuario} en {url}...")
+                response = await client.get(url, timeout=10)
+                
+                if response.status_code == 200:
+                    return response.json()
+                
                 print(f"⚠️ Error al obtener usuario {id_usuario}: {response.status_code} - {response.text}")
-        except requests.exceptions.Timeout:
-            print(f"⏳ Tiempo de espera agotado en intento {intento + 1}.")
-        except requests.exceptions.RequestException as e:
-            print(f"❌ Error en la solicitud a la API de usuarios: {e}")
-        
-        # Esperar 1 segundo antes de reintentar
-        time.sleep(1)
+            except httpx.TimeoutException:
+                print(f"⏳ Tiempo de espera agotado en intento {intento + 1}.")
+            except httpx.RequestError as e:
+                print(f"❌ Error en la solicitud a la API de usuarios: {e}")
+
+            await asyncio.sleep(1)
 
     print(f"🚨 No se pudo obtener información del usuario {id_usuario} después de {intentos_maximos} intentos.")
     return None
+
 
 # ====================================================================
 # MODELOS DE DATOS
@@ -191,7 +199,7 @@ async def webhook_wompi(request: Request):
             reserva = base_datos.reservas.find_one({"codigoReserva": referencia_interna})
             if reserva:
                 break
-            print("🔄 Esperando a que la reserva aparezca en la BD...")
+            print("🔄 Esperando a que la reserva aparezca en la BD")
             time.sleep(2)
 
         if reserva:
@@ -226,7 +234,7 @@ async def webhook_wompi(request: Request):
                 print("⚠️ No se encontró el cliente en la API de usuarios.")
 
             if propietario and cliente:
-                print("📧 Enviando correos de confirmación...")
+                print("📧 Enviando correos de confirmación")
                 correo_propietario = {
                     "from_email": "reservas@glamperos.com",
                     "name": propietario.get("nombre", "Propietario"),
