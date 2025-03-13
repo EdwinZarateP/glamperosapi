@@ -233,6 +233,15 @@ async def webhook_wompi(request: Request):
 
             if propietario and cliente:
                 print("📧 Enviando correos de confirmación")
+                telefono_propietario = propietario.get("telefono", "No disponible")
+                telefono_cliente = cliente.get("telefono", "No disponible")
+
+                # Si el número comienza con "57", quitarlo
+                if telefono_propietario.startswith("57"):
+                    telefono_propietario = telefono_propietario[2:]
+
+                if telefono_cliente.startswith("57"):
+                    telefono_cliente = telefono_cliente[2:]
 
                 # ✅ Obtener la ubicación del glamping y generar link de Google Maps
                 if glamping and "ubicacion" in glamping:
@@ -294,7 +303,7 @@ async def webhook_wompi(request: Request):
                         <p><strong>Check-Out:</strong> {fecha_fin}</p>
                         <p><strong>Ocupación:</strong> {ocupacion_texto}</p>
                         <p><strong>Huésped:</strong> {cliente.get('nombre', 'Cliente')}</p>
-                        <p><strong>Teléfono:</strong> {cliente.get('telefono', 'No disponible')}</p>
+                        <p><strong>Teléfono:</strong> {telefono_cliente}</p>
                         <p><strong>Correo:</strong> {cliente.get('email', 'No disponible')}</p>
                         <hr>
                         {mensaje_contacto}
@@ -315,6 +324,7 @@ async def webhook_wompi(request: Request):
                         <p><strong>Check-In:</strong> {fecha_inicio}</p>
                         <p><strong>Check-Out:</strong> {fecha_fin}</p>
                         <p><strong>Ocupación:</strong> {ocupacion_texto}</p>
+                        <p><strong>Teléfono de tu anfitrión:</strong> {telefono_propietario}</p>
                         <p><strong>Ubicación:</strong> <a href="{ubicacion_link}" target="_blank">Ver en Google Maps</a></p>
                         <hr>
                         {mensaje_contacto}
