@@ -6,7 +6,7 @@ import os
 import requests
 import hashlib
 import time
-from bson import ObjectId
+import requests
 
 
 # ====================================================================
@@ -27,6 +27,22 @@ ruta_wompi = APIRouter(
     responses={status.HTTP_404_NOT_FOUND: {"message": "No encontrado"}},
 )
 
+# URL de la API de usuarios
+GLAMPEROS_API_URL = "https://glamperosapi.onrender.com/usuarios"
+
+def obtener_usuario(id_usuario):
+    """Consulta la API de usuarios y devuelve los datos del usuario."""
+    try:
+        response = requests.get(f"{GLAMPEROS_API_URL}/{id_usuario}")
+        if response.status_code == 200:
+            return response.json()
+        else:
+            print(f"⚠️ Error al obtener usuario {id_usuario}: {response.status_code} - {response.text}")
+            return None
+    except Exception as e:
+        print(f"❌ Error en la solicitud a la API de usuarios: {e}")
+        return None
+    
 # ====================================================================
 # MODELOS DE DATOS
 # ====================================================================
@@ -181,40 +197,25 @@ async def webhook_wompi(request: Request):
 
             print("🔄 Estado de la reserva actualizado a 'Pagado'")
 
-            # Obtener datos del propietario y del cliente
+            # Obtener datos del propietario y del cliente desde la API de usuarios
             id_propietario = reserva.get("idPropietario")
             id_cliente = reserva.get("idCliente")
 
             print(f"📌 ID Propietario recibido: {id_propietario}, ID Cliente recibido: {id_cliente}")
 
-            # Validar si los IDs son ObjectId válidos antes de hacer la conversión
-            propietario = None
-            cliente = None
-
-            try:
-                if id_propietario and ObjectId.is_valid(id_propietario):
-                    propietario = base_datos.usuarios.find_one({"_id": ObjectId(id_propietario)})
-                else:
-                    print("⚠️ id_propietario no es un ObjectId válido.")
-
-                if id_cliente and ObjectId.is_valid(id_cliente):
-                    cliente = base_datos.usuarios.find_one({"_id": ObjectId(id_cliente)})
-                else:
-                    print("⚠️ id_cliente no es un ObjectId válido.")
-            except Exception as e:
-                print(f"❌ Error al convertir IDs a ObjectId: {e}")
+            propietario = obtener_usuario(id_propietario)
+            cliente = obtener_usuario(id_cliente)
 
             # Verificar si se encontraron los datos
             if propietario:
                 print(f"👤 Propietario encontrado: {propietario.get('nombre', 'Desconocido')}")
             else:
-                print("⚠️ No se encontró el propietario en la base de datos.")
+                print("⚠️ No se encontró el propietario en la API de usuarios.")
 
             if cliente:
                 print(f"👤 Cliente encontrado: {cliente.get('nombre', 'Desconocido')}")
             else:
-                print("⚠️ No se encontró el cliente en la base de datos.")
-
+                print("⚠️ No se encontró el cliente en la API de usuarios.")
 
             if propietario and cliente:
                 correo_propietario = {
@@ -268,29 +269,15 @@ async def webhook_wompi(request: Request):
                     """
                 }
 
-                # Enviar correos usando la API de correos y mostrar respuestas para depuración
-                try:
-                    response_propietario = requests.post(CORREO_API_URL, json=correo_propietario)
-                    response_cliente = requests.post(CORREO_API_URL, json=correo_cliente)
-                    print("📧 Respuesta API Correo Propietario:", response_propietario.status_code, response_propietario.text)
-                    print("📧 Respuesta API Correo Cliente:", response_cliente.status_code, response_cliente.text)
-                except Exception as emailError:
-                    print("❌ Error al enviar correos:", emailError)
-
-                print("✅ Correos enviados correctamente.")
-
-            else:
-                print("⚠️ No se encontraron datos completos de usuario (propietario o cliente).")
+            return {"mensaje": "Webhook recibido correctamente", "estado": status}
 
         else:
             print(f"⚠️ No se encontró la reserva en la BD después de {intentos} intentos. NO se actualizará.")
 
-        return {"mensaje": "Webhook recibido correctamente", "estado": status}
-
     except Exception as e:
         print(f"⚠️ Error en el webhook: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error en webhook: {str(e)}")
-
+    
 # ====================================================================
 # ENDPOINT PARA CONSULTAR TRANSACCIÓN (opcional)
 # ====================================================================
