@@ -222,9 +222,21 @@ async def webhook_wompi(request: Request):
             if propietario and cliente:
                 print("📧 Enviando correos de confirmación")
 
-                # Convertir fechas a formato amigable
-                fecha_inicio = datetime.strptime(reserva.get("fechaInicio"), "%Y-%m-%d").strftime("%d %b %Y")
-                fecha_fin = datetime.strptime(reserva.get("fechaFin"), "%Y-%m-%d").strftime("%d %b %Y")
+                # Convertir fechas a formato amigable con validaciones
+                fecha_inicio_raw = reserva.get("FechaIngreso")
+                fecha_fin_raw = reserva.get("FechaSalida")
+
+                try:
+                    fecha_inicio = datetime.strptime(fecha_inicio_raw, "%Y-%m-%d").strftime("%d %b %Y") if fecha_inicio_raw else "Fecha no disponible"
+                except Exception as e:
+                    print(f"⚠️ Error al formatear FechaIngreso: {e}")
+                    fecha_inicio = "Fecha no disponible"
+
+                try:
+                    fecha_fin = datetime.strptime(fecha_fin_raw, "%Y-%m-%d").strftime("%d %b %Y") if fecha_fin_raw else "Fecha no disponible"
+                except Exception as e:
+                    print(f"⚠️ Error al formatear FechaSalida: {e}")
+                    fecha_fin = "Fecha no disponible"
 
                 # Formato de correo del propietario
                 correo_propietario = {
