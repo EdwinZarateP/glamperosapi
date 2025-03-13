@@ -31,15 +31,19 @@ ruta_wompi = APIRouter(
 GLAMPEROS_API_URL = "https://glamperosapi.onrender.com/usuarios"
 
 def obtener_usuario(id_usuario):
-    """Consulta la API de usuarios y devuelve los datos del usuario."""
+    """Consulta la API de usuarios y devuelve los datos del usuario con un timeout."""
     try:
-        response = requests.get(f"{GLAMPEROS_API_URL}/{id_usuario}")
+        print(f"🔍 Consultando usuario {id_usuario} en {GLAMPEROS_API_URL}/{id_usuario}...")
+        response = requests.get(f"{GLAMPEROS_API_URL}/{id_usuario}", timeout=5)  # ⏳ Timeout de 5 segundos
         if response.status_code == 200:
             return response.json()
         else:
             print(f"⚠️ Error al obtener usuario {id_usuario}: {response.status_code} - {response.text}")
             return None
-    except Exception as e:
+    except requests.exceptions.Timeout:
+        print(f"⏳ Tiempo de espera agotado al consultar usuario {id_usuario}.")
+        return None
+    except requests.exceptions.RequestException as e:
         print(f"❌ Error en la solicitud a la API de usuarios: {e}")
         return None
     
@@ -184,7 +188,7 @@ async def webhook_wompi(request: Request):
             if reserva:
                 break
             print("🔄 Esperando a que la reserva aparezca en la BD...")
-            time.sleep(2)  # Esperar antes de intentar de nuevo
+            time.sleep(2)
 
         if reserva:
             print(f"✅ Reserva {referencia_interna} encontrada, actualizando EstadoPago a '{status}'.")
@@ -218,6 +222,7 @@ async def webhook_wompi(request: Request):
                 print("⚠️ No se encontró el cliente en la API de usuarios.")
 
             if propietario and cliente:
+                print("📧 Enviando correos de confirmación...")
                 correo_propietario = {
                     "from_email": "reservas@glamperos.com",
                     "name": propietario.get("nombre", "Propietario"),
@@ -226,22 +231,13 @@ async def webhook_wompi(request: Request):
                     "html_content": f"""
                         <h2>Hola {propietario.get('nombre', 'Propietario')},</h2>
                         <p>¡Has recibido una nueva reserva en tu glamping!</p>
-                        <h3>Detalles de la reserva:</h3>
                         <ul>
                             <li><b>Cliente:</b> {cliente.get('nombre', 'Cliente')}</li>
                             <li><b>Correo del cliente:</b> {cliente.get('email', 'No disponible')}</li>
                             <li><b>Teléfono del cliente:</b> {cliente.get('telefono', 'No disponible')}</li>
                             <li><b>Código de reserva:</b> {reserva.get('codigoReserva')}</li>
-                            <li><b>Glamping:</b> {reserva.get('idGlamping')}</li>
-                            <li><b>Ciudad:</b> {reserva.get('ciudad_departamento')}</li>
-                            <li><b>Fecha de ingreso:</b> {reserva.get('FechaIngreso')}</li>
-                            <li><b>Fecha de salida:</b> {reserva.get('FechaSalida')}</li>
-                            <li><b>Noches:</b> {reserva.get('Noches')}</li>
-                            <li><b>Huéspedes:</b> {reserva.get('adultos')} adultos, {reserva.get('ninos')} niños</li>
                             <li><b>Valor total:</b> COP {reserva.get('ValorReserva', 0):,.0f}</li>
                         </ul>
-                        <p>Revisa más detalles en tu perfil de Glamperos.</p>
-                        <p>¡Gracias por ser parte de nuestra comunidad!</p>
                     """
                 }
 
@@ -253,30 +249,31 @@ async def webhook_wompi(request: Request):
                     "html_content": f"""
                         <h2>Hola {cliente.get('nombre', 'Cliente')},</h2>
                         <p>¡Tu reserva en Glamperos ha sido confirmada!</p>
-                        <h3>Detalles de la reserva:</h3>
                         <ul>
                             <li><b>Código de reserva:</b> {reserva.get('codigoReserva')}</li>
-                            <li><b>Glamping:</b> {reserva.get('idGlamping')}</li>
-                            <li><b>Ciudad:</b> {reserva.get('ciudad_departamento')}</li>
-                            <li><b>Fecha de ingreso:</b> {reserva.get('FechaIngreso')}</li>
-                            <li><b>Fecha de salida:</b> {reserva.get('FechaSalida')}</li>
-                            <li><b>Noches:</b> {reserva.get('Noches')}</li>
-                            <li><b>Huéspedes:</b> {reserva.get('adultos')} adultos, {reserva.get('ninos')} niños</li>
                             <li><b>Valor total:</b> COP {reserva.get('ValorReserva', 0):,.0f}</li>
                         </ul>
-                        <p>¡Esperamos que disfrutes tu estadía! Puedes ver más detalles en tu perfil de Glamperos.</p>
-                        <p>Gracias por reservar con nosotros. 🌿</p>
                     """
                 }
+
+                # Enviar correos y capturar errores
+                try:
+                    response_propietario = requests.post(CORREO_API_URL, json=correo_propietario)
+                    response_cliente = requests.post(CORREO_API_URL, json=correo_cliente)
+                    print("📧 Respuesta API Correo Propietario:", response_propietario.status_code)
+                    print("📧 Respuesta API Correo Cliente:", response_cliente.status_code)
+                except Exception as emailError:
+                    print("❌ Error al enviar correos:", emailError)
 
             return {"mensaje": "Webhook recibido correctamente", "estado": status}
 
         else:
-            print(f"⚠️ No se encontró la reserva en la BD después de {intentos} intentos. NO se actualizará.")
+            print(f"⚠️ No se encontró la reserva en la BD después de {intentos} intentos.")
 
     except Exception as e:
         print(f"⚠️ Error en el webhook: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error en webhook: {str(e)}")
+    
     
 # ====================================================================
 # ENDPOINT PARA CONSULTAR TRANSACCIÓN (opcional)
