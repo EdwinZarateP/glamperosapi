@@ -18,7 +18,7 @@ from rutas.whatsapp_utils import enviar_whatsapp_cliente, enviar_whatsapp_propie
 MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
 ConexionMongo = MongoClient(MONGO_URI)
 base_datos = ConexionMongo["glamperos"]
-coleccion_transacciones = ConexionMongo["transacciones_wompi"]
+coleccion_transacciones = base_datos["transacciones_wompi"]
 
 # ====================================================================
 # CONFIGURACIÓN DE FASTAPI
@@ -214,7 +214,7 @@ async def crear_transaccion(payload: CrearTransaccionRequest):
         )
 
 # ====================================================================
-# ENDPOINT PARA WEBHOOK DE WOMPI CON ENVÍO DE CORREO
+# ENDPOINT PARA WEBHOOK DE WOMPI CON ENVÍO DE CORREO Y WHATSAPP
 # ====================================================================
 # URL de la API de correos (ajústala según tu configuración)
 CORREO_API_URL = "https://glamperosapi.onrender.com/correos/send-email"
@@ -295,11 +295,11 @@ async def webhook_wompi(request: Request):
                     "from_email": "reservaciones@glamperos.com",
                     "email": propietario.get("email", ""),
                     "name": propietario.get("nombre", "Propietario"),
-                    "subject": f"🎫 Reserva Confirmada - {reserva.get('nombreGlamping', 'Tu Glamping')}",
+                    "subject": f"🎫 Reserva Confirmada - {glamping.get('nombreGlamping', 'Tu Glamping')}",
                     "html_content": f"""
                         <h2 style="color: #2F6B3E;">🎉 ¡Tienes una nueva reserva!</h2>
                         <p>Hola {propietario.get('nombre', 'Propietario').split(' ')[0]},</p>
-                        <p>¡Han reservado <strong>{reserva.get('nombreGlamping', 'Tu Glamping')}</strong> a través de Glamperos!</p>
+                        <p>¡Han reservado <strong>{glamping.get('nombreGlamping', 'Tu Glamping')}</strong> a través de Glamperos!</p>
                         <p><strong>Código de Reserva:</strong> {reserva.get('codigoReserva')}</p>
                         <p><strong>Check-In:</strong> {fecha_inicio}</p>
                         <p><strong>Check-Out:</strong> {fecha_fin}</p>
@@ -315,12 +315,12 @@ async def webhook_wompi(request: Request):
                     "from_email": "reservas@glamperos.com",
                     "email": cliente.get("email", ""),
                     "name": cliente.get("nombre", "Cliente"),
-                    "subject": f"🧳 Confirmación Reserva Glamping - {reserva.get('nombreGlamping', 'Tu Glamping')}",
+                    "subject": f"🧳 Confirmación Reserva Glamping - {glamping.get('nombreGlamping', 'Tu Glamping')}",
                     "html_content": f"""
                         <h2 style="color: #2F6B3E;">🎉 ¡Hora de relajarse!</h2>
                         <p>Hola {cliente.get('nombre', 'Cliente').split(' ')[0]},</p>
                         <p>¡Gracias por reservar con Glamperos! 🎉 Aquí están los detalles de tu reserva:</p>
-                        <p><strong>Código de Reserva:</strong> {reserva.get('codigoReserva')}</p>
+                        <p><strong>Código de Reserva:</strong> {reserva.get('codigoGlamping', 'No disponible')}</p>
                         <p><strong>Check-In:</strong> {fecha_inicio}</p>
                         <p><strong>Check-Out:</strong> {fecha_fin}</p>
                         <p><strong>Ocupación:</strong> {ocupacion_texto}</p>
@@ -330,7 +330,6 @@ async def webhook_wompi(request: Request):
                         {mensaje_contacto}
                     """
                 }
-                # Enviar correos
                 async with httpx.AsyncClient() as client:
                     await client.post(CORREO_API_URL, json=correo_propietario)
                     await client.post(CORREO_API_URL, json=correo_cliente)
@@ -338,7 +337,7 @@ async def webhook_wompi(request: Request):
                 await enviar_whatsapp_propietario(
                     numero=telefono_propietario,
                     nombrePropietario=propietario.get("nombre", "Propietario"),
-                    nombreGlamping= reserva.get("nombreGlamping", "Tu Glamping"),
+                    nombreGlamping=reserva.get("nombreGlamping", "Tu Glamping"),
                     fechaInicio=fecha_inicio,
                     fechaFin=f"{fecha_fin} - el whatsapp de tu cliente es {telefono_cliente}",
                     imagenUrl="https://storage.googleapis.com/glamperos-imagenes/Imagenes/animal1.jpeg"
