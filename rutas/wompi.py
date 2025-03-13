@@ -62,11 +62,26 @@ ACTUALIZAR_FECHAS_API_URL = "https://glamperosapi.onrender.com/glampings"
 async def reservar_fechas_glamping(id_glamping, fecha_ingreso, fecha_salida):
     """Genera las fechas de la reserva y las actualiza en la API."""
     try:
-        # Generar las fechas a reservar EXCLUYENDO la fecha de salida
+        # Validar que las fechas sean strings
+        if isinstance(fecha_ingreso, datetime):
+            fecha_ingreso = fecha_ingreso.isoformat()
+        if isinstance(fecha_salida, datetime):
+            fecha_salida = fecha_salida.isoformat()
+
+        if not isinstance(fecha_ingreso, str) or not isinstance(fecha_salida, str):
+            raise ValueError(f"Las fechas no son cadenas de texto válidas: {fecha_ingreso}, {fecha_salida}")
+
+        # Convertir las fechas desde string a datetime
         fecha_actual = datetime.fromisoformat(fecha_ingreso)
         fecha_fin = datetime.fromisoformat(fecha_salida)
+
+        # Asegurar que la fecha de ingreso es menor que la de salida
+        if fecha_actual >= fecha_fin:
+            raise ValueError(f"Fecha de ingreso {fecha_ingreso} no puede ser mayor o igual a fecha de salida {fecha_salida}")
+
         fechas_a_reservar = []
 
+        # Generar la lista de fechas EXCLUYENDO la fecha de salida
         while fecha_actual < fecha_fin:
             fechas_a_reservar.append(fecha_actual.strftime("%Y-%m-%d"))
             fecha_actual += timedelta(days=1)
@@ -79,12 +94,16 @@ async def reservar_fechas_glamping(id_glamping, fecha_ingreso, fecha_salida):
                 f"{ACTUALIZAR_FECHAS_API_URL}/{id_glamping}/fechasReservadas",
                 json={"fechas": fechas_a_reservar},
             )
+
             if response.status_code == 200:
                 print("✅ Fechas reservadas correctamente en la API.")
             else:
                 print(f"⚠️ Error al reservar fechas: {response.status_code} - {response.text}")
+
+    except ValueError as e:
+        print(f"❌ Error en las fechas proporcionadas: {str(e)}")
     except Exception as e:
-        print(f"❌ Error al generar las fechas de reserva: {str(e)}")
+        print(f"❌ Error general al generar las fechas de reserva: {str(e)}")
 
 GLAMPEROS_GLAMPINGS_API_URL = "https://glamperosapi.onrender.com/glampings"
 
