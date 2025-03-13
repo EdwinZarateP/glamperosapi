@@ -204,13 +204,10 @@ async def webhook_wompi(request: Request):
 
         if reserva:
             print(f"✅ Reserva {referencia_interna} encontrada, actualizando EstadoPago a '{status}'.")
-
-            # Actualizar estado de pago de la reserva
             base_datos.reservas.update_one(
                 {"codigoReserva": referencia_interna},
                 {"$set": {"EstadoPago": "Pagado"}}
             )
-
             print("🔄 Estado de la reserva actualizado a 'Pagado'")
 
             # Obtener datos del propietario y del cliente desde la API de usuarios
@@ -222,52 +219,60 @@ async def webhook_wompi(request: Request):
             propietario = await obtener_usuario(id_propietario)
             cliente = await obtener_usuario(id_cliente)
 
-
-            # Verificar si se encontraron los datos
-            if propietario:
-                print(f"👤 Propietario encontrado: {propietario.get('nombre', 'Desconocido')}")
-            else:
-                print("⚠️ No se encontró el propietario en la API de usuarios.")
-
-            if cliente:
-                print(f"👤 Cliente encontrado: {cliente.get('nombre', 'Desconocido')}")
-            else:
-                print("⚠️ No se encontró el cliente en la API de usuarios.")
-
             if propietario and cliente:
                 print("📧 Enviando correos de confirmación")
+
+                # Convertir fechas a formato amigable
+                fecha_inicio = datetime.strptime(reserva.get("fechaInicio"), "%Y-%m-%d").strftime("%d %b %Y")
+                fecha_fin = datetime.strptime(reserva.get("fechaFin"), "%Y-%m-%d").strftime("%d %b %Y")
+
+                # Formato de correo del propietario
                 correo_propietario = {
-                    "from_email": "reservas@glamperos.com",
-                    "name": propietario.get("nombre", "Propietario"),
+                    "from_email": "reservaciones@glamperos.com",
                     "email": propietario.get("email", ""),
-                    "subject": "🚀 ¡Nueva Reserva Confirmada en tu Glamping!",
+                    "name": propietario.get("nombre", "Propietario"),
+                    "subject": f"🎫 Reserva Confirmada - {reserva.get('glampingNombre', 'Tu Glamping')}",
                     "html_content": f"""
-                        <h2>Hola {propietario.get('nombre', 'Propietario')},</h2>
-                        <p>¡Has recibido una nueva reserva en tu glamping!</p>
-                        <ul>
-                            <li><b>Cliente:</b> {cliente.get('nombre', 'Cliente')}</li>
-                            <li><b>Correo del cliente:</b> {cliente.get('email', 'No disponible')}</li>
-                            <li><b>Teléfono del cliente:</b> {cliente.get('telefono', 'No disponible')}</li>
-                            <li><b>Código de reserva:</b> {reserva.get('codigoReserva')}</li>
-                            <li><b>Valor total:</b> COP {reserva.get('ValorReserva', 0):,.0f}</li>
-                        </ul>
+                        <h2 style="color: #2F6B3E;">🎉 ¡Tienes una nueva reserva!</h2>
+                        <p>Hola {propietario.get('nombre', 'Propietario').split(' ')[0]},</p>
+                        <p>¡Han reservado <strong>{reserva.get('glampingNombre', 'Tu Glamping')}</strong> a través de Glamperos!</p>
+                        <p><strong>Código de Reserva:</strong> {reserva.get('codigoReserva')}</p>
+                        <p><strong>Check-In:</strong> {fecha_inicio}</p>
+                        <p><strong>Check-Out:</strong> {fecha_fin}</p>
+                        <p><strong>Adultos:</strong> {reserva.get('Cantidad_Adultos', 0)}</p>
+                        <p><strong>Niños:</strong> {reserva.get('Cantidad_Ninos', 0)}</p>
+                        <p><strong>Mascotas:</strong> {reserva.get('Cantidad_Mascotas', 0)}</p>
+                        <p><strong>Huésped:</strong> {cliente.get('nombre', 'Cliente')}</p>
+                        <p><strong>Teléfono:</strong> {cliente.get('telefono', 'No disponible')}</p>
+                        <p><strong>Correo:</strong> {cliente.get('email', 'No disponible')}</p>
+                        <hr>
+                        <p style="color: #777;">Si tienes preguntas, contacta a nuestro equipo en Glamperos.</p>
                     """
                 }
 
+                # Formato de correo del cliente
                 correo_cliente = {
                     "from_email": "reservas@glamperos.com",
-                    "name": cliente.get("nombre", "Cliente"),
                     "email": cliente.get("email", ""),
-                    "subject": "🏕️ ¡Tu Reserva en Glamperos está Confirmada!",
+                    "name": cliente.get("nombre", "Cliente"),
+                    "subject": f"🧳 Confirmación Reserva Glamping - {reserva.get('glampingNombre', 'Tu Glamping')}",
                     "html_content": f"""
-                        <h2>Hola {cliente.get('nombre', 'Cliente')},</h2>
-                        <p>¡Tu reserva en Glamperos ha sido confirmada!</p>
-                        <ul>
-                            <li><b>Código de reserva:</b> {reserva.get('codigoReserva')}</li>
-                            <li><b>Valor total:</b> COP {reserva.get('ValorReserva', 0):,.0f}</li>
-                        </ul>
+                        <h2 style="color: #2F6B3E;">🎉 ¡Hora de relajarse!</h2>
+                        <p>Hola {cliente.get('nombre', 'Cliente').split(' ')[0]},</p>
+                        <p>¡Gracias por reservar con Glamperos! 🎉 Aquí están los detalles de tu reserva:</p>
+                        <p><strong>Código de Reserva:</strong> {reserva.get('codigoReserva')}</p>
+                        <p><strong>Check-In:</strong> {fecha_inicio}</p>
+                        <p><strong>Check-Out:</strong> {fecha_fin}</p>
+                        <p><strong>Adultos:</strong> {reserva.get('Cantidad_Adultos', 0)}</p>
+                        <p><strong>Niños:</strong> {reserva.get('Cantidad_Ninos', 0)}</p>
+                        <p><strong>Mascotas:</strong> {reserva.get('Cantidad_Mascotas', 0)}</p>
+                        <p>Si necesitas ayuda, nuestro equipo siempre estará aquí para ti.</p>
+                        <hr>
+                        <p style="color: #777;">Cualquier duda, puedes contactarnos en Glamperos.</p>
                     """
                 }
+
+                # 🚀 Enviar correos usando la API
                 try:
                     async with httpx.AsyncClient() as client:
                         response_propietario = await client.post(CORREO_API_URL, json=correo_propietario)
