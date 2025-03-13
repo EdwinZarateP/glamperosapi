@@ -222,7 +222,7 @@ async def webhook_wompi(request: Request):
                 {"$set": {"EstadoPago": "Pagado"}}
             )
 
-            # Obtener datos del propietario y del cliente desde la API de usuarios
+            # Obtener datos del propietario, cliente y glamping desde la API
             id_propietario = reserva.get("idPropietario")
             id_cliente = reserva.get("idCliente")
             id_glamping = reserva.get("idGlamping")
@@ -234,16 +234,22 @@ async def webhook_wompi(request: Request):
             if propietario and cliente:
                 print("📧 Enviando correos de confirmación")
 
-                 # ✅ Obtener la ubicación del glamping y generar link de Google Maps
+                # ✅ Obtener la ubicación del glamping y generar link de Google Maps
                 if glamping and "ubicacion" in glamping:
-                    latitud = glamping["ubicacion"].get("lati")
+                    latitud = glamping["ubicacion"].get("lat")
                     longitud = glamping["ubicacion"].get("lng")
+
+                    # 🔍 Imprimir valores de lat y lng para depuración
+                    print(f"📍 Latitud obtenida: {latitud}")
+                    print(f"📍 Longitud obtenida: {longitud}")
+
                     if latitud and longitud:
                         ubicacion_link = f"https://www.google.com/maps?q={latitud},{longitud}"
                     else:
                         ubicacion_link = "Ubicación no disponible"
                 else:
                     ubicacion_link = "Ubicación no disponible"
+                    print("⚠️ No se encontró la ubicación del glamping en la API.")
 
                 # ✅ Convertir fechas a formato amigable con validaciones
                 def convertir_fecha(fecha_raw):
@@ -325,7 +331,7 @@ async def webhook_wompi(request: Request):
     except Exception as e:
         print(f"⚠️ Error en el webhook: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error en webhook: {str(e)}")
-    
+
 # ====================================================================
 # ENDPOINT PARA CONSULTAR TRANSACCIÓN (opcional)
 # ====================================================================
