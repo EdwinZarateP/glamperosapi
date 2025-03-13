@@ -184,10 +184,15 @@ async def webhook_wompi(request: Request):
             id_propietario = reserva.get("idPropietario")
             id_cliente = reserva.get("idCliente")
 
-            print(f"📌 ID Propietario: {id_propietario}, ID Cliente: {id_cliente}")
-
             propietario = base_datos.usuarios.find_one({"_id": id_propietario})
             cliente = base_datos.usuarios.find_one({"_id": id_cliente})
+
+            print(f"📌 ID Propietario: {propietario}, ID Cliente: {cliente}")
+            print(propietario.get("nombre", "Propietario"))
+            print(propietario.get("email", ""))
+            print(cliente.get("nombre", "Cliente"))
+            print(cliente.get("email", ""))
+            
 
             if propietario and cliente:
                 correo_propietario = {
