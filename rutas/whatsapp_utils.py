@@ -1,7 +1,6 @@
-# whatsapp_utils.py
 import os
 import httpx
-from typing import Optional
+import asyncio
 
 async def enviar_whatsapp_cliente(
     numero: str,
@@ -12,18 +11,16 @@ async def enviar_whatsapp_cliente(
     latitud: float,
     longitud: float,
     nombre_cliente: str,
-) -> None:
+):
     """
-    Envía un mensaje de WhatsApp al cliente con los detalles de la reserva usando la plantilla "mensajeclientereserva".
+    Envía un mensaje de WhatsApp al cliente con los detalles de la reserva.
     """
-    if not numero:
-        raise ValueError("No has actualizado tu WhatsApp")
-    if whatsapp.startswith("57"):
-        whatsapp = whatsapp[2:]
     whatsapp_api_token = os.getenv("WHATSAPP_API_TOKEN")
     if not whatsapp_api_token:
-        raise ValueError("WHATSAPP_API_TOKEN no está definido en las variables de entorno.")
-    
+        raise Exception("WHATSAPP_API_TOKEN no está definido en las variables de entorno.")
+    # Remover el prefijo "57" si el número inicia con él
+    if whatsapp.startswith("57"):
+        whatsapp = whatsapp[2:]
     url = "https://graph.facebook.com/v21.0/531912696676146/messages"
     body = {
         "messaging_product": "whatsapp",
@@ -45,7 +42,7 @@ async def enviar_whatsapp_cliente(
                                 "name": nombre_glamping_reservado,
                                 "address": direccion_glamping,
                             },
-                        }
+                        },
                     ],
                 },
                 {
@@ -69,8 +66,9 @@ async def enviar_whatsapp_cliente(
             },
         )
         if response.status_code != 200:
-            error_message = response.json().get("error", {}).get("message", "Error desconocido")
-            raise Exception(f"Error al enviar mensaje de WhatsApp al cliente: {error_message}")
+            raise Exception(
+                f"Error al enviar mensaje: {response.json().get('error', {}).get('message', 'Error desconocido')}"
+            )
 
 async def enviar_whatsapp_propietario(
     numero: str,
@@ -78,19 +76,16 @@ async def enviar_whatsapp_propietario(
     nombre_glamping: str,
     fecha_inicio: str,
     fecha_fin: str,
-    imagen_url: Optional[str] = "https://storage.googleapis.com/glamperos-imagenes/Imagenes/animal1.jpeg",
-) -> None:
+    imagen_url: str = "https://storage.googleapis.com/glamperos-imagenes/Imagenes/animal1.jpeg",
+):
     """
-    Envía un mensaje de WhatsApp al propietario con la confirmación de reserva usando la plantilla "confirmacionreserva".
+    Envía un mensaje de WhatsApp al propietario con la confirmación de la reserva.
     """
-    if not numero:
-        raise ValueError("No has actualizado tu WhatsApp.")
-    if numero.startswith("57"):
-        numero = numero[2:]
     whatsapp_api_token = os.getenv("WHATSAPP_API_TOKEN")
     if not whatsapp_api_token:
-        raise ValueError("WHATSAPP_API_TOKEN no está definido en las variables de entorno.")
-    
+        raise Exception("WHATSAPP_API_TOKEN no está definido en las variables de entorno.")
+    if numero.startswith("57"):
+        numero = numero[2:]
     url = "https://graph.facebook.com/v21.0/531912696676146/messages"
     body = {
         "messaging_product": "whatsapp",
@@ -129,5 +124,6 @@ async def enviar_whatsapp_propietario(
             },
         )
         if response.status_code != 200:
-            error_message = response.json().get("error", {}).get("message", "Error desconocido")
-            raise Exception(f"Error al enviar mensaje de WhatsApp al propietario: {error_message}")
+            raise Exception(
+                f"Error al enviar mensaje: {response.json().get('error', {}).get('message', 'Error desconocido')}"
+            )
