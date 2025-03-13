@@ -10,7 +10,6 @@ import requests
 import httpx
 import asyncio
 
-
 # ====================================================================
 # CONFIGURACIÓN DE LA BASE DE DATOS
 # ====================================================================
@@ -56,50 +55,43 @@ async def obtener_usuario(id_usuario, intentos_maximos=3):
     print(f"🚨 No se pudo obtener información del usuario {id_usuario} después de {intentos_maximos} intentos.")
     return None
 
-
 ACTUALIZAR_FECHAS_API_URL = "https://glamperosapi.onrender.com/glampings"
 
 async def reservar_fechas_glamping(id_glamping, fecha_ingreso, fecha_salida):
-    """Genera las fechas de la reserva y las actualiza en la API."""
+    """Genera las fechas de la reserva y las actualiza en la API (excluyendo la fecha de salida)."""
     try:
-        # Validar que las fechas sean strings
+        # Si las fechas son datetime, convertirlas a string ISO
         if isinstance(fecha_ingreso, datetime):
             fecha_ingreso = fecha_ingreso.isoformat()
         if isinstance(fecha_salida, datetime):
             fecha_salida = fecha_salida.isoformat()
-
+        
         if not isinstance(fecha_ingreso, str) or not isinstance(fecha_salida, str):
             raise ValueError(f"Las fechas no son cadenas de texto válidas: {fecha_ingreso}, {fecha_salida}")
-
-        # Convertir las fechas desde string a datetime
+        
         fecha_actual = datetime.fromisoformat(fecha_ingreso)
         fecha_fin = datetime.fromisoformat(fecha_salida)
-
-        # Asegurar que la fecha de ingreso es menor que la de salida
+        
         if fecha_actual >= fecha_fin:
             raise ValueError(f"Fecha de ingreso {fecha_ingreso} no puede ser mayor o igual a fecha de salida {fecha_salida}")
-
+        
         fechas_a_reservar = []
-
-        # Generar la lista de fechas EXCLUYENDO la fecha de salida
+        # Generar fechas hasta (pero sin incluir) la fecha de salida
         while fecha_actual < fecha_fin:
             fechas_a_reservar.append(fecha_actual.strftime("%Y-%m-%d"))
             fecha_actual += timedelta(days=1)
-
+        
         print(f"📅 Fechas reservadas para el glamping {id_glamping}: {fechas_a_reservar}")
-
-        # Enviar la actualización a la API
+        
         async with httpx.AsyncClient() as client:
             response = await client.patch(
                 f"{ACTUALIZAR_FECHAS_API_URL}/{id_glamping}/fechasReservadas",
                 json={"fechas": fechas_a_reservar},
             )
-
             if response.status_code == 200:
                 print("✅ Fechas reservadas correctamente en la API.")
             else:
                 print(f"⚠️ Error al reservar fechas: {response.status_code} - {response.text}")
-
     except ValueError as e:
         print(f"❌ Error en las fechas proporcionadas: {str(e)}")
     except Exception as e:
@@ -203,13 +195,11 @@ async def crear_transaccion(payload: CrearTransaccionRequest):
         }
         response = requests.post(WOMPI_API_URL, json=data_wompi, headers=headers)
         respuesta_wompi = response.json()
-
         if response.status_code not in [200, 201]:
             raise HTTPException(
                 status_code=response.status_code,
                 detail=f"Error Wompi: {respuesta_wompi}"
             )
-
         nueva_transaccion = {
             "referenciaInterna": payload.referenciaInterna,
             "wompi_transaction_id": respuesta_wompi["data"]["id"],
@@ -220,7 +210,6 @@ async def crear_transaccion(payload: CrearTransaccionRequest):
         }
         resultado = coleccion_transacciones.insert_one(nueva_transaccion)
         nueva_transaccion["_id"] = resultado.inserted_id
-
         return {
             "mensaje": "Transacción creada con éxito",
             "transaccion": modelo_transaccion_db(nueva_transaccion),
@@ -243,16 +232,12 @@ async def webhook_wompi(request: Request):
     try:
         evento = await request.json()
         print("📩 Webhook recibido:", evento)
-
         transaction = evento.get("data", {}).get("transaction", {})
         transaction_id = transaction.get("id")
         status = transaction.get("status")
         referencia_interna = transaction.get("reference")
-
         if not transaction_id or not status or not referencia_interna:
             raise HTTPException(status_code=400, detail="Faltan datos en el webhook de Wompi")
-
-        # 🔄 Intentar buscar la reserva hasta 5 veces con un delay de 2 segundos entre cada intento
         reserva = None
         for _ in range(5):
             reserva = base_datos.reservas.find_one({"codigoReserva": referencia_interna})
@@ -260,49 +245,35 @@ async def webhook_wompi(request: Request):
                 break
             print("🔄 Esperando a que la reserva aparezca en la BD")
             time.sleep(2)
-
         if reserva:
             print(f"✅ Reserva {referencia_interna} encontrada, actualizando EstadoPago a '{status}'.")
             base_datos.reservas.update_one(
                 {"codigoReserva": referencia_interna},
                 {"$set": {"EstadoPago": "Pagado"}}
             )
-
             # Obtener datos del propietario, cliente y glamping desde la API
             id_propietario = reserva.get("idPropietario")
             id_cliente = reserva.get("idCliente")
             id_glamping = reserva.get("idGlamping")
-
             propietario = await obtener_usuario(id_propietario)
             cliente = await obtener_usuario(id_cliente)
             glamping = await obtener_glamping(id_glamping)
             
-             # ✅ Reservar las fechas en la API ANTES de enviar los correos
+            # ✅ Reservar las fechas en la API (excluyendo la fecha de salida)
             if "FechaIngreso" in reserva and "FechaSalida" in reserva:
                 await reservar_fechas_glamping(id_glamping, reserva["FechaIngreso"], reserva["FechaSalida"])
-
-
+            
             if propietario and cliente:
                 print("📧 Enviando correos de confirmación")
-                telefono_propietario = propietario.get("telefono", "No disponible")
-                telefono_cliente = cliente.get("telefono", "No disponible")
-
-                # Si el número comienza con "57", quitarlo
-                if telefono_propietario.startswith("57"):
-                    telefono_propietario = telefono_propietario[2:]
-
-                if telefono_cliente.startswith("57"):
-                    telefono_cliente = telefono_cliente[2:]
-
-                # ✅ Obtener la ubicación del glamping y generar link de Google Maps
+                def limpiar_numero(numero: str) -> str:
+                    return numero[2:] if numero and numero.startswith("57") else numero
+                telefono_propietario = limpiar_numero(propietario.get("telefono", "No disponible"))
+                telefono_cliente = limpiar_numero(cliente.get("telefono", "No disponible"))
                 if glamping and "ubicacion" in glamping:
                     latitud = glamping["ubicacion"].get("lat")
                     longitud = glamping["ubicacion"].get("lng")
-
-                    # 🔍 Imprimir valores de lat y lng para depuración
                     print(f"📍 Latitud obtenida: {latitud}")
                     print(f"📍 Longitud obtenida: {longitud}")
-
                     if latitud and longitud:
                         ubicacion_link = f"https://www.google.com/maps?q={latitud},{longitud}"
                     else:
@@ -310,8 +281,6 @@ async def webhook_wompi(request: Request):
                 else:
                     ubicacion_link = "Ubicación no disponible"
                     print("⚠️ No se encontró la ubicación del glamping en la API.")
-
-                # ✅ Convertir fechas a formato amigable con validaciones
                 def convertir_fecha(fecha_raw):
                     if fecha_raw:
                         try:
@@ -319,11 +288,8 @@ async def webhook_wompi(request: Request):
                         except ValueError:
                             return "Fecha no disponible"
                     return "Fecha no disponible"
-
                 fecha_inicio = convertir_fecha(reserva.get("FechaIngreso"))
                 fecha_fin = convertir_fecha(reserva.get("FechaSalida"))
-
-                # ✅ Construcción dinámica de la línea de ocupación
                 ocupacion = []
                 if reserva.get("adultos", 0) > 0:
                     ocupacion.append(f"{reserva.get('adultos', 0)} Adultos")
@@ -333,13 +299,8 @@ async def webhook_wompi(request: Request):
                     ocupacion.append(f"{reserva.get('bebes', 0)} Bebés")
                 if reserva.get("mascotas", 0) > 0:
                     ocupacion.append(f"{reserva.get('mascotas', 0)} Mascotas")
-
                 ocupacion_texto = ", ".join(ocupacion) if ocupacion else "Sin información"
-
-                # ✅ Mensaje de contacto
                 mensaje_contacto = "<p>Si tienes preguntas, contacta a nuestro equipo en Glamperos al <strong>3218695196</strong>.</p>"
-
-                # ✅ Formato de correo del propietario
                 correo_propietario = {
                     "from_email": "reservaciones@glamperos.com",
                     "email": propietario.get("email", ""),
@@ -360,8 +321,6 @@ async def webhook_wompi(request: Request):
                         {mensaje_contacto}
                     """
                 }
-
-                # ✅ Formato de correo del cliente
                 correo_cliente = {
                     "from_email": "reservas@glamperos.com",
                     "email": cliente.get("email", ""),
@@ -381,14 +340,10 @@ async def webhook_wompi(request: Request):
                         {mensaje_contacto}
                     """
                 }
-
-                # 🚀 Enviar correos usando la API
                 async with httpx.AsyncClient() as client:
                     await client.post(CORREO_API_URL, json=correo_propietario)
                     await client.post(CORREO_API_URL, json=correo_cliente)
-
             return {"mensaje": "Webhook recibido correctamente", "estado": status}
-
     except Exception as e:
         print(f"⚠️ Error en el webhook: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error en webhook: {str(e)}")
