@@ -47,6 +47,8 @@ class Reserva(BaseModel):
     MetodoPago: str = None
     FechaPago: datetime = None
     ReferenciaPago: str = None
+    codigoReserva: str  # 🔥 Agrega esta línea para que FastAPI lo acepte
+
 
 class ActualizarReserva(BaseModel):
     EstadoReserva: str
@@ -100,9 +102,13 @@ ZONA_HORARIA_COLOMBIA = timezone("America/Bogota")
 # ============================================================================
 @ruta_reserva.post("/", response_model=dict)
 async def crear_reserva(reserva: Reserva):
-
     try:
-        codigo_reserva = str(ObjectId())[:8]
+        # 🔹 Verificar si el codigoReserva ya existe
+        if base_datos.reservas.find_one({"codigoReserva": reserva.codigoReserva}):
+            raise HTTPException(
+                status_code=400, detail="El código de reserva ya existe. Intenta nuevamente."
+            )
+
         fecha_creacion_colombia = datetime.now().astimezone(ZONA_HORARIA_COLOMBIA)
 
         nueva_reserva = {
@@ -122,7 +128,7 @@ async def crear_reserva(reserva: Reserva):
             "mascotas": reserva.mascotas,
             "EstadoReserva": reserva.EstadoReserva,
             "fechaCreacion": fecha_creacion_colombia,
-            "codigoReserva": codigo_reserva,
+            "codigoReserva": reserva.codigoReserva,
             "ComentariosCancelacion": reserva.ComentariosCancelacion,
             "EstadoPago": reserva.EstadoPago,
             "MetodoPago": reserva.MetodoPago,
@@ -137,12 +143,8 @@ async def crear_reserva(reserva: Reserva):
             "mensaje": "Reserva creada exitosamente",
             "reserva": modelo_reserva(nueva_reserva),
         }
-
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error al crear la reserva: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error al crear la reserva: {str(e)}")
 
 # ============================================================================
 # CONSULTAR RESERVAS DEL PROPIETARIO
