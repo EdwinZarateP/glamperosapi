@@ -320,7 +320,7 @@ async def webhook_wompi(request: Request):
                         <h2 style="color: #2F6B3E;">🎉 ¡Hora de relajarse!</h2>
                         <p>Hola {cliente.get('nombre', 'Cliente').split(' ')[0]},</p>
                         <p>¡Gracias por reservar con Glamperos! 🎉 Aquí están los detalles de tu reserva:</p>
-                        <p><strong>Código de Reserva:</strong> {reserva.get('codigoGlamping', 'No disponible')}</p>
+                        <p><strong>Código de Reserva:</strong> {reserva.get('codigoReserva', 'No disponible')}</p>
                         <p><strong>Check-In:</strong> {fecha_inicio}</p>
                         <p><strong>Check-Out:</strong> {fecha_fin}</p>
                         <p><strong>Ocupación:</strong> {ocupacion_texto}</p>
@@ -337,7 +337,7 @@ async def webhook_wompi(request: Request):
                 await enviar_whatsapp_propietario(
                     numero=telefono_propietario,
                     nombrePropietario=propietario.get("nombre", "Propietario"),
-                    nombreGlamping=reserva.get("nombreGlamping", "Tu Glamping"),
+                    nombreGlamping=glamping.get("nombreGlamping", "Tu Glamping"),
                     fechaInicio=fecha_inicio,
                     fechaFin=f"{fecha_fin} - el whatsapp de tu cliente es {telefono_cliente}",
                     imagenUrl="https://storage.googleapis.com/glamperos-imagenes/Imagenes/animal1.jpeg"
