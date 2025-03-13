@@ -30,23 +30,27 @@ ruta_wompi = APIRouter(
 # URL de la API de usuarios
 GLAMPEROS_API_URL = "https://glamperosapi.onrender.com/usuarios"
 
-def obtener_usuario(id_usuario):
-    """Consulta la API de usuarios y devuelve los datos del usuario con un timeout."""
-    try:
-        print(f"🔍 Consultando usuario {id_usuario} en {GLAMPEROS_API_URL}/{id_usuario}...")
-        response = requests.get(f"{GLAMPEROS_API_URL}/{id_usuario}", timeout=5)  # ⏳ Timeout de 5 segundos
-        if response.status_code == 200:
-            return response.json()
-        else:
-            print(f"⚠️ Error al obtener usuario {id_usuario}: {response.status_code} - {response.text}")
-            return None
-    except requests.exceptions.Timeout:
-        print(f"⏳ Tiempo de espera agotado al consultar usuario {id_usuario}.")
-        return None
-    except requests.exceptions.RequestException as e:
-        print(f"❌ Error en la solicitud a la API de usuarios: {e}")
-        return None
-    
+def obtener_usuario(id_usuario, intentos_maximos=3):
+    """Consulta la API de usuarios con reintentos en caso de error."""
+    for intento in range(intentos_maximos):
+        try:
+            print(f"🔍 Intento {intento + 1}/{intentos_maximos} - Consultando usuario {id_usuario} en {GLAMPEROS_API_URL}/{id_usuario}...")
+            response = requests.get(f"{GLAMPEROS_API_URL}/{id_usuario}", timeout=3)  # ⏳ Timeout reducido a 3 segundos
+            if response.status_code == 200:
+                return response.json()
+            else:
+                print(f"⚠️ Error al obtener usuario {id_usuario}: {response.status_code} - {response.text}")
+        except requests.exceptions.Timeout:
+            print(f"⏳ Tiempo de espera agotado en intento {intento + 1}.")
+        except requests.exceptions.RequestException as e:
+            print(f"❌ Error en la solicitud a la API de usuarios: {e}")
+        
+        # Esperar 1 segundo antes de reintentar
+        time.sleep(1)
+
+    print(f"🚨 No se pudo obtener información del usuario {id_usuario} después de {intentos_maximos} intentos.")
+    return None
+
 # ====================================================================
 # MODELOS DE DATOS
 # ====================================================================
@@ -256,15 +260,6 @@ async def webhook_wompi(request: Request):
                     """
                 }
 
-                # Enviar correos y capturar errores
-                try:
-                    response_propietario = requests.post(CORREO_API_URL, json=correo_propietario)
-                    response_cliente = requests.post(CORREO_API_URL, json=correo_cliente)
-                    print("📧 Respuesta API Correo Propietario:", response_propietario.status_code)
-                    print("📧 Respuesta API Correo Cliente:", response_cliente.status_code)
-                except Exception as emailError:
-                    print("❌ Error al enviar correos:", emailError)
-
             return {"mensaje": "Webhook recibido correctamente", "estado": status}
 
         else:
@@ -273,8 +268,7 @@ async def webhook_wompi(request: Request):
     except Exception as e:
         print(f"⚠️ Error en el webhook: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Error en webhook: {str(e)}")
-    
-    
+
 # ====================================================================
 # ENDPOINT PARA CONSULTAR TRANSACCIÓN (opcional)
 # ====================================================================
