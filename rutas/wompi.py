@@ -330,9 +330,29 @@ async def webhook_wompi(request: Request):
                         {mensaje_contacto}
                     """
                 }
+                # Enviar correos
                 async with httpx.AsyncClient() as client:
                     await client.post(CORREO_API_URL, json=correo_propietario)
                     await client.post(CORREO_API_URL, json=correo_cliente)
+                # Enviar mensajes de WhatsApp utilizando las funciones importadas
+                await enviar_whatsapp_propietario(
+                    numero=telefono_propietario,
+                    nombrePropietario=propietario.get("nombre", "Propietario"),
+                    nombreGlamping= reserva.get("glampingNombre", "Tu Glamping"),
+                    fechaInicio=fecha_inicio,
+                    fechaFin=fecha_fin,
+                    imagenUrl="https://storage.googleapis.com/glamperos-imagenes/Imagenes/animal1.jpeg"
+                )
+                await enviar_whatsapp_cliente(
+                    numero=telefono_cliente,
+                    codigoReserva=reserva.get("codigoReserva", "No disponible"),
+                    whatsapp=telefono_propietario,
+                    nombreGlampingReservado=reserva.get("glampingNombre", "Tu Glamping"),
+                    direccionGlamping=glamping.get("direccion", "Dirección no disponible"),
+                    latitud=latitud or 0,
+                    longitud=longitud or 0,
+                    nombreCliente=cliente.get("nombre", "Cliente")
+                )
             return {"mensaje": "Webhook recibido correctamente", "estado": status}
     except Exception as e:
         print(f"⚠️ Error en el webhook: {str(e)}")
