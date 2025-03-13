@@ -295,11 +295,11 @@ async def webhook_wompi(request: Request):
                     "from_email": "reservaciones@glamperos.com",
                     "email": propietario.get("email", ""),
                     "name": propietario.get("nombre", "Propietario"),
-                    "subject": f"🎫 Reserva Confirmada - {glamping.get('nombreGlamping', 'Tu Glamping')}",
+                    "subject": f"🎫 Reserva Confirmada - {reserva.get('nombreGlamping', 'Tu Glamping')}",
                     "html_content": f"""
                         <h2 style="color: #2F6B3E;">🎉 ¡Tienes una nueva reserva!</h2>
                         <p>Hola {propietario.get('nombre', 'Propietario').split(' ')[0]},</p>
-                        <p>¡Han reservado <strong>{glamping.get('nombreGlamping', 'Tu Glamping')}</strong> a través de Glamperos!</p>
+                        <p>¡Han reservado <strong>{reserva.get('nombreGlamping', 'Tu Glamping')}</strong> a través de Glamperos!</p>
                         <p><strong>Código de Reserva:</strong> {reserva.get('codigoReserva')}</p>
                         <p><strong>Check-In:</strong> {fecha_inicio}</p>
                         <p><strong>Check-Out:</strong> {fecha_fin}</p>
@@ -315,7 +315,7 @@ async def webhook_wompi(request: Request):
                     "from_email": "reservas@glamperos.com",
                     "email": cliente.get("email", ""),
                     "name": cliente.get("nombre", "Cliente"),
-                    "subject": f"🧳 Confirmación Reserva Glamping - {glamping.get('nombreGlamping', 'Tu Glamping')}",
+                    "subject": f"🧳 Confirmación Reserva Glamping - {reserva.get('nombreGlamping', 'Tu Glamping')}",
                     "html_content": f"""
                         <h2 style="color: #2F6B3E;">🎉 ¡Hora de relajarse!</h2>
                         <p>Hola {cliente.get('nombre', 'Cliente').split(' ')[0]},</p>
