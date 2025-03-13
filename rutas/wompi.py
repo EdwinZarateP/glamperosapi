@@ -18,7 +18,7 @@ from rutas.whatsapp_utils import enviar_whatsapp_cliente, enviar_whatsapp_propie
 MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
 ConexionMongo = MongoClient(MONGO_URI)
 base_datos = ConexionMongo["glamperos"]
-coleccion_transacciones = base_datos["transacciones_wompi"]
+coleccion_transacciones = ConexionMongo["transacciones_wompi"]
 
 # ====================================================================
 # CONFIGURACIÓN DE FASTAPI
