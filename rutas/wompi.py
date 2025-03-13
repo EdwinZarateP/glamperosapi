@@ -271,9 +271,7 @@ async def webhook_wompi(request: Request):
 # ====================================================================
 @ruta_wompi.get("/transaccion/{referencia}", response_model=dict)
 async def obtener_transaccion_por_referencia(referencia: str):
-    """
-    Devuelve la info de una transacción registrada en la DB usando la referencia.
-    """
+
     try:
         transaccion = coleccion_transacciones.find_one({"referenciaInterna": referencia})
         if not transaccion:
