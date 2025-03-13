@@ -236,7 +236,7 @@ async def webhook_wompi(request: Request):
 
                  # ✅ Obtener la ubicación del glamping y generar link de Google Maps
                 if glamping and "ubicacion" in glamping:
-                    latitud = glamping["ubicacion"].get("lat")
+                    latitud = glamping["ubicacion"].get("lati")
                     longitud = glamping["ubicacion"].get("lng")
                     if latitud and longitud:
                         ubicacion_link = f"https://www.google.com/maps?q={latitud},{longitud}"
