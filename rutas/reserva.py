@@ -155,7 +155,7 @@ async def obtener_documentos_por_propietario(idPropietario: str):
     try:
         documentos = base_datos.reservas.find({
             "idPropietario": idPropietario,
-            "EstadoPago": {"$ne": "Pagado"}
+            "EstadoPago": {"Pagado"}
         })
         documentos_lista = [modelo_reserva(doc) for doc in documentos]
         if not documentos_lista:
@@ -178,7 +178,7 @@ async def obtener_documentos_por_cliente(idCliente: str):
     try:
         documentos = base_datos.reservas.find({
             "idCliente": idCliente,
-            "EstadoPago": {"$ne": "Pagado"}
+            "EstadoPago": {"Pagado"}
         })
 
         documentos_lista = [modelo_reserva(doc) for doc in documentos]
