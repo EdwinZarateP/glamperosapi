@@ -239,6 +239,12 @@ async def webhook_wompi(request: Request):
         metodo_pago = transaction.get("payment_method_type", "Desconocido")
         if not transaction_id or not status or not referencia_interna:
             raise HTTPException(status_code=400, detail="Faltan datos en el webhook de Wompi")
+        
+        # ❌ Si la transacción no fue aprobada, registramos el error y terminamos
+        if status not in ["APPROVED"]:
+            print(f"❌ Transacción {transaction_id} fallida con estado: {status}. No se actualizará la reserva.")
+            return {"mensaje": f"Transacción {transaction_id} fallida con estado {status}"}
+
         reserva = None
         for _ in range(5):
             reserva = base_datos.reservas.find_one({"codigoReserva": referencia_interna})
