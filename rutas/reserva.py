@@ -44,6 +44,7 @@ class Reserva(BaseModel):
     EstadoReserva: str
     ComentariosCancelacion: str
     EstadoPago: str = "Pendiente"
+    EstadoPagoProp: str = "Pendiente" 
     MetodoPago: str = None
     FechaPagoPropietario: datetime = None
     ReferenciaPago: str = None
@@ -57,6 +58,7 @@ class ActualizarReserva(BaseModel):
 class ActualizarPago(BaseModel):
     EstadoPago: str
     MetodoPago: str
+    EstadoPagoProp: str = "Pendiente" 
     FechaPagoPropietario: datetime
     ReferenciaPago: str
 
@@ -87,6 +89,7 @@ def modelo_reserva(reserva) -> dict:
         "codigoReserva": reserva["codigoReserva"],
         "ComentariosCancelacion": reserva["ComentariosCancelacion"],
         "EstadoPago": reserva.get("EstadoPago", "Pendiente"),
+        "EstadoPagoProp": reserva.get("EstadoPagoProp", "Pendiente"), 
         "MetodoPago": reserva.get("MetodoPago"),
         "FechaPagoPropietario": reserva.get("FechaPagoPropietario"),
         "ReferenciaPago": reserva.get("ReferenciaPago"),
@@ -131,6 +134,7 @@ async def crear_reserva(reserva: Reserva):
             "codigoReserva": reserva.codigoReserva,
             "ComentariosCancelacion": reserva.ComentariosCancelacion,
             "EstadoPago": reserva.EstadoPago,
+             "EstadoPagoProp": reserva.EstadoPagoProp,
             "MetodoPago": reserva.MetodoPago,
             "FechaPagoPropietario": reserva.FechaPagoPropietario,
             "ReferenciaPago": reserva.ReferenciaPago,
@@ -262,6 +266,7 @@ async def actualizar_pago_reserva(
 
         update_data = {
             "EstadoPago": pago.EstadoPago,
+            "EstadoPagoProp": "En proceso", 
             "MetodoPago": pago.MetodoPago,
             "FechaPagoPropietario": pago.FechaPagoPropietario,
             "ReferenciaPago": pago.ReferenciaPago,
