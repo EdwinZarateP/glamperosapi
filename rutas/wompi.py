@@ -250,7 +250,13 @@ async def webhook_wompi(request: Request):
             print(f"✅ Reserva {referencia_interna} encontrada, actualizando EstadoPago a '{status}'.")
             base_datos.reservas.update_one(
                 {"codigoReserva": referencia_interna},
-                {"$set": {"EstadoPago": "Pagado"}}
+                {
+                    "$set": {
+                        "EstadoPago": "Pagado",
+                        "MetodoPago": metodo_pago,
+                        "ReferenciaPago": transaction_id
+                    }
+                }
             )
             # Obtener datos del propietario, cliente y glamping desde la API
             id_propietario = reserva.get("idPropietario")
