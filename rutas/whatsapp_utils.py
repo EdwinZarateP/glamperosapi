@@ -16,8 +16,6 @@ async def enviar_whatsapp_cliente(
         if not whatsappApiToken:
             print("⚠️ WHATSAPP_API_TOKEN no está definido en las variables de entorno.")
             return
-        if numero.startswith("57"):
-            numero = numero[2:]
         url = "https://graph.facebook.com/v21.0/531912696676146/messages"
         body = {
             "messaging_product": "whatsapp",
@@ -83,8 +81,6 @@ async def enviar_whatsapp_propietario(
         if not whatsappApiToken:
             print("⚠️ WHATSAPP_API_TOKEN no está definido en las variables de entorno.")
             return
-        if numero.startswith("57"):
-            numero = numero[2:]
         url = "https://graph.facebook.com/v21.0/531912696676146/messages"
         body = {
             "messaging_product": "whatsapp",
