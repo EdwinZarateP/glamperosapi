@@ -153,7 +153,10 @@ async def crear_reserva(reserva: Reserva):
 async def obtener_documentos_por_propietario(idPropietario: str):
 
     try:
-        documentos = base_datos.reservas.find({"idPropietario": idPropietario})
+        documentos = base_datos.reservas.find({
+            "idPropietario": idPropietario,
+            "EstadoPago": {"$ne": "Pagado"}
+        })
         documentos_lista = [modelo_reserva(doc) for doc in documentos]
         if not documentos_lista:
             raise HTTPException(
@@ -168,12 +171,16 @@ async def obtener_documentos_por_propietario(idPropietario: str):
         )
 
 # ============================================================================
-# CONSULTAR RESERVAS DEL CLIENTE
+# CONSULTAR RESERVAS DEL CLIENTE 
 # ============================================================================
 @ruta_reserva.get("/documentos_cliente/{idCliente}", response_model=list)
 async def obtener_documentos_por_cliente(idCliente: str):
     try:
-        documentos = base_datos.reservas.find({"idCliente": idCliente})
+        documentos = base_datos.reservas.find({
+            "idCliente": idCliente,
+            "EstadoPago": {"$ne": "Pagado"}
+        })
+
         documentos_lista = [modelo_reserva(doc) for doc in documentos]
         if not documentos_lista:
             raise HTTPException(
