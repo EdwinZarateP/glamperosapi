@@ -172,26 +172,31 @@ async def crear_transaccion(payload: CrearTransaccionRequest):
     """
     try:
         monto_en_centavos = int(payload.valorReserva * 100)
+
         data_wompi = {
             "amount_in_cents": monto_en_centavos,
             "currency": payload.moneda,
-            "customer_email": "correo@cliente.com",  # Ajusta según lo recibido desde el front
+            "customer_email": "correo@cliente.com",  # Se debe cambiar por el real
             "payment_method": {"installments": 1},
             "reference": payload.referenciaInterna,
             "payment_method_type": "CARD",
             "redirect_url": f"https://glamperos.com/gracias?referencia={payload.referenciaInterna}"
         }
+
         headers = {
             "Authorization": f"Bearer {WOMPI_PRIVATE_KEY}",
             "Content-Type": "application/json"
         }
+
         response = requests.post(WOMPI_API_URL, json=data_wompi, headers=headers)
         respuesta_wompi = response.json()
+
         if response.status_code not in [200, 201]:
             raise HTTPException(
                 status_code=response.status_code,
                 detail=f"Error Wompi: {respuesta_wompi}"
             )
+
         nueva_transaccion = {
             "referenciaInterna": payload.referenciaInterna,
             "wompi_transaction_id": respuesta_wompi["data"]["id"],
@@ -200,13 +205,16 @@ async def crear_transaccion(payload: CrearTransaccionRequest):
             "status": respuesta_wompi["data"]["status"],
             "created_at": datetime.now()
         }
+
         resultado = coleccion_transacciones.insert_one(nueva_transaccion)
         nueva_transaccion["_id"] = resultado.inserted_id
+
         return {
             "mensaje": "Transacción creada con éxito",
-            "transaccion": modelo_transaccion_db(nueva_transaccion),
+            "transaccion": nueva_transaccion,
             "respuesta_wompi": respuesta_wompi
         }
+
     except Exception as e:
         raise HTTPException(
             status_code=500,
@@ -228,6 +236,7 @@ async def webhook_wompi(request: Request):
         transaction_id = transaction.get("id")
         status = transaction.get("status")
         referencia_interna = transaction.get("reference")
+        metodo_pago = transaction.get("payment_method_type", "Desconocido")
         if not transaction_id or not status or not referencia_interna:
             raise HTTPException(status_code=400, detail="Faltan datos en el webhook de Wompi")
         reserva = None
