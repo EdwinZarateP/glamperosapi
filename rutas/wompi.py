@@ -276,8 +276,10 @@ async def webhook_wompi(request: Request):
                 print("📧 Enviando correos de confirmación")
                 def limpiar_numero(numero: str) -> str:
                     return numero[2:] if numero and numero.startswith("57") else numero
-                telefono_propietario = limpiar_numero(propietario.get("telefono", "No disponible"))
-                telefono_cliente = limpiar_numero(cliente.get("telefono", "No disponible"))
+                telefono_propietario_correo = limpiar_numero(propietario.get("telefono", "No disponible"))
+                telefono_cliente_correo = limpiar_numero(cliente.get("telefono", "No disponible"))
+                telefono_propietario_whatsapp = propietario.get("telefono", "No disponible")
+                telefono_cliente_whatsapp = cliente.get("telefono", "No disponible")
                 if glamping and "ubicacion" in glamping:
                     latitud = glamping["ubicacion"].get("lat")
                     longitud = glamping["ubicacion"].get("lng")
@@ -324,7 +326,7 @@ async def webhook_wompi(request: Request):
                         <p><strong>Check-Out:</strong> {fecha_fin}</p>
                         <p><strong>Ocupación:</strong> {ocupacion_texto}</p>
                         <p><strong>Huésped:</strong> {cliente.get('nombre', 'Cliente')}</p>
-                        <p><strong>Teléfono:</strong> {telefono_cliente}</p>
+                        <p><strong>Teléfono:</strong> {telefono_cliente_correo}</p>
                         <p><strong>Correo:</strong> {cliente.get('email', 'No disponible')}</p>
                         <hr>
                         {mensaje_contacto}
@@ -343,7 +345,7 @@ async def webhook_wompi(request: Request):
                         <p><strong>Check-In:</strong> {fecha_inicio}</p>
                         <p><strong>Check-Out:</strong> {fecha_fin}</p>
                         <p><strong>Ocupación:</strong> {ocupacion_texto}</p>
-                        <p><strong>Teléfono de tu anfitrión:</strong> {telefono_propietario}</p>
+                        <p><strong>Teléfono de tu anfitrión:</strong> {telefono_propietario_correo}</p>
                         <p><strong>Ubicación:</strong> <a href="{ubicacion_link}" target="_blank">Ver en Google Maps</a></p>
                         <hr>
                         {mensaje_contacto}
@@ -355,21 +357,21 @@ async def webhook_wompi(request: Request):
                 # Enviar mensajes de WhatsApp utilizando las funciones importadas
 
                 print(f"📲 Enviando WhatsApp...")
-                print(f"📩 Teléfono del cliente: {telefono_cliente}")
-                print(f"🏡 Teléfono del propietario: {telefono_propietario}")
+                print(f"📩 Teléfono del cliente: {telefono_cliente_whatsapp}")
+                print(f"🏡 Teléfono del propietario: {telefono_propietario_whatsapp}")
 
                 await enviar_whatsapp_propietario(
-                    numero=telefono_propietario,
+                    numero=telefono_propietario_whatsapp,
                     nombrePropietario=propietario.get("nombre", "Propietario"),
                     nombreGlamping=glamping.get("nombreGlamping", "Tu Glamping"),
                     fechaInicio=fecha_inicio,
-                    fechaFin=f"{fecha_fin} - el whatsapp de tu huésped es {telefono_cliente}",
+                    fechaFin=f"{fecha_fin} - el whatsapp de tu huésped es {telefono_cliente_correo}",
                     imagenUrl="https://storage.googleapis.com/glamperos-imagenes/Imagenes/animal1.jpeg"
                 )
                 await enviar_whatsapp_cliente(
-                    numero=telefono_cliente,
+                    numero=telefono_cliente_whatsapp,
                     codigoReserva=reserva.get("codigoReserva", "No disponible"),
-                    whatsapp=telefono_propietario,
+                    whatsapp=telefono_propietario_correo,
                     nombreGlampingReservado=glamping.get("nombreGlamping", "Tu Glamping"),
                     direccionGlamping=glamping.get("direccion", "Dirección no disponible"),
                     latitud=latitud or 0,
