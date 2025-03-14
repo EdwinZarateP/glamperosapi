@@ -45,7 +45,7 @@ class Reserva(BaseModel):
     ComentariosCancelacion: str
     EstadoPago: str = "Pendiente"
     MetodoPago: str = None
-    FechaPago: datetime = None
+    FechaPagoPropietario: datetime = None
     ReferenciaPago: str = None
     codigoReserva: str  # 🔥 Agrega esta línea para que FastAPI lo acepte
 
@@ -57,12 +57,12 @@ class ActualizarReserva(BaseModel):
 class ActualizarPago(BaseModel):
     EstadoPago: str
     MetodoPago: str
-    FechaPago: datetime
+    FechaPagoPropietario: datetime
     ReferenciaPago: str
 
 class ActualizarSolicitudPago(BaseModel):
     Estado: str
-    FechaPago: datetime
+    FechaPagoPropietario: datetime
     ReferenciaPago: str
 
 def modelo_reserva(reserva) -> dict:
@@ -88,7 +88,7 @@ def modelo_reserva(reserva) -> dict:
         "ComentariosCancelacion": reserva["ComentariosCancelacion"],
         "EstadoPago": reserva.get("EstadoPago", "Pendiente"),
         "MetodoPago": reserva.get("MetodoPago"),
-        "FechaPago": reserva.get("FechaPago"),
+        "FechaPagoPropietario": reserva.get("FechaPagoPropietario"),
         "ReferenciaPago": reserva.get("ReferenciaPago"),
     }
 
@@ -132,7 +132,7 @@ async def crear_reserva(reserva: Reserva):
             "ComentariosCancelacion": reserva.ComentariosCancelacion,
             "EstadoPago": reserva.EstadoPago,
             "MetodoPago": reserva.MetodoPago,
-            "FechaPago": reserva.FechaPago,
+            "FechaPagoPropietario": reserva.FechaPagoPropietario,
             "ReferenciaPago": reserva.ReferenciaPago,
         }
 
@@ -155,8 +155,9 @@ async def obtener_documentos_por_propietario(idPropietario: str):
     try:
         documentos = base_datos.reservas.find({
             "idPropietario": idPropietario,
-            "EstadoPago": {"Pagado"}
+            "EstadoPago": "Pagado"  # ✅ CORRECTO: Se usa un string
         })
+
         documentos_lista = [modelo_reserva(doc) for doc in documentos]
         if not documentos_lista:
             raise HTTPException(
@@ -178,7 +179,7 @@ async def obtener_documentos_por_cliente(idCliente: str):
     try:
         documentos = base_datos.reservas.find({
             "idCliente": idCliente,
-            "EstadoPago": {"Pagado"}
+            "EstadoPago": "Pagado"  # ✅ CORRECTO
         })
 
         documentos_lista = [modelo_reserva(doc) for doc in documentos]
@@ -262,7 +263,7 @@ async def actualizar_pago_reserva(
         update_data = {
             "EstadoPago": pago.EstadoPago,
             "MetodoPago": pago.MetodoPago,
-            "FechaPago": pago.FechaPago,
+            "FechaPagoPropietario": pago.FechaPagoPropietario,
             "ReferenciaPago": pago.ReferenciaPago,
         }
         resultado = base_datos.reservas.update_one(
@@ -389,7 +390,7 @@ async def solicitar_pago(payload: dict = Body(...)):
             "Estado": "Pendiente",
             "MetodoPago": metodoPago,
             "FechaSolicitud": datetime.now().astimezone(ZONA_HORARIA_COLOMBIA),
-            "FechaPago": None,
+            "FechaPagoPropietario": None,
             "ReferenciaPago": None,
             "codigosReserva": codigos_reserva if codigos_reserva else ["No disponibles"],
         }
@@ -423,7 +424,7 @@ async def obtener_solicitudes_pago(idPropietario: str):
           sol["_id"] = str(sol["_id"])  # Convertir ObjectId a string
           sol["Estado"] = sol.get("Estado", "Pendiente")
           sol["FechaSolicitud"] = sol.get("FechaSolicitud", "No disponible")
-          sol["FechaPago"] = sol.get("FechaPago", "Pendiente")
+          sol["FechaPagoPropietario"] = sol.get("FechaPagoPropietario", "Pendiente")
           sol["ReferenciaPago"] = sol.get("ReferenciaPago", "No disponible")
           solicitudes_lista.append(sol)
 
@@ -450,7 +451,7 @@ async def actualizar_solicitud_pago(solicitud_id: str, actualizacion: Actualizar
 
         update_data = {
             "Estado": actualizacion.Estado,
-            "FechaPago": actualizacion.FechaPago,
+            "FechaPagoPropietario": actualizacion.FechaPagoPropietario,
             "ReferenciaPago": actualizacion.ReferenciaPago
         }
 
