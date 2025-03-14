@@ -259,8 +259,6 @@ async def webhook_wompi(request: Request):
                 {
                     "$set": {
                         "EstadoPago": "Pagado",
-                        "MetodoPago": metodo_pago,
-                        "ReferenciaPago": transaction_id
                     }
                 }
             )
