@@ -382,10 +382,10 @@ async def solicitar_pago(payload: dict = Body(...)):
         base_datos.reservas.update_many(
             {
                 "idPropietario": idPropietario,
-                "EstadoPago": "Pendiente",
+                "EstadoPagoProp": "Pendiente",
                 "EstadoReserva": "Completada"
             },
-            {"$set": {"EstadoPago": "Solicitado"}}
+            {"$set": {"EstadoPagoProp": "Solicitado"}}
         )
 
         # Crear solicitud de pago
