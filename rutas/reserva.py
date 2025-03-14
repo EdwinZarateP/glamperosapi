@@ -305,7 +305,7 @@ async def obtener_reservas_pendientes_pago(idPropietario: str):
     try:
         reservas_pendientes = base_datos.reservas.find({
             "idPropietario": idPropietario,
-            "EstadoPago": "Pendiente",
+            "EstadoPagoProp": "Pendiente",
             "EstadoReserva": "Completada"
         })
         reservas_lista = [modelo_reserva(reserva) for reserva in reservas_pendientes]
