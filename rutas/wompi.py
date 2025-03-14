@@ -241,7 +241,7 @@ async def webhook_wompi(request: Request):
             raise HTTPException(status_code=400, detail="Faltan datos en el webhook de Wompi")
         
         # ❌ Si la transacción no fue aprobada, registramos el error y terminamos
-        if status not in ["APPROVED"]:
+        if status != "APPROVED":
             print(f"❌ Transacción {transaction_id} fallida con estado: {status}. No se actualizará la reserva.")
             return {"mensaje": f"Transacción {transaction_id} fallida con estado {status}"}
 
