@@ -365,7 +365,7 @@ async def solicitar_pago(payload: dict = Body(...)):
         # Obtener reservas pendientes
         reservas_pendientes = list(base_datos.reservas.find({
             "idPropietario": idPropietario,
-            "EstadoPago": "Pendiente",
+            "EstadoPagoProp": "Pendiente",
             "EstadoReserva": "Completada"
         }))
 
