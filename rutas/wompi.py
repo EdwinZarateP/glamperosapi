@@ -353,6 +353,11 @@ async def webhook_wompi(request: Request):
                     await client.post(CORREO_API_URL, json=correo_propietario)
                     await client.post(CORREO_API_URL, json=correo_cliente)
                 # Enviar mensajes de WhatsApp utilizando las funciones importadas
+
+                print(f"📲 Enviando WhatsApp...")
+                print(f"📩 Teléfono del cliente: {telefono_cliente}")
+                print(f"🏡 Teléfono del propietario: {telefono_propietario}")
+
                 await enviar_whatsapp_propietario(
                     numero=telefono_propietario,
                     nombrePropietario=propietario.get("nombre", "Propietario"),
