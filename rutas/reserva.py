@@ -698,3 +698,30 @@ async def actualizar_reservas():
     
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"❌ Error al actualizar reservas: {str(e)}")
+
+# Devuelve todas las solicitudes de pago 
+@ruta_reserva.get("/solicitudes_pago_pendientes", response_model=list)
+async def obtener_solicitudes_pago_pendientes():
+    """
+    Devuelve todas las solicitudes de pago con estado "Solicitado"
+    para que el área contable pueda procesarlas.
+    """
+    try:
+        solicitudes = base_datos.solicitudes_pago.find({"Estado": "Solicitado"})
+        solicitudes_lista = []
+        
+        for sol in solicitudes:
+            sol["_id"] = str(sol["_id"])  # Convertir ObjectId a string
+            sol["Estado"] = sol.get("Estado", "Pendiente")
+            sol["FechaSolicitud"] = sol.get("FechaSolicitud", "No disponible")
+            sol["FechaPagoPropietario"] = sol.get("FechaPagoPropietario", "Pendiente")
+            sol["ReferenciaPago"] = sol.get("ReferenciaPago", "No disponible")
+            sol["MetodoPago"] = sol.get("MetodoPago", "No registrado")
+            solicitudes_lista.append(sol)
+
+        return solicitudes_lista
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error al obtener solicitudes de pago pendientes: {str(e)}"
+        )
