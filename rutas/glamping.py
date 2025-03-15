@@ -185,7 +185,7 @@ async def crear_glamping(
             "ciudad_departamento": ciudad_departamento,
             "imagenes": imagen_urls,
             "video_youtube": video_youtube,
-            "calificacion": 4.5,
+            "calificacion": 5,
             "fechasReservadas": fechas_reservadas_lista,
             "creado": fecha_creacion_colombia,
             "propietario_id": propietario_id,

@@ -20,7 +20,7 @@ class ModeloGlamping(BaseModel):
     descripcionGlamping: str = "Un lugar increíble rodeado de naturaleza."
     imagenes: List[str] = ["https://example.com/image1.jpg", "https://example.com/image2.jpg"]  # Ejemplo de URLs de imágenes
     video_youtube: Optional[str] = "sin video"
-    calificacion: Optional[float] = 4.5
+    calificacion: Optional[float] = 5
     amenidadesGlobal: List[str] = ["WiFi", "Jacuzzi", "Piscina"]
     ciudad_departamento: str = "Bogotá, Cundinamarca"
     fechasReservadas: Optional[List[str]] = Field(default_factory=list)

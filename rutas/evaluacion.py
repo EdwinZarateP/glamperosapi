@@ -100,7 +100,7 @@ async def obtener_calificacion_promedio(glamping_id: str):
         # Si no hay evaluaciones, devolvemos un valor predeterminado de 4 y 0 evaluaciones
         return {
             "glamping_id": glamping_id,
-            "calificacion_promedio": 4.5,
+            "calificacion_promedio": 5,
             "calificacionEvaluaciones": 1
         }
 
