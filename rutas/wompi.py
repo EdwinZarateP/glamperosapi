@@ -231,7 +231,7 @@ CORREO_API_URL = "https://glamperosapi.onrender.com/correos/send-email"
 async def webhook_wompi(request: Request):
     try:
         evento = await request.json()
-        print("📩 Webhook recibido:", evento)
+        # print("📩 Webhook recibido:", evento)
         transaction = evento.get("data", {}).get("transaction", {})
         transaction_id = transaction.get("id")
         status = transaction.get("status")
