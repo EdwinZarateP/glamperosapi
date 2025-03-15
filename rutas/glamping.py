@@ -125,7 +125,7 @@ ZONA_HORARIA_COLOMBIA = timezone("America/Bogota")
 # Crear un nuevo glamping con validaciones por cada paso
 @ruta_glampings.post("/", status_code=201, response_model=ModeloGlamping)
 async def crear_glamping(
-    habilitado: Optional[bool] = Form(False),
+    habilitado: Optional[bool] = Form(True),
     nombreGlamping: str = Form(...),
     tipoGlamping: str = Form(...),
     Acepta_Mascotas: bool = Form(...),
