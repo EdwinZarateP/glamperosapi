@@ -703,11 +703,11 @@ async def actualizar_reservas():
 @ruta_reserva.get("/solicitudes_pago_pendientes", response_model=list)
 async def obtener_solicitudes_pago_pendientes():
     """
-    Devuelve todas las solicitudes de pago con estado "Solicitado"
+    Devuelve todas las solicitudes de pago con estado "Pendiente"
     para que el área contable pueda procesarlas.
     """
     try:
-        solicitudes = base_datos.solicitudes_pago.find({"Estado": "Solicitado"})
+        solicitudes = base_datos.solicitudes_pago.find({"Estado": "Pendiente"})
         solicitudes_lista = []
         
         for sol in solicitudes:
