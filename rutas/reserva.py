@@ -316,7 +316,8 @@ async def obtener_reservas_pendientes_pago(idPropietario: str):
         reservas_pendientes = base_datos.reservas.find({
             "idPropietario": idPropietario,
             "EstadoPagoProp": "Pendiente",
-            "EstadoReserva": "Completada"
+            "EstadoReserva": "Completada",
+            "EstadoPago": "Pagado"
         })
         reservas_lista = [modelo_reserva(reserva) for reserva in reservas_pendientes]
         if not reservas_lista:
@@ -377,7 +378,8 @@ async def solicitar_pago(payload: dict = Body(...)):
         reservas_pendientes = list(base_datos.reservas.find({
             "idPropietario": idPropietario,
             "EstadoPagoProp": "Pendiente",
-            "EstadoReserva": "Completada"
+            "EstadoReserva": "Completada",
+            "EstadoPago": "Pagado"
         }))
 
         saldo_disponible = sum(reserva.get("CostoGlamping", 0) for reserva in reservas_pendientes)
@@ -394,7 +396,8 @@ async def solicitar_pago(payload: dict = Body(...)):
             {
                 "idPropietario": idPropietario,
                 "EstadoPagoProp": "Pendiente",
-                "EstadoReserva": "Completada"
+                "EstadoReserva": "Completada",
+                "EstadoPago": "Pagado"
             },
             {"$set": {"EstadoPagoProp": "Solicitado"}}
         )
