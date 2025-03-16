@@ -249,42 +249,46 @@ async def actualizar_estado_reserva(
 # ============================================================================
 # ACTUALIZAR EL ESTADO DE PAGO DE UNA RESERVA
 # ============================================================================
-@ruta_reserva.put("/pago/{reserva_id}", response_model=dict)
-async def actualizar_pago_reserva(
-    reserva_id: str,
+@ruta_reserva.put("/pago_por_codigo/{codigoReserva}", response_model=dict)
+async def actualizar_pago_reserva_por_codigo(
+    codigoReserva: str,
     pago: ActualizarPago = Body(...)
 ):
-
+    """
+    Actualiza el pago de la reserva que tenga el codigoReserva indicado.
+    Esto permite actualizar múltiples reservas iterando sobre codigosReserva.
+    """
     try:
-        try:
-            object_id = ObjectId(reserva_id)
-        except:
+        # Buscar la reserva por su codigoReserva
+        reserva = base_datos.reservas.find_one({"codigoReserva": codigoReserva})
+        if not reserva:
             raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Formato de ID inválido"
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No se encontró la reserva con el código {codigoReserva}"
             )
 
         update_data = {
             "EstadoPago": pago.EstadoPago,
-            "EstadoPagoProp": "En proceso", 
+            "EstadoPagoProp": pago.EstadoPagoProp,
             "MetodoPago": pago.MetodoPago,
             "FechaPagoPropietario": pago.FechaPagoPropietario,
             "ReferenciaPago": pago.ReferenciaPago,
         }
+
         resultado = base_datos.reservas.update_one(
-            {"_id": object_id},
+            {"codigoReserva": codigoReserva},
             {"$set": update_data}
         )
 
         if resultado.modified_count == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Reserva no encontrada o pago ya actualizado"
+                detail="No se pudo actualizar la reserva (ya está pagada o no coincide el código)."
             )
 
-        reserva_actualizada = base_datos.reservas.find_one({"_id": object_id})
+        reserva_actualizada = base_datos.reservas.find_one({"codigoReserva": codigoReserva})
         return {
-            "mensaje": "Pago actualizado correctamente",
+            "mensaje": "Pago actualizado correctamente por codigoReserva",
             "reserva": modelo_reserva(reserva_actualizada),
         }
 
@@ -293,8 +297,9 @@ async def actualizar_pago_reserva(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Error al actualizar el pago: {str(e)}"
+            detail=f"Error al actualizar el pago por codigoReserva: {str(e)}"
         )
+
 
 # ============================================================================
 # OBTENER RESERVAS PENDIENTES DE PAGO (COMPLETADAS) PARA UN PROPIETARIO
