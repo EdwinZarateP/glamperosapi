@@ -67,6 +67,20 @@ class ActualizarSolicitudPago(BaseModel):
     FechaPagoPropietario: datetime
     ReferenciaPago: str
 
+# ============================================================================
+# CONVERTIR FECHAS A UTC
+# ============================================================================
+def convertir_a_utc(fecha: datetime) -> datetime:
+    """
+    Asegura que una fecha se almacene en UTC.
+    Si la fecha ya está en UTC, la retorna sin cambios.
+    Si la fecha tiene una zona horaria, la convierte a UTC.
+    Si la fecha no tiene zona horaria, asume que está en UTC.
+    """
+    if fecha.tzinfo is None:  # Si la fecha no tiene zona horaria, asumimos que está en UTC
+        return fecha.replace(tzinfo=timezone.utc)
+    return fecha.astimezone(timezone.utc)  # Convertimos a UTC
+
 def modelo_reserva(reserva) -> dict:
     return {
         "id": str(reserva["_id"]),
@@ -85,7 +99,7 @@ def modelo_reserva(reserva) -> dict:
         "bebes": reserva["bebes"],
         "mascotas": reserva["mascotas"],
         "EstadoReserva": reserva["EstadoReserva"],
-        "fechaCreacion": reserva["fechaCreacion"],
+        "fechaCreacion": datetime.now(timezone.utc),
         "codigoReserva": reserva["codigoReserva"],
         "ComentariosCancelacion": reserva["ComentariosCancelacion"],
         "EstadoPago": reserva.get("EstadoPago", "Pendiente"),
@@ -106,22 +120,18 @@ ZONA_HORARIA_COLOMBIA = timezone("America/Bogota")
 @ruta_reserva.post("/", response_model=dict)
 async def crear_reserva(reserva: Reserva):
     try:
-        # Verificar si el codigoReserva ya existe
+        # 🔹 Verificar si el codigoReserva ya existe
         if base_datos.reservas.find_one({"codigoReserva": reserva.codigoReserva}):
             raise HTTPException(
-                status_code=400,
-                detail="El código de reserva ya existe. Intenta nuevamente."
+                status_code=400, detail="El código de reserva ya existe. Intenta nuevamente."
             )
-
-        # Usamos la hora en UTC (sin .astimezone(...))
         fecha_creacion_utc = datetime.now(timezone.utc)
-
         nueva_reserva = {
             "idCliente": reserva.idCliente,
             "idPropietario": reserva.idPropietario,
             "idGlamping": reserva.idGlamping,
             "ciudad_departamento": reserva.ciudad_departamento,
-            "FechaIngreso": reserva.FechaIngreso,  # Se asume que llega en UTC o se ajusta en frontend
+            "FechaIngreso": reserva.FechaIngreso,
             "FechaSalida": reserva.FechaSalida,
             "Noches": reserva.Noches,
             "ValorReserva": reserva.ValorReserva,
@@ -132,13 +142,13 @@ async def crear_reserva(reserva: Reserva):
             "bebes": reserva.bebes,
             "mascotas": reserva.mascotas,
             "EstadoReserva": reserva.EstadoReserva,
-            "fechaCreacion": fecha_creacion_utc,      # 🔹 Guardamos en UTC
+            "fechaCreacion": fecha_creacion_utc ,
             "codigoReserva": reserva.codigoReserva,
             "ComentariosCancelacion": reserva.ComentariosCancelacion,
             "EstadoPago": reserva.EstadoPago,
-            "EstadoPagoProp": reserva.EstadoPagoProp,
+             "EstadoPagoProp": reserva.EstadoPagoProp,
             "MetodoPago": reserva.MetodoPago,
-            "FechaPagoPropietario": reserva.FechaPagoPropietario,  # Si llega algo, se asume UTC
+            "FechaPagoPropietario": reserva.FechaPagoPropietario,
             "ReferenciaPago": reserva.ReferenciaPago,
         }
 
@@ -363,8 +373,7 @@ async def solicitar_pago(payload: dict = Body(...)):
     try:
         idPropietario = payload.get("idPropietario")
         metodoPago = payload.get("metodoPago")
-        numeroCuenta = payload.get("numeroCuenta")
-
+        numeroCuenta = payload.get("numeroCuenta") 
         if not idPropietario or not metodoPago:
             raise HTTPException(
                 status_code=400,
@@ -378,14 +387,14 @@ async def solicitar_pago(payload: dict = Body(...)):
             "EstadoReserva": "Completada"
         }))
 
-        saldo_disponible = sum(r.get("CostoGlamping", 0) for r in reservas_pendientes)
+        saldo_disponible = sum(reserva.get("CostoGlamping", 0) for reserva in reservas_pendientes)
         if saldo_disponible <= 0:
             raise HTTPException(
                 status_code=400,
                 detail="No hay saldo disponible para retirar"
             )
 
-        codigos_reserva = [r.get("codigoReserva") for r in reservas_pendientes]
+        codigos_reserva = [reserva.get("codigoReserva") for reserva in reservas_pendientes]
 
         # Marcar reservas como "Solicitado"
         base_datos.reservas.update_many(
@@ -397,27 +406,26 @@ async def solicitar_pago(payload: dict = Body(...)):
             {"$set": {"EstadoPagoProp": "Solicitado"}}
         )
 
-        # Creamos la solicitud en UTC
-        fecha_solicitud_utc = datetime.now(timezone.utc)
-
+        # Crear solicitud de pago
         nueva_solicitud = {
             "idPropietario": idPropietario,
             "MontoSolicitado": saldo_disponible,
             "Estado": "Pendiente",
             "MetodoPago": metodoPago,
-            "numeroCuenta": numeroCuenta,
-            "FechaSolicitud": fecha_solicitud_utc,      # 🔹 Guardamos en UTC
+            "numeroCuenta": numeroCuenta, 
+            "FechaSolicitud": datetime.now(timezone.utc),
             "FechaPagoPropietario": None,
             "ReferenciaPago": None,
             "codigosReserva": codigos_reserva if codigos_reserva else ["No disponibles"],
         }
 
+        # Insertar en la base de datos y recuperar el ID
         result = base_datos.solicitudes_pago.insert_one(nueva_solicitud)
-        nueva_solicitud["_id"] = str(result.inserted_id)
+        nueva_solicitud["_id"] = str(result.inserted_id)  # Convertir ObjectId a string
 
         return {
             "mensaje": "Solicitud de pago enviada exitosamente",
-            "solicitud": nueva_solicitud,
+            "solicitud": nueva_solicitud,  # 🔹 Ahora se devuelve el objeto completo
         }
 
     except HTTPException as he:
@@ -461,12 +469,12 @@ async def actualizar_solicitud_pago(solicitud_id: str, actualizacion: Actualizar
     try:
         object_id = ObjectId(solicitud_id)
 
-        # Tomamos la fecha de pago en UTC
-        fecha_pago_utc = datetime.now(timezone.utc)
+        # Convertimos la fecha actual a la zona horaria de Colombia
+        fecha_pago_colombia = datetime.now().astimezone(ZONA_HORARIA_COLOMBIA)
 
         update_data = {
             "Estado": actualizacion.Estado,
-            "FechaPagoPropietario": fecha_pago_utc,   # 🔹 Guardamos en UTC
+            "FechaPagoPropietario": convertir_a_utc(actualizacion.FechaPagoPropietario),
             "ReferenciaPago": actualizacion.ReferenciaPago
         }
 
@@ -474,6 +482,7 @@ async def actualizar_solicitud_pago(solicitud_id: str, actualizacion: Actualizar
             {"_id": object_id},
             {"$set": update_data}
         )
+
         if resultado.modified_count == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
