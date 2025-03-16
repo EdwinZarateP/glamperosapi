@@ -1,9 +1,9 @@
 from fastapi import APIRouter, HTTPException, status, Body
 from pymongo import MongoClient
 from bson import ObjectId
-from datetime import datetime, timezone
 from pydantic import BaseModel
-import pytz
+from datetime import datetime, timezone  # ✅ Importa datetime también # Para UTC
+import pytz  # Para manejar zonas horarias específicas
 import os
 
 # ============================================================================
@@ -105,7 +105,7 @@ def modelo_reserva(reserva) -> dict:
 # ============================================================================
 # CONFIGURACIÓN DE ZONA HORARIA
 # ============================================================================
-ZONA_HORARIA_COLOMBIA = timezone("America/Bogota")
+ZONA_HORARIA_COLOMBIA = pytz.timezone("America/Bogota")  # ✅ Esto funciona correctamente
 
 # ============================================================================
 # CREAR RESERVA
