@@ -1,10 +1,9 @@
 from fastapi import APIRouter, HTTPException, status, Body
 from pymongo import MongoClient
 from bson import ObjectId
-from datetime import datetime
+from datetime import datetime, timezone
 from pydantic import BaseModel
 import pytz
-from pytz import timezone
 import os
 
 # ============================================================================
@@ -71,15 +70,9 @@ class ActualizarSolicitudPago(BaseModel):
 # CONVERTIR FECHAS A UTC
 # ============================================================================
 def convertir_a_utc(fecha: datetime) -> datetime:
-    """
-    Asegura que una fecha se almacene en UTC.
-    Si la fecha ya está en UTC, la retorna sin cambios.
-    Si la fecha tiene una zona horaria, la convierte a UTC.
-    Si la fecha no tiene zona horaria, asume que está en UTC.
-    """
-    if fecha.tzinfo is None:  # Si la fecha no tiene zona horaria, asumimos que está en UTC
-        return fecha.replace(tzinfo=timezone.utc)
-    return fecha.astimezone(timezone.utc)  # Convertimos a UTC
+    if fecha.tzinfo is None:
+        return fecha.replace(tzinfo=timezone.utc)  # ✅ Esto ahora funcionará
+    return fecha.astimezone(timezone.utc)
 
 def modelo_reserva(reserva) -> dict:
     return {
@@ -125,7 +118,7 @@ async def crear_reserva(reserva: Reserva):
             raise HTTPException(
                 status_code=400, detail="El código de reserva ya existe. Intenta nuevamente."
             )
-        fecha_creacion_utc = datetime.now(timezone.utc)
+        fecha_creacion_utc = datetime.now(timezone.utc)  # ✅ Ahora sí funcionará correctamente
         nueva_reserva = {
             "idCliente": reserva.idCliente,
             "idPropietario": reserva.idPropietario,
