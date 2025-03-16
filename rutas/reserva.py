@@ -450,20 +450,19 @@ async def obtener_solicitudes_pago(idPropietario: str):
 # ============================================================================
 # ACTUALIZAR SOLICITUD DE PAGO (ÁREA FINANCIERA)
 # ============================================================================
+ZONA_HORARIA_COLOMBIA = pytz.timezone("America/Bogota")
+
 @ruta_reserva.put("/actualizar_solicitud_pago/{solicitud_id}", response_model=dict)
 async def actualizar_solicitud_pago(solicitud_id: str, actualizacion: ActualizarSolicitudPago = Body(...)):
     try:
-        try:
-            object_id = ObjectId(solicitud_id)
-        except:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Formato de ID inválido"
-            )
+        object_id = ObjectId(solicitud_id)
+
+        # Convertimos la fecha actual a la zona horaria de Colombia
+        fecha_pago_colombia = datetime.now().astimezone(ZONA_HORARIA_COLOMBIA)
 
         update_data = {
             "Estado": actualizacion.Estado,
-            "FechaPagoPropietario": actualizacion.FechaPagoPropietario,
+            "FechaPagoPropietario": fecha_pago_colombia,  # Guardamos con zona horaria correcta
             "ReferenciaPago": actualizacion.ReferenciaPago
         }
 
@@ -471,6 +470,7 @@ async def actualizar_solicitud_pago(solicitud_id: str, actualizacion: Actualizar
             {"_id": object_id},
             {"$set": update_data}
         )
+
         if resultado.modified_count == 0:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
