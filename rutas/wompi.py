@@ -301,6 +301,13 @@ async def webhook_wompi(request: Request):
                     return "Fecha no disponible"
                 fecha_inicio = convertir_fecha(reserva.get("FechaIngreso"))
                 fecha_fin = convertir_fecha(reserva.get("FechaSalida"))
+                # Calcular la fecha límite para cancelar según los días permitidos antes de la reserva
+                dias_cancelacion = glamping.get("diasCancelacion", 0)  # Si no existe, asumimos 0 días
+                try:
+                    fecha_cancelacion_permitida = (datetime.fromisoformat(str(reserva.get("FechaIngreso"))) - timedelta(days=int(dias_cancelacion))).strftime("%d %b %Y")
+                except (ValueError, TypeError):
+                    fecha_cancelacion_permitida = "Fecha no disponible"
+
                 ocupacion = []
                 if reserva.get("adultos", 0) > 0:
                     ocupacion.append(f"{reserva.get('adultos', 0)} Adultos")
@@ -328,6 +335,7 @@ async def webhook_wompi(request: Request):
                         <p><strong>Huésped:</strong> {cliente.get('nombre', 'Cliente')}</p>
                         <p><strong>Teléfono:</strong> {telefono_cliente_correo}</p>
                         <p><strong>Correo:</strong> {cliente.get('email', 'No disponible')}</p>
+                       <p><strong>Fecha límite para cancelar con 95% de reembolso:</strong> {fecha_cancelacion_permitida}</p>
                         <hr>
                         {mensaje_contacto}
                     """
