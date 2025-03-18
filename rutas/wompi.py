@@ -335,7 +335,7 @@ async def webhook_wompi(request: Request):
                         <p><strong>Huésped:</strong> {cliente.get('nombre', 'Cliente')}</p>
                         <p><strong>Teléfono:</strong> {telefono_cliente_correo}</p>
                         <p><strong>Correo:</strong> {cliente.get('email', 'No disponible')}</p>
-                       <p><strong>Fecha límite para cancelar con 95% de reembolso:</strong> {fecha_cancelacion_permitida}</p>
+                       
                         <hr>
                         {mensaje_contacto}
                     """
@@ -355,6 +355,7 @@ async def webhook_wompi(request: Request):
                         <p><strong>Ocupación:</strong> {ocupacion_texto}</p>
                         <p><strong>Teléfono de tu anfitrión:</strong> {telefono_propietario_correo}</p>
                         <p><strong>Ubicación:</strong> <a href="{ubicacion_link}" target="_blank">Ver en Google Maps</a></p>
+                        <p><strong>Fecha límite para cancelar con 95% de reembolso:</strong> {fecha_cancelacion_permitida}</p>
                         <hr>
                         {mensaje_contacto}
                     """
