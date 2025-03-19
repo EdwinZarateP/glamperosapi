@@ -24,6 +24,7 @@ from rutas.whatsapp import ruta_whatsapp
 from rutas.reserva import ruta_reserva
 from rutas.wompi import ruta_wompi
 from rutas.openai import ruta_openai
+from rutas.ical import  ruta_ical
 
 app = FastAPI(title="Glamperos", version="1.0")
 
@@ -54,6 +55,8 @@ app.include_router(ruta_whatsapp)
 app.include_router(ruta_reserva)
 app.include_router(ruta_wompi)
 app.include_router(ruta_openai)
+app.include_router(ruta_ical)
+
 
 @app.get("/", tags=["Home"])
 async def root():
