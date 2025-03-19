@@ -5,6 +5,7 @@ import os
 from ics import Calendar, Event
 from datetime import datetime, timedelta
 from pytz import timezone
+import requests
 
 # Conexión a MongoDB usando variables de entorno
 MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
@@ -58,3 +59,33 @@ async def exportar_ical(glamping_id: str):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al exportar iCal: {str(e)}")
+
+@ruta_ical.post("/importar")
+async def importar_ical(glamping_id: str, url_ical: str):
+    """
+    Importa un archivo iCal desde Airbnb y actualiza las fechas reservadas en MongoDB.
+    """
+    try:
+        # Descargar el archivo iCal desde la URL proporcionada
+        response = requests.get(url_ical)
+        if response.status_code != 200:
+            raise HTTPException(status_code=400, detail="No se pudo descargar el calendario iCal")
+
+        # Parsear el archivo iCal
+        calendario = Calendar(response.text)
+        fechas_reservadas = set()
+
+        for evento in calendario.events:
+            fecha_reserva = evento.begin.date().isoformat()  # Convertir a YYYY-MM-DD
+            fechas_reservadas.add(fecha_reserva)
+
+        # Actualizar la base de datos con las nuevas fechas
+        db["glampings"].update_one(
+            {"_id": ObjectId(glamping_id)},
+            {"$addToSet": {"fechasReservadas": {"$each": list(fechas_reservadas)}}}
+        )
+
+        return {"mensaje": "Fechas sincronizadas correctamente", "fechas": list(fechas_reservadas)}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al importar iCal: {str(e)}")
