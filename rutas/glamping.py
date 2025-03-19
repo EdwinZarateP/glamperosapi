@@ -708,3 +708,4 @@ async def rotar_imagen(
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al rotar la imagen: {str(e)}")
+
