@@ -26,7 +26,7 @@ class ModeloGlamping(BaseModel):
     fechasReservadas: Optional[List[str]] = Field(default_factory=list)
     creado: Optional[datetime] = datetime.now()
     propietario_id: str = "6482ac77b9f19f39d67891b2"
-    urlIcal: str = None
+    urlIcal: Optional[str] = None
 
     class Config:
         allow_population_by_field_name = True 
