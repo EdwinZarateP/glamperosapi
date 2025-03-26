@@ -97,7 +97,7 @@ async def importar_ical(glamping_id: str, url_ical: str):
 async def sincronizar_todos():
 
     try:
-        glampings = db["glampings"].find({"urlIcal": {"$exists": True, "$ne": ""}})
+        glampings = db["glampings"].find({"urlIcal": {"$type": "string", "$ne": ""}})
         resultados = []
 
         for glamping in glampings:
