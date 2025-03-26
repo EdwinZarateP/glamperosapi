@@ -89,3 +89,39 @@ async def importar_ical(glamping_id: str, url_ical: str):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al importar iCal: {str(e)}")
+
+
+
+# Recorre todos los glampings que tienen URL iCal y actualiza sus fechas reservadas desde Airbnb.
+@ruta_ical.post("/sincronizar-todos")
+async def sincronizar_todos():
+
+    try:
+        glampings = db["glampings"].find({"urlIcal": {"$exists": True, "$ne": ""}})
+        resultados = []
+
+        for glamping in glampings:
+            glamping_id = str(glamping["_id"])
+            try:
+                response = requests.get(glamping["urlIcal"])
+                if response.status_code != 200:
+                    resultados.append({"glamping_id": glamping_id, "error": "No se pudo descargar el calendario"})
+                    continue
+
+                calendario = Calendar(response.text)
+                fechas_reservadas = set(event.begin.date().isoformat() for event in calendario.events)
+
+                db["glampings"].update_one(
+                    {"_id": glamping["_id"]},
+                    {"$addToSet": {"fechasReservadas": {"$each": list(fechas_reservadas)}}}
+                )
+
+                resultados.append({"glamping_id": glamping_id, "fechas_agregadas": list(fechas_reservadas)})
+
+            except Exception as e:
+                resultados.append({"glamping_id": glamping_id, "error": str(e)})
+
+        return {"resultado": resultados}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al sincronizar todos: {str(e)}")
