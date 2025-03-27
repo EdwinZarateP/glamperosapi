@@ -103,7 +103,11 @@ async def sincronizar_todos():
         for glamping in glampings:
             glamping_id = str(glamping["_id"])
             try:
-                response = requests.get(glamping["urlIcal"])
+                headers = {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+                }
+                response = requests.get(glamping["urlIcal"], headers=headers)
+
                 if response.status_code != 200:
                     resultados.append({"glamping_id": glamping_id, "error": "No se pudo descargar el calendario"})
                     continue
