@@ -90,42 +90,62 @@ async def importar_ical(glamping_id: str, url_ical: str):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al importar iCal: {str(e)}")
 
-
-
-# Recorre todos los glampings que tienen URL iCal y actualiza sus fechas reservadas desde Airbnb.
+# Recorre todos los glampings que tienen una URL iCal válida y actualiza sus fechas reservadas desde Airbnb.
 @ruta_ical.post("/sincronizar-todos")
 async def sincronizar_todos():
-
     try:
-        glampings = db["glampings"].find({"urlIcal": {"$type": "string", "$ne": ""}})
+        glampings = db["glampings"].find({
+            "urlIcal": {"$type": "string", "$ne": ""}
+        })
+
         resultados = []
 
         for glamping in glampings:
             glamping_id = str(glamping["_id"])
-            try:
-                headers = {
-                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-                }
-                response = requests.get(glamping["urlIcal"], headers=headers)
+            urls = glamping["urlIcal"].splitlines()  # soporta múltiples URLs
 
-                if response.status_code != 200:
-                    resultados.append({"glamping_id": glamping_id, "error": "No se pudo descargar el calendario"})
+            fechas_agregadas = set()
+            errores = []
+
+            for url in urls:
+                url = url.strip()
+                if not url:
                     continue
 
-                calendario = Calendar(response.text)
-                fechas_reservadas = set(event.begin.date().isoformat() for event in calendario.events)
+                try:
+                    headers = {
+                        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+                    }
+                    response = requests.get(url, headers=headers, timeout=10)
 
+                    if response.status_code != 200:
+                        errores.append(f"⛔ URL fallida ({url}): status {response.status_code}")
+                        continue
+
+                    calendario = Calendar(response.text)
+                    fechas = set(event.begin.date().isoformat() for event in calendario.events)
+                    fechas_agregadas.update(fechas)
+
+                except Exception as err:
+                    errores.append(f"⚠️ Error en URL ({url}): {str(err)}")
+
+            if fechas_agregadas:
                 db["glampings"].update_one(
                     {"_id": glamping["_id"]},
-                    {"$addToSet": {"fechasReservadas": {"$each": list(fechas_reservadas)}}}
+                    {"$addToSet": {"fechasReservadas": {"$each": list(fechas_agregadas)}}}
                 )
-
-                resultados.append({"glamping_id": glamping_id, "fechas_agregadas": list(fechas_reservadas)})
-
-            except Exception as e:
-                resultados.append({"glamping_id": glamping_id, "error": str(e)})
+                resultados.append({
+                    "glamping_id": glamping_id,
+                    "fechas_agregadas": list(fechas_agregadas)
+                })
+            else:
+                resultados.append({
+                    "glamping_id": glamping_id,
+                    "error": "No se pudo importar ninguna fecha",
+                    "detalles": errores
+                })
 
         return {"resultado": resultados}
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al sincronizar todos: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"🔥 Error al sincronizar todos: {str(e)}")
