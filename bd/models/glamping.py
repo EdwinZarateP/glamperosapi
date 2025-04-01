@@ -27,6 +27,7 @@ class ModeloGlamping(BaseModel):
     creado: Optional[datetime] = datetime.now()
     propietario_id: str = "6482ac77b9f19f39d67891b2"
     urlIcal: Optional[str] = None
+    urlIcalBooking: Optional[str] = None
 
     class Config:
         allow_population_by_field_name = True 
