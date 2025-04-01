@@ -146,6 +146,7 @@ async def crear_glamping(
     fechasReservadas: Optional[str] = Form(None),
     propietario_id: str = Form(...),
     urlIcal: Optional[str] = Form(None),
+    urlIcalBooking: Optional[str] = Form(None),
 ):
     try:
         # Validación de las imágenes una por una
@@ -190,7 +191,8 @@ async def crear_glamping(
             "fechasReservadas": fechas_reservadas_lista,
             "creado": fecha_creacion_colombia,
             "propietario_id": propietario_id,
-            "urlIcal": urlIcal
+            "urlIcal": urlIcal,
+            "urlIcalBooking": urlIcalBooking
         }
 
         # Intentar insertar en MongoDB
