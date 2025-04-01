@@ -146,7 +146,7 @@ async def crear_glamping(
     fechasReservadas: Optional[str] = Form(None),
     propietario_id: str = Form(...),
     urlIcal: Optional[str] = Form(None),
-    urlIcalBooking: Optional[str] = Form(None),
+    urlIcalBooking: Optional[str] = Form(None)
 ):
     try:
         # Validación de las imágenes una por una
@@ -356,6 +356,8 @@ async def actualizar_glamping(
     descuento: str = Form(None),
     descripcionGlamping: str = Form(None),
     video_youtube: str = Form(None),
+    urlIcal: str = Form(None),
+    urlIcalBooking: str = Form(None),
     amenidadesGlobal: str = Form(...), 
 ):
     try:
@@ -410,6 +412,10 @@ async def actualizar_glamping(
             actualizaciones["descripcionGlamping"] = descripcionGlamping
         if video_youtube:
             actualizaciones["video_youtube"] = video_youtube
+        if urlIcal:
+            actualizaciones["urlIcal"] = urlIcal
+        if urlIcalBooking:
+            actualizaciones["urlIcalBooking"] = urlIcalBooking
         if amenidadesGlobal:
             actualizaciones["amenidadesGlobal"] = amenidades_lista
 
