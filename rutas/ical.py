@@ -95,9 +95,10 @@ async def importar_ical(glamping_id: str, url_ical: str):
 async def sincronizar_todos():
     try:
         glampings = db["glampings"].find({
-            "urlIcal": {"$type": "string", "$ne": ""}
+            "urlIcal": {
+                "$nin": [None, "", "Sin url", "sin url", "SIN URL"]
+            }
         })
-
         resultados = []
 
         for glamping in glampings:
