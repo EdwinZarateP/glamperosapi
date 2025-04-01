@@ -95,15 +95,22 @@ async def importar_ical(glamping_id: str, url_ical: str):
 async def sincronizar_todos():
     try:
         glampings = db["glampings"].find({
-            "urlIcal": {
-                "$nin": [None, "", "Sin url", "sin url", "SIN URL"]
-            }
+            "$or": [
+                {"urlIcal": {"$nin": [None, "", "Sin url", "sin url", "SIN URL"]}},
+                {"urlIcalBooking": {"$nin": [None, "", "Sin url", "sin url", "SIN URL"]}}
+            ]
         })
+
         resultados = []
 
         for glamping in glampings:
             glamping_id = str(glamping["_id"])
-            urls = glamping["urlIcal"].splitlines()  # soporta múltiples URLs
+            urls = []
+
+            for campo in ["urlIcal", "urlIcalBooking"]:
+                valor = glamping.get(campo, "")
+                if isinstance(valor, str):
+                    urls.extend([line.strip() for line in valor.splitlines() if line.strip() and line.strip().lower() != "sin url"])
 
             fechas_agregadas = set()
             errores = []
