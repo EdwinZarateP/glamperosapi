@@ -64,6 +64,8 @@ async def exportar_ical(glamping_id: str):
 async def importar_ical(glamping_id: str, url_ical: str):
     """
     Importa un archivo iCal desde Airbnb y actualiza las fechas reservadas en MongoDB.
+    Esta versión recorre el rango de fechas de cada evento (desde DTSTART hasta DTEND, sin incluir DTEND)
+    para capturar todos los días bloqueados.
     """
     try:
         # Descargar el archivo iCal desde la URL proporcionada
@@ -76,8 +78,12 @@ async def importar_ical(glamping_id: str, url_ical: str):
         fechas_reservadas = set()
 
         for evento in calendario.events:
-            fecha_reserva = evento.begin.date().isoformat()  # Convertir a YYYY-MM-DD
-            fechas_reservadas.add(fecha_reserva)
+            inicio = evento.begin.date()
+            fin = evento.end.date()
+            fecha_actual = inicio
+            while fecha_actual < fin:
+                fechas_reservadas.add(fecha_actual.isoformat())
+                fecha_actual += timedelta(days=1)
 
         # Actualizar la base de datos con las nuevas fechas
         db["glampings"].update_one(
@@ -131,8 +137,14 @@ async def sincronizar_todos():
                         continue
 
                     calendario = Calendar(response.text)
-                    fechas = set(event.begin.date().isoformat() for event in calendario.events)
-                    fechas_agregadas.update(fechas)
+                    # Recorrer cada evento para agregar todos los días del rango
+                    for evento in calendario.events:
+                        inicio = evento.begin.date()
+                        fin = evento.end.date()
+                        fecha_actual = inicio
+                        while fecha_actual < fin:
+                            fechas_agregadas.add(fecha_actual.isoformat())
+                            fecha_actual += timedelta(days=1)
 
                 except Exception as err:
                     errores.append(f"⚠️ Error en URL ({url}): {str(err)}")
