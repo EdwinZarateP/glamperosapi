@@ -77,7 +77,7 @@ async def reservar_fechas_glamping(id_glamping, fecha_ingreso, fecha_salida):
         print(f"📅 Fechas reservadas para el glamping {id_glamping}: {fechas_a_reservar}")
         async with httpx.AsyncClient() as client:
             response = await client.patch(
-                f"{ACTUALIZAR_FECHAS_API_URL}/{id_glamping}/fechasReservadas",
+                f"{ACTUALIZAR_FECHAS_API_URL}/{id_glamping}/fechasReservadasManual",
                 json={"fechas": fechas_a_reservar},
             )
             if response.status_code == 200:
