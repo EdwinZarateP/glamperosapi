@@ -23,7 +23,10 @@ class ModeloGlamping(BaseModel):
     calificacion: Optional[float] = 5
     amenidadesGlobal: List[str] = ["WiFi", "Jacuzzi", "Piscina"]
     ciudad_departamento: str = "Bogotá, Cundinamarca"
-    fechasReservadas: Optional[List[str]] = Field(default_factory=list)
+    fechasReservadas: Optional[List[str]] = Field(default_factory=list)  # Campo unión
+    fechasReservadasManual: Optional[List[str]] = Field(default_factory=list)
+    fechasReservadasAirbnb: Optional[List[str]] = Field(default_factory=list)
+    fechasReservadasBooking: Optional[List[str]] = Field(default_factory=list)
     creado: Optional[datetime] = datetime.now()
     propietario_id: str = "6482ac77b9f19f39d67891b2"
     urlIcal: Optional[str] = None

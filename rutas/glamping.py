@@ -32,6 +32,18 @@ MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
 ConexionMongo = MongoClient(MONGO_URI)
 db = ConexionMongo["glamperos"]
 
+def actualizar_union_fechas(glamping_id: str):
+    glamping = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
+    manual = set(glamping.get("fechasReservadasManual", []))
+    airbnb = set(glamping.get("fechasReservadasAirbnb", []))
+    booking = set(glamping.get("fechasReservadasBooking", []))
+    union = list(manual.union(airbnb).union(booking))
+    db["glampings"].update_one(
+        {"_id": ObjectId(glamping_id)},
+        {"$set": {"fechasReservadas": union}}
+    )
+
+
 # Crear el router para glampings
 ruta_glampings = APIRouter(
     prefix="/glampings",
@@ -588,70 +600,91 @@ async def obtener_fechas_reservadas(glamping_id: str):
         raise HTTPException(status_code=500, detail=f"Error al obtener fechas reservadas: {str(e)}")
 
 
-
 # Actualizar fechas reservadas de un glamping
-@ruta_glampings.patch("/{glamping_id}/fechasReservadas", response_model=ModeloGlamping)
-async def actualizar_fechas_reservadas(
+@ruta_glampings.patch("/{glamping_id}/fechasReservadasManual", response_model=ModeloGlamping)
+async def actualizar_fechas_reservadas_manual(
     glamping_id: str,
-    fechas: List[str] = Body(..., embed=True)  # Array de fechas a añadir
+    fechas: List[str] = Body(..., embed=True)
 ):
     try:
-        # Buscar el glamping por ID
         glamping = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
         if not glamping:
             raise HTTPException(status_code=404, detail="Glamping no encontrado")
 
-        # Añadir las nuevas fechas al array existente
         db["glampings"].update_one(
             {"_id": ObjectId(glamping_id)},
-            {"$push": {"fechasReservadas": {"$each": fechas}}}
+            {"$addToSet": {"fechasReservadasManual": {"$each": fechas}}}
         )
 
-        # Obtener el glamping actualizado
+        actualizar_union_fechas(glamping_id)
+
         glamping_actualizado = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
         return ModeloGlamping(**convertir_objectid(glamping_actualizado))
-
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al actualizar las fechas reservadas: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error al actualizar fechas manuales: {str(e)}")
+
+
+# eliminar fechas manuales
+@ruta_glampings.patch("/{glamping_id}/eliminar_fechas_manual", response_model=ModeloGlamping)
+async def eliminar_fechas_reservadas_manual(
+    glamping_id: str,
+    fechas_a_eliminar: List[str] = Body(..., embed=True)
+):
+    try:
+        glamping = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
+        if not glamping:
+            raise HTTPException(status_code=404, detail="Glamping no encontrado")
+
+        db["glampings"].update_one(
+            {"_id": ObjectId(glamping_id)},
+            {"$pullAll": {"fechasReservadasManual": fechas_a_eliminar}}
+        )
+
+        actualizar_union_fechas(glamping_id)
+
+        glamping_actualizado = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
+        return ModeloGlamping(**convertir_objectid(glamping_actualizado))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"🔥 Error al eliminar fechas manuales: {str(e)}")
 
 
 # Eliminar fechas reservadas de un glamping
-@ruta_glampings.patch("/{glamping_id}/eliminar_fechas", response_model=ModeloGlamping)
-async def eliminar_fechas_reservadas(
-    glamping_id: str,
-    fechas_a_eliminar: List[str] = Body(..., embed=True)  # Lista de fechas a eliminar
-):
-    try:
-        # Buscar el glamping por ID
-        glamping = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
-        if not glamping:
-            raise HTTPException(status_code=404, detail="❌ Glamping no encontrado")
+# @ruta_glampings.patch("/{glamping_id}/eliminar_fechas", response_model=ModeloGlamping)
+# async def eliminar_fechas_reservadas(
+#     glamping_id: str,
+#     fechas_a_eliminar: List[str] = Body(..., embed=True)  # Lista de fechas a eliminar
+# ):
+#     try:
+#         # Buscar el glamping por ID
+#         glamping = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
+#         if not glamping:
+#             raise HTTPException(status_code=404, detail="❌ Glamping no encontrado")
 
-        # Si no hay fechas a eliminar, responder sin cambios
-        if not fechas_a_eliminar:
-            raise HTTPException(status_code=400, detail="⚠️ No se proporcionaron fechas a eliminar")
+#         # Si no hay fechas a eliminar, responder sin cambios
+#         if not fechas_a_eliminar:
+#             raise HTTPException(status_code=400, detail="⚠️ No se proporcionaron fechas a eliminar")
 
-        # Filtrar solo las fechas existentes que se van a eliminar
-        fechas_actuales = set(glamping.get("fechasReservadas", []))
-        fechas_eliminar_set = set(fechas_a_eliminar)
-        fechas_a_eliminar_final = list(fechas_actuales.intersection(fechas_eliminar_set))
+#         # Filtrar solo las fechas existentes que se van a eliminar
+#         fechas_actuales = set(glamping.get("fechasReservadas", []))
+#         fechas_eliminar_set = set(fechas_a_eliminar)
+#         fechas_a_eliminar_final = list(fechas_actuales.intersection(fechas_eliminar_set))
 
-        if not fechas_a_eliminar_final:
-            raise HTTPException(status_code=400, detail="🚫 Ninguna de las fechas proporcionadas está reservada")
+#         if not fechas_a_eliminar_final:
+#             raise HTTPException(status_code=400, detail="🚫 Ninguna de las fechas proporcionadas está reservada")
 
-        # Actualizar la base de datos eliminando las fechas específicas
-        db["glampings"].update_one(
-            {"_id": ObjectId(glamping_id)},
-            {"$pullAll": {"fechasReservadas": fechas_a_eliminar_final}}
-        )
+#         # Actualizar la base de datos eliminando las fechas específicas
+#         db["glampings"].update_one(
+#             {"_id": ObjectId(glamping_id)},
+#             {"$pullAll": {"fechasReservadas": fechas_a_eliminar_final}}
+#         )
 
-        # Obtener el glamping actualizado
-        glamping_actualizado = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
+#         # Obtener el glamping actualizado
+#         glamping_actualizado = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
 
-        return ModeloGlamping(**convertir_objectid(glamping_actualizado))
+#         return ModeloGlamping(**convertir_objectid(glamping_actualizado))
 
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"🔥 Error al eliminar las fechas reservadas: {str(e)}")
+#     except Exception as e:
+#         raise HTTPException(status_code=500, detail=f"🔥 Error al eliminar las fechas reservadas: {str(e)}")
 
 
 @ruta_glampings.put("/{glamping_id}/rotate_image")
