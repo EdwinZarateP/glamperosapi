@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Response
+from fastapi import APIRouter, HTTPException, Response 
 from pymongo import MongoClient
 from bson.objectid import ObjectId
 import os
@@ -61,7 +61,7 @@ async def exportar_ical(glamping_id: str):
             except Exception:
                 continue
 
-        return Response(calendario.serialize(), media_type="text/calendar")
+        return Response(str(calendario), media_type="text/calendar")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al exportar iCal: {str(e)}")
 
@@ -81,7 +81,6 @@ async def importar_ical(glamping_id: str, url_ical: str, source: str = "airbnb")
             while fecha_actual < fin:
                 fechas_importadas.add(fecha_actual.isoformat())
                 fecha_actual += timedelta(days=1)
-
 
         fechas_importadas = list(fechas_importadas)
         field = "fechasReservadasAirbnb" if source.lower() == "airbnb" else "fechasReservadasBooking"
@@ -138,7 +137,6 @@ async def sincronizar_todos():
                                 while fecha_actual < fin:
                                     fechas_importadas.add(fecha_actual.isoformat())
                                     fecha_actual += timedelta(days=1)
-
                         except Exception as err:
                             errores.append(f"⚠️ Error en URL ({url}): {str(err)}")
 
