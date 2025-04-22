@@ -61,7 +61,7 @@ async def exportar_ical(glamping_id: str):
             except Exception:
                 continue
 
-        return Response(str(calendario), media_type="text/calendar")
+        return Response(calendario.serialize(), media_type="text/calendar")
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al exportar iCal: {str(e)}")
 
