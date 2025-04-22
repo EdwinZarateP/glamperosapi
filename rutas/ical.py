@@ -77,15 +77,11 @@ async def importar_ical(glamping_id: str, url_ical: str, source: str = "airbnb")
         for evento in calendario.events:
             inicio = evento.begin.date()
             fin = evento.end.date()
-
-            # 🛡 Protege contra bucles infinitos por fechas iguales o malformadas
-            if not inicio or not fin or inicio >= fin:
-                continue
-
             fecha_actual = inicio
             while fecha_actual < fin:
                 fechas_importadas.add(fecha_actual.isoformat())
                 fecha_actual += timedelta(days=1)
+
 
         fechas_importadas = list(fechas_importadas)
         field = "fechasReservadasAirbnb" if source.lower() == "airbnb" else "fechasReservadasBooking"
@@ -138,11 +134,6 @@ async def sincronizar_todos():
                             for evento in calendario.events:
                                 inicio = evento.begin.date()
                                 fin = evento.end.date()
-
-                                # 🛡 Protege contra bucles infinitos por fechas iguales o malformadas
-                                if not inicio or not fin or inicio >= fin:
-                                    continue
-
                                 fecha_actual = inicio
                                 while fecha_actual < fin:
                                     fechas_importadas.add(fecha_actual.isoformat())
