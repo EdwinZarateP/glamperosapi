@@ -64,6 +64,9 @@ async def enviar_whatsapp_cliente(
         if resp.status_code != 200:
             print(f"❌ Error al enviar WhatsApp al cliente: {resp.text}")
         else:
+            print("👉 Enviando WhatsApp al cliente con:")
+            print(f"Nombre: {nombreCliente}, Código: {codigoReserva}, WhatsApp: {whatsapp}")
+            print(f"Ubicación: {nombreGlampingReservado}, {direccionGlamping}, {latitud}, {longitud}")
             print("✅ WhatsApp enviado al cliente correctamente.")
     except Exception as e:
         print(f"🚨 Error al enviar mensaje de WhatsApp al cliente: {e}")
