@@ -390,7 +390,7 @@ async def webhook_wompi(request: Request):
                 await enviar_whatsapp_cliente(
                     numero=telefono_cliente_whatsapp,
                     codigoReserva=reserva.get("codigoReserva", "No disponible"),
-                    whatsapp=telefono_propietario_correo,
+                    whatsapp=telefono_cliente_whatsapp,
                     nombreGlampingReservado=glamping.get("nombreGlamping", "Tu Glamping"),
                     direccionGlamping=glamping.get("direccion", "Dirección no disponible"),
                     latitud=latitud or 0,

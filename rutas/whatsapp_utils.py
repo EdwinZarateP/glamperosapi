@@ -45,7 +45,7 @@ async def enviar_whatsapp_cliente(
                         "parameters": [
                             {"type": "text", "text": nombreCliente},
                             {"type": "text", "text": codigoReserva},
-                            {"type": "text", "text": numero},
+                            {"type": "text", "text": whatsapp},
                         ],
                     },
                 ],
