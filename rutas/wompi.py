@@ -369,15 +369,6 @@ async def webhook_wompi(request: Request):
                 print(f"📩 Teléfono del cliente: {telefono_cliente_whatsapp}")
                 print(f"🏡 Teléfono del propietario: {telefono_propietario_whatsapp}")
 
-                await enviar_whatsapp_propietario(
-                    numero=telefono_propietario_whatsapp,
-                    nombrePropietario=propietario.get("nombre", "Propietario"),
-                    nombreGlamping=glamping.get("nombreGlamping", "Tu Glamping"),
-                    fechaInicio=fecha_inicio,
-                    fechaFin=f"{fecha_fin} - el whatsapp de tu huésped es {telefono_cliente_correo}",
-                    imagenUrl="https://storage.googleapis.com/glamperos-imagenes/Imagenes/animal1.jpeg"
-                )
-
                 await enviar_whatsapp_cliente(
                     numero=telefono_cliente_whatsapp,
                     codigoReserva=reserva.get("codigoReserva", "No disponible"),
@@ -387,6 +378,16 @@ async def webhook_wompi(request: Request):
                     latitud=latitud or 0,
                     longitud=longitud or 0,
                     nombreCliente=cliente.get("nombre", "Cliente")
+                )
+
+
+                await enviar_whatsapp_propietario(
+                    numero=telefono_propietario_whatsapp,
+                    nombrePropietario=propietario.get("nombre", "Propietario"),
+                    nombreGlamping=glamping.get("nombreGlamping", "Tu Glamping"),
+                    fechaInicio=fecha_inicio,
+                    fechaFin=f"{fecha_fin} - el whatsapp de tu huésped es {telefono_cliente_correo}",
+                    imagenUrl="https://storage.googleapis.com/glamperos-imagenes/Imagenes/animal1.jpeg"
                 )
 
                 

@@ -20,7 +20,7 @@ async def enviar_whatsapp_cliente(
         body = {
             "messaging_product": "whatsapp",
             "recipient_type": "individual",
-            "to": whatsapp,
+            "to": numero,
             "type": "template",
             "template": {
                 "name": "mensajeclientereserva",
