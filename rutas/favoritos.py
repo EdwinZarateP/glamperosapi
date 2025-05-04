@@ -77,22 +77,22 @@ async def eliminar_favorito(usuario_id: str = Query(...), glamping_id: str = Que
 # ✅ Endpoint para verificar si un favorito existe (con debug y limpieza)
 @ruta_favoritos.get("/buscar", response_model=dict)
 async def buscar_favorito(usuario_id: str, glamping_id: str):
-    # Limpieza de espacios invisibles
+    # Sanitizar inputs
     usuario_id = usuario_id.strip()
     glamping_id = glamping_id.strip()
 
-    print(f"🧪 Verificando favorito con:\n- usuario_id: '{usuario_id}'\n- glamping_id: '{glamping_id}'")
+    print(f"🧪 Verificando si existe favorito:")
+    print(f"🧪 usuario_id: '{usuario_id}' ({type(usuario_id)})")
+    print(f"🧪 glamping_id: '{glamping_id}' ({type(glamping_id)})")
 
-    # Buscar directamente el documento
     favorito = db.favoritos.find_one({
         "usuario_id": usuario_id,
         "glamping_id": glamping_id
     })
 
     if favorito:
-        print("✅ Favorito encontrado en la base de datos:", favorito)
+        print("✅ Favorito encontrado:", favorito)
         return {"favorito_existe": True}
     else:
-        print("❌ Favorito NO encontrado")
+        print("❌ No se encontró el favorito.")
         raise HTTPException(status_code=404, detail="No se encontraron favoritos para este usuario")
-
