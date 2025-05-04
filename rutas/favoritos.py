@@ -46,6 +46,17 @@ async def agregar_favorito(favorito: Favorito):
     
     return {"mensaje": "Favorito agregado", "favorito": modelo_favorito(nuevo_favorito)}
 
+
+
+# # ✅ Endpoint para verificar si un favorito existe (optimizado con count_documents)
+@ruta_favoritos.get("/buscar", response_model=dict)
+async def buscar_favorito(usuario_id: str, glamping_id: str):
+    print(f"🧪 Buscando favorito con usuario_id: '{usuario_id}' y glamping_id: '{glamping_id}'")
+    existe = db.favoritos.count_documents({"usuario_id": usuario_id, "glamping_id": glamping_id}) > 0
+    return {"favorito_existe": existe}
+
+
+
 # ✅ Endpoint para listar los favoritos de un usuario
 @ruta_favoritos.get("/{usuario_id}", response_model=List[str])  
 async def listar_favoritos(usuario_id: str):
@@ -66,28 +77,3 @@ async def eliminar_favorito(usuario_id: str = Query(...), glamping_id: str = Que
         raise HTTPException(status_code=404, detail="Favorito no encontrado")
     
     return {"mensaje": "Favorito eliminado"}
-
-# # ✅ Endpoint para verificar si un favorito existe (optimizado con count_documents)
-# @ruta_favoritos.get("/buscar", response_model=dict)
-# async def buscar_favorito(usuario_id: str, glamping_id: str):
-#     print(f"🧪 Buscando favorito con usuario_id: '{usuario_id}' y glamping_id: '{glamping_id}'")
-#     existe = db.favoritos.count_documents({"usuario_id": usuario_id, "glamping_id": glamping_id}) > 0
-#     return {"favorito_existe": existe}
-
-# ✅ Endpoint para verificar si un favorito existe (con debug y limpieza)
-@ruta_favoritos.get("/buscar", response_model=dict)
-async def buscar_favorito(usuario_id: str, glamping_id: str):
-    usuario_id = usuario_id.strip()
-    glamping_id = glamping_id.strip()
-
-    print(f"🧪 Buscando con usuario_id={repr(usuario_id)}, glamping_id={repr(glamping_id)}")
-
-    docs = list(db.favoritos.find())
-    for doc in docs:
-        print(f"📄 usuario_id en doc: {repr(doc.get('usuario_id'))}, glamping_id en doc: {repr(doc.get('glamping_id'))}")
-        if doc.get("usuario_id") == usuario_id and doc.get("glamping_id") == glamping_id:
-            print("🎯 Coincidencia manual encontrada.")
-            return {"favorito_existe": True}
-
-    print("❌ No se encontró el favorito de ninguna forma.")
-    raise HTTPException(status_code=404, detail="No se encontraron favoritos perro")
