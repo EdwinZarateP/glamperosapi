@@ -47,14 +47,12 @@ async def agregar_favorito(favorito: Favorito):
     return {"mensaje": "Favorito agregado", "favorito": modelo_favorito(nuevo_favorito)}
 
 
-
 # # ✅ Endpoint para verificar si un favorito existe (optimizado con count_documents)
 @ruta_favoritos.get("/buscar", response_model=dict)
 async def buscar_favorito(usuario_id: str, glamping_id: str):
     print(f"🧪 Buscando favorito con usuario_id: '{usuario_id}' y glamping_id: '{glamping_id}'")
     existe = db.favoritos.count_documents({"usuario_id": usuario_id, "glamping_id": glamping_id}) > 0
     return {"favorito_existe": existe}
-
 
 
 # ✅ Endpoint para listar los favoritos de un usuario
