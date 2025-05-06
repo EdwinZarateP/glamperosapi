@@ -174,7 +174,8 @@ async def crear_transaccion(payload: CrearTransaccionRequest):
 
         # 2) Obtén el email real del cliente
         cliente = await obtener_usuario(payload.idCliente)
-        email_cliente = cliente.get("email", "sin-email@ejemplo.com")
+        email_cliente = (cliente or {}).get("email", "emzp1994@gmail.com")
+
 
         # 3) Construye el body para Wompi
         data_wompi = {
@@ -249,7 +250,7 @@ async def webhook_wompi(request: Request):
             if reserva:
                 break
             print("🔄 Esperando a que la reserva aparezca en la BD")
-            time.sleep(2)
+            await asyncio.sleep(2)
         if reserva:
             print(f"✅ Reserva {referencia_interna} encontrada, actualizando EstadoPago a '{status}'.")
             base_datos.reservas.update_one(
