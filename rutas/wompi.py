@@ -112,6 +112,7 @@ class CrearTransaccionRequest(BaseModel):
     moneda: str = "COP"
     referenciaInterna: str
     descripcion: str
+    idCliente: str  
 
 class TransaccionDB(BaseModel):
     """Modelo que representa cómo guardaremos la transacción en nuestra DB."""
@@ -139,7 +140,8 @@ def modelo_transaccion_db(doc) -> dict:
 # ====================================================================
 WOMPI_PRIVATE_KEY = os.environ.get("WOMPI_PRIVATE_KEY", "tu_llave_privada_sandbox")
 WOMPI_PUBLIC_KEY = os.environ.get("WOMPI_PUBLIC_KEY", "tu_llave_publica_sandbox")
-WOMPI_API_URL = "https://sandbox.wompi.co/v1/transactions"
+# WOMPI_API_URL = "https://sandbox.wompi.co/v1/transactions"
+WOMPI_API_URL = "https://production.wompi.co/v1/transactions"
 SECRETO_INTEGRIDAD = os.environ.get("WOMPI_INTEGRITY_SECRET", "test_integrity_Yrpy71FNU9fwbR8BrLPWBUHKHiu9hVua")
 
 # ====================================================================
@@ -166,18 +168,20 @@ async def generar_firma(referencia: str, monto: int, moneda: str = "COP"):
 # ====================================================================
 @ruta_wompi.post("/crear-transaccion", response_model=dict)
 async def crear_transaccion(payload: CrearTransaccionRequest):
-    """
-    Crea un registro de transacción pendiente en la DB y llama a la API de Wompi.
-    La reserva real se actualizará cuando se confirme el pago vía webhook.
-    """
     try:
-        monto_en_centavos = int(payload.valorReserva * 100)
+        # 1) Calcula el monto en centavos
+        monto_centavos = int(payload.valorReserva * 100)
 
+        # 2) Obtén el email real del cliente
+        cliente = await obtener_usuario(payload.idCliente)
+        email_cliente = cliente.get("email", "sin-email@ejemplo.com")
+
+        # 3) Construye el body para Wompi
         data_wompi = {
-            "amount_in_cents": monto_en_centavos,
+            "amount_in_cents": monto_centavos,
             "currency": payload.moneda,
-            "customer_email": "correo@cliente.com",  # Se debe cambiar por el real
-            "payment_method": {"installments": 1},
+            "customer_email": email_cliente,        # ← email dinámico
+            "payment_method": { "installments": 1 },
             "reference": payload.referenciaInterna,
             "payment_method_type": "CARD",
             "redirect_url": f"https://glamperos.com/gracias?referencia={payload.referenciaInterna}"
@@ -188,38 +192,32 @@ async def crear_transaccion(payload: CrearTransaccionRequest):
             "Content-Type": "application/json"
         }
 
-        response = requests.post(WOMPI_API_URL, json=data_wompi, headers=headers)
-        respuesta_wompi = response.json()
+        # 4) Llamada a la API de Wompi
+        resp = requests.post(WOMPI_API_URL, json=data_wompi, headers=headers)
+        body = resp.json()
+        if resp.status_code not in (200, 201):
+            raise HTTPException(status_code=resp.status_code, detail=f"Wompi error: {body}")
 
-        if response.status_code not in [200, 201]:
-            raise HTTPException(
-                status_code=response.status_code,
-                detail=f"Error Wompi: {respuesta_wompi}"
-            )
-
-        nueva_transaccion = {
+        # 5) Guarda la transacción en tu DB
+        nueva_tx = {
             "referenciaInterna": payload.referenciaInterna,
-            "wompi_transaction_id": respuesta_wompi["data"]["id"],
+            "wompi_transaction_id": body["data"]["id"],
             "monto": payload.valorReserva,
             "currency": payload.moneda,
-            "status": respuesta_wompi["data"]["status"],
-            "created_at": datetime.now()
+            "status": body["data"]["status"],
+            "created_at": datetime.utcnow()
         }
-
-        resultado = coleccion_transacciones.insert_one(nueva_transaccion)
-        nueva_transaccion["_id"] = resultado.inserted_id
+        resultado = coleccion_transacciones.insert_one(nueva_tx)
+        nueva_tx["_id"] = resultado.inserted_id
 
         return {
             "mensaje": "Transacción creada con éxito",
-            "transaccion": nueva_transaccion,
-            "respuesta_wompi": respuesta_wompi
+            "transaccion": nueva_tx,
+            "respuesta_wompi": body
         }
 
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error al crear la transacción: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"Error al crear la transacción: {e}")
 
 # ====================================================================
 # ENDPOINT PARA WEBHOOK DE WOMPI CON ENVÍO DE CORREO Y WHATSAPP
