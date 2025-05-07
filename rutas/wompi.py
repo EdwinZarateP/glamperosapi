@@ -147,19 +147,14 @@ SECRETO_INTEGRIDAD = os.environ.get("WOMPI_INTEGRITY_SECRET_SANDBOX", "test_inte
 # ====================================================================
 @ruta_wompi.get("/generar-firma", response_model=dict)
 async def generar_firma(referencia: str, monto: int, moneda: str = "COP"):
-    """
-    Genera la firma de integridad (SHA-256) para Wompi.
-    Formato: <referencia><monto><moneda><secreto_integridad>
-    """
     try:
-        cadena_concatenada = f"{referencia}{monto}{moneda}{SECRETO_INTEGRIDAD}"
-        firma_integridad = hashlib.sha256(cadena_concatenada.encode()).hexdigest()
-        return {"firma_integridad": firma_integridad}
+        cadena = f"{referencia}{monto}{moneda}{SECRETO_INTEGRIDAD}"
+        print("🧾 CADENA PARA HASH:", cadena)
+        firma = hashlib.sha256(cadena.encode()).hexdigest()
+        print("🔐 FIRMA:", firma)
+        return {"firma_integridad": firma}
     except Exception as e:
-        raise HTTPException(
-            status_code=500,
-            detail=f"Error al generar la firma: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=str(e))
 
 # ====================================================================
 # ENDPOINT PARA CREAR TRANSACCIÓN
