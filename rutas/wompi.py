@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, status, Body, Request
+from fastapi import APIRouter, HTTPException, status, Request, Query
 from pymongo import MongoClient
 from datetime import datetime, timedelta
 from pydantic import BaseModel
@@ -8,6 +8,7 @@ import hashlib
 import time
 import httpx
 import asyncio
+from enum import Enum
 
 # Importar funciones de WhatsApp desde el módulo whatsapp_utils
 from rutas.whatsapp_utils import enviar_whatsapp_cliente, enviar_whatsapp_propietario
@@ -106,6 +107,11 @@ async def obtener_glamping(id_glamping):
 # ====================================================================
 # MODELOS DE DATOS
 # ====================================================================
+class ModoWompi(str, Enum):
+    produccion = "produccion"
+    pruebas    = "pruebas"
+
+
 class CrearTransaccionRequest(BaseModel):
     """Modelo para la creación de transacciones con Wompi."""
     valorReserva: float
@@ -137,83 +143,120 @@ def modelo_transaccion_db(doc) -> dict:
 # ====================================================================
 # CONFIGURACIÓN WOMPI
 # ====================================================================
-WOMPI_PRIVATE_KEY_SANDBOX = os.environ.get("WOMPI_PRIVATE_KEY_SANDBOX", "tu_llave_privada_sandbox")
-WOMPI_PUBLIC_KEY_SANDBOX = os.environ.get("WOMPI_PUBLIC_KEY_SANDBOX", "tu_llave_publica_sandbox")
-WOMPI_API_URL = "https://sandbox.wompi.co/v1/transactions"
-SECRETO_INTEGRIDAD = os.environ.get("WOMPI_INTEGRITY_SECRET_SANDBOX", "test_integrity_Yrpy71FNU9fwbR8BrLPWBUHKHiu9hVua")
+# Diccionarios de configuración
+PRIVATE_KEYS = {
+    "produccion": os.getenv("WOMPI_PRIVATE_KEY", ""),
+    "pruebas":    os.getenv("WOMPI_PRIVATE_KEY_SANDBOX", "")
+}
+PUBLIC_KEYS = {
+    "produccion": os.getenv("WOMPI_PUBLIC_KEY", ""),
+    "pruebas":    os.getenv("WOMPI_PUBLIC_KEY_SANDBOX", "")
+}
+SECRETS_INTEGRIDAD = {
+    "produccion": os.getenv("WOMPI_INTEGRITY_SECRET", ""),
+    "pruebas":    os.getenv("WOMPI_INTEGRITY_SECRET_SANDBOX", "")
+}
+API_URLS = {
+    "produccion": "https://api.wompi.co/v1/transactions",
+    "pruebas":    "https://sandbox.wompi.co/v1/transactions"
+}
+
 
 # ====================================================================
 # ENDPOINT PARA GENERAR FIRMA DE INTEGRIDAD
 # ====================================================================
 @ruta_wompi.get("/generar-firma", response_model=dict)
-async def generar_firma(referencia: str, monto: int, moneda: str = "COP"):
-    try:
-        cadena_concatenada = f"{referencia}{monto}{moneda}{SECRETO_INTEGRIDAD}"
-        firma_integridad = hashlib.sha256(cadena_concatenada.encode()).hexdigest()
+async def generar_firma(
+    referencia: str,
+    monto:      int,
+    moneda:    str             = "COP",
+    modo:      ModoWompi       = Query( ModoWompi.pruebas, description="Selecciona 'pruebas' o 'produccion'" )
+):
+    """
+    Genera la firma de integridad para Wompi según el modo:
+    - pruebas: usa la clave sandbox
+    - produccion: usa la clave real
+    """
+    secreto = SECRETS_INTEGRIDAD[modo.value]
+    cadena  = f"{referencia}{monto}{moneda}{secreto}"
+    firma   = hashlib.sha256(cadena.encode()).hexdigest()
 
-        # 👇 Aquí están tus prints de depuración
-        print("✅ Secreto que llega desde ENV:", SECRETO_INTEGRIDAD)
-        print("🧾 Cadena HASH:", cadena_concatenada)
-        print("🔐 SHA256:", firma_integridad)
+    # logs de depuración
+    print("🧾 Cadena HASH:", cadena)
+    print("🔐 SHA256     :", firma)
 
-        return {"firma_integridad": firma_integridad}
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
+    return {"firma_integridad": firma}
 # ====================================================================
 # ENDPOINT PARA CREAR TRANSACCIÓN
 # ====================================================================
 @ruta_wompi.post("/crear-transaccion", response_model=dict)
-async def crear_transaccion(payload: CrearTransaccionRequest):
+async def crear_transaccion(
+    payload: CrearTransaccionRequest,
+    modo: ModoWompi = Query(
+        ModoWompi.pruebas,
+        description="Selecciona 'pruebas' (sandbox) o 'produccion'"
+    )
+):
     """
-    Crea un registro de transacción pendiente en la DB y llama a la API de Wompi.
-    La reserva real se actualizará cuando se confirme el pago vía webhook.
+    Crea un registro de transacción pendiente en la DB y llama
+    a la API de Wompi usando las credenciales según el modo.
     """
     try:
+        # 1) Convertir a centavos
         monto_en_centavos = int(payload.valorReserva * 100)
 
+        # 2) Preparar el payload para Wompi
         data_wompi = {
-            "amount_in_cents": monto_en_centavos,
-            "currency": payload.moneda,
-            "customer_email": "correo@cliente.com",  # Se debe cambiar por el real
-            "payment_method": {"installments": 1},
-            "reference": payload.referenciaInterna,
+            "amount_in_cents":     monto_en_centavos,
+            "currency":            payload.moneda,
+            "customer_email":      "correo@cliente.com",
+            "payment_method":      {"installments": 1},
+            "reference":           payload.referenciaInterna,
             "payment_method_type": "CARD",
-            "redirect_url": f"https://glamperos.com/gracias?referencia={payload.referenciaInterna}"
+            "redirect_url":        f"https://glamperos.com/gracias?referencia={payload.referenciaInterna}"
         }
+
+        # 3) Elegir clave y URL según el modo
+        private_key = PRIVATE_KEYS[modo.value]
+        api_url     = API_URLS[modo.value]
 
         headers = {
-            "Authorization": f"Bearer {WOMPI_PRIVATE_KEY_SANDBOX}",
-            "Content-Type": "application/json"
+            "Authorization": f"Bearer {private_key}",
+            "Content-Type":  "application/json"
         }
 
-        response = requests.post(WOMPI_API_URL, json=data_wompi, headers=headers)
+        # 4) Llamar a Wompi
+        response = requests.post(api_url, json=data_wompi, headers=headers)
         respuesta_wompi = response.json()
 
-        if response.status_code not in [200, 201]:
+        if response.status_code not in (200, 201):
             raise HTTPException(
                 status_code=response.status_code,
                 detail=f"Error Wompi: {respuesta_wompi}"
             )
 
+        # 5) Guardar en MongoDB
         nueva_transaccion = {
-            "referenciaInterna": payload.referenciaInterna,
+            "referenciaInterna":    payload.referenciaInterna,
             "wompi_transaction_id": respuesta_wompi["data"]["id"],
-            "monto": payload.valorReserva,
-            "currency": payload.moneda,
-            "status": respuesta_wompi["data"]["status"],
-            "created_at": datetime.now()
+            "monto":                payload.valorReserva,
+            "currency":             payload.moneda,
+            "status":               respuesta_wompi["data"]["status"],
+            "created_at":           datetime.now()
         }
-
         resultado = coleccion_transacciones.insert_one(nueva_transaccion)
         nueva_transaccion["_id"] = resultado.inserted_id
 
+        # 6) Devolver al cliente
         return {
-            "mensaje": "Transacción creada con éxito",
-            "transaccion": nueva_transaccion,
+            "mensaje":        "Transacción creada con éxito",
+            "transaccion":    nueva_transaccion,
             "respuesta_wompi": respuesta_wompi
         }
 
+    except HTTPException:
+        # Re-lanzar errores de Wompi
+        raise
     except Exception as e:
         raise HTTPException(
             status_code=500,
