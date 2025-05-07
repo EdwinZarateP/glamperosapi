@@ -135,21 +135,12 @@ def modelo_transaccion_db(doc) -> dict:
     }
 
 # ====================================================================
+# CONFIGURACIÓN WOMPI
 # ====================================================================
-# CONFIGURACIÓN WOMPI CON MODO DINÁMICO
-# ====================================================================
-WOMPI_MODE = os.environ.get("WOMPI_MODE", "sandbox")  # "sandbox" o "prod"
-
-if WOMPI_MODE == "prod":
-    WOMPI_API_URL = "https://production.wompi.co/v1/transactions"
-    WOMPI_PRIVATE_KEY = os.environ.get("WOMPI_PRIVATE_KEY")
-    WOMPI_PUBLIC_KEY = os.environ.get("WOMPI_PUBLIC_KEY")
-    SECRETO_INTEGRIDAD = os.environ.get("WOMPI_INTEGRITY_SECRET")
-else:
-    WOMPI_API_URL = "https://sandbox.wompi.co/v1/transactions"
-    WOMPI_PRIVATE_KEY = os.environ.get("WOMPI_PRIVATE_KEY_SANDBOX")
-    WOMPI_PUBLIC_KEY = os.environ.get("WOMPI_PUBLIC_KEY_SANDBOX")
-    SECRETO_INTEGRIDAD = os.environ.get("WOMPI_INTEGRITY_SECRET_SANDBOX")
+WOMPI_PRIVATE_KEY = os.environ.get("WOMPI_PRIVATE_KEY", "tu_llave_privada_sandbox")
+WOMPI_PUBLIC_KEY = os.environ.get("WOMPI_PUBLIC_KEY", "tu_llave_publica_sandbox")
+WOMPI_API_URL = "https://sandbox.wompi.co/v1/transactions"
+SECRETO_INTEGRIDAD = os.environ.get("WOMPI_INTEGRITY_SECRET", "test_integrity_Yrpy71FNU9fwbR8BrLPWBUHKHiu9hVua")
 
 # ====================================================================
 # ENDPOINT PARA GENERAR FIRMA DE INTEGRIDAD
