@@ -148,11 +148,15 @@ SECRETO_INTEGRIDAD = os.environ.get("WOMPI_INTEGRITY_SECRET_SANDBOX", "test_inte
 @ruta_wompi.get("/generar-firma", response_model=dict)
 async def generar_firma(referencia: str, monto: int, moneda: str = "COP"):
     try:
-        cadena = f"{referencia}{monto}{moneda}{SECRETO_INTEGRIDAD}"
-        print("🧾 CADENA PARA HASH:", cadena)
-        firma = hashlib.sha256(cadena.encode()).hexdigest()
-        print("🔐 FIRMA:", firma)
-        return {"firma_integridad": firma}
+        cadena_concatenada = f"{referencia}{monto}{moneda}{SECRETO_INTEGRIDAD}"
+        firma_integridad = hashlib.sha256(cadena_concatenada.encode()).hexdigest()
+
+        # 👇 Aquí están tus prints de depuración
+        print("✅ Secreto que llega desde ENV:", SECRETO_INTEGRIDAD)
+        print("🧾 Cadena HASH:", cadena_concatenada)
+        print("🔐 SHA256:", firma_integridad)
+
+        return {"firma_integridad": firma_integridad}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
