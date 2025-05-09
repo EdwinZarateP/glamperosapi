@@ -16,6 +16,7 @@ MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
 ConexionMongo = MongoClient(MONGO_URI)
 base_datos = ConexionMongo["glamperos"]
 
+
 # Configuración de FastAPI
 ruta_usuario = APIRouter(
     prefix="/usuarios",
