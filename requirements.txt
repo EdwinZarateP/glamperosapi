@@ -17,8 +17,12 @@ distro==1.9.0
 dnspython==2.7.0
 email_validator==2.2.0
 fastapi==0.115.5
+fastapi-cache2==0.2.2
 fastapi-cli==0.0.7
 frozenlist==1.5.0
+geographiclib==2.0
+geopy==2.4.1
+git-filter-repo==2.47.0
 google-api-core==2.23.0
 google-auth==2.36.0
 google-cloud-core==2.4.1
@@ -43,6 +47,7 @@ multidict==6.1.0
 openai==1.64.0
 orjson==3.10.14
 passlib==1.7.4
+pendulum==3.1.0
 pillow==11.0.0
 propcache==0.2.1
 proto-plus==1.25.0
@@ -57,7 +62,7 @@ Pygments==2.19.1
 PyJWT==2.7.0
 pymongo==4.9.2
 python-dateutil==2.9.0.post0
-python-dotenv==1.0.1
+python-dotenv==1.1.0
 python-engineio==4.11.2
 python-multipart==0.0.17
 python-socketio==5.12.1
@@ -79,6 +84,7 @@ twilio==9.4.3
 typer==0.15.1
 types-python-dateutil==2.9.0.20241206
 typing_extensions==4.12.2
+tzdata==2025.2
 ujson==5.10.0
 urllib3==2.2.3
 uvicorn==0.34.0
