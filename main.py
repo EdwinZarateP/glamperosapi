@@ -1,17 +1,13 @@
 from fastapi import FastAPI, Request
 from starlette.middleware.cors import CORSMiddleware
 import os
-from dotenv import load_dotenv
-load_dotenv()
 
-print("[DEBUG] MONGO_URI cargado:", repr(os.getenv("MONGO_URI")))
+from dotenv import load_dotenv
+load_dotenv(override=True)
 
 # Verificar variables necesarias
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 MONGO_URI = os.getenv("MONGO_URI")
-
-
-print("[DEBUG] MONGO_URI cargado:", repr(MONGO_URI))
 
 
 if not OPENAI_API_KEY or not MONGO_URI:

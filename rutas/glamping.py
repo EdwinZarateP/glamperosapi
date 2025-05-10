@@ -1,4 +1,7 @@
-from fastapi import APIRouter, HTTPException, UploadFile, Form, File, Body
+from fastapi import APIRouter, HTTPException, UploadFile, Form, File, Body, Query
+from geopy.distance import geodesic
+from fastapi_cache.decorator import cache
+from datetime import timedelta
 from google.cloud import storage
 from pymongo import MongoClient
 from bson.objectid import ObjectId
@@ -226,6 +229,76 @@ async def crear_glamping(
     except Exception as e:
         # Captura otros errores no esperados
         raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
+
+
+
+# Obtener todos por filtros especificos
+@ruta_glampings.get("/glampingfiltrados", response_model=List[ModeloGlamping])
+async def glamping_filtrados(
+    lat: Optional[float]          = Query(4.710989),
+    lng: Optional[float]          = Query(-74.072090),
+    tipoGlamping: Optional[str]   = Query(None),
+    precioMin: Optional[float]    = Query(None),
+    precioMax: Optional[float]    = Query(None),
+    fechaInicio: Optional[str]    = Query(None),
+    fechaFin: Optional[str]       = Query(None),
+    amenidades: Optional[List[str]] = Query(None),
+    page: int                     = Query(1, ge=1),
+    limit: int                    = Query(30, ge=1),
+):
+    """
+    Filtra glampings según parámetros opcionales y
+    devuelve sólo la página solicitada.
+    """
+    try:
+        filtro: dict = {"habilitado": True}
+
+        # Tipo de glamping
+        if tipoGlamping:
+            filtro["tipoGlamping"] = tipoGlamping
+
+        # Rango de precio
+        if precioMin is not None or precioMax is not None:
+            precio_filter = {}
+            if precioMin is not None: precio_filter["$gte"] = precioMin
+            if precioMax is not None: precio_filter["$lte"] = precioMax
+            filtro["precioEstandar"] = precio_filter
+
+        # Rango de fechas (sólo si envío ambos parámetros)
+        if fechaInicio and fechaFin:
+            inicio = datetime.strptime(fechaInicio, "%Y-%m-%d")
+            fin    = datetime.strptime(fechaFin,    "%Y-%m-%d")
+            dias = [
+                (inicio + timedelta(days=i)).strftime("%Y-%m-%d")
+                for i in range((fin - inicio).days + 1)
+            ]
+            filtro["fechasReservadas"] = {"$not": {"$elemMatch": {"$in": dias}}}
+
+        # Amenidades
+        if amenidades:
+            filtro["amenidadesGlobal"] = {"$all": amenidades}
+
+        # Cálculo de skip
+        skip = (page - 1) * limit
+
+        # Consulta con paginación en BD
+        cursor = (
+            db["glampings"]
+            .find(filtro)
+            .sort([
+                ("calificacion", -1),
+                ("nombreGlamping", 1),
+                ("_id", 1),
+            ])
+            .skip(skip)
+            .limit(limit)
+        )
+        resultados = list(cursor)
+        return [convertir_objectid(g) for g in resultados]
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al filtrar glampings: {e}")
+    
 
 
 # Obtener todos los glampings
@@ -646,46 +719,6 @@ async def eliminar_fechas_reservadas_manual(
         return ModeloGlamping(**convertir_objectid(glamping_actualizado))
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"🔥 Error al eliminar fechas manuales: {str(e)}")
-
-
-# Eliminar fechas reservadas de un glamping
-# @ruta_glampings.patch("/{glamping_id}/eliminar_fechas", response_model=ModeloGlamping)
-# async def eliminar_fechas_reservadas(
-#     glamping_id: str,
-#     fechas_a_eliminar: List[str] = Body(..., embed=True)  # Lista de fechas a eliminar
-# ):
-#     try:
-#         # Buscar el glamping por ID
-#         glamping = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
-#         if not glamping:
-#             raise HTTPException(status_code=404, detail="❌ Glamping no encontrado")
-
-#         # Si no hay fechas a eliminar, responder sin cambios
-#         if not fechas_a_eliminar:
-#             raise HTTPException(status_code=400, detail="⚠️ No se proporcionaron fechas a eliminar")
-
-#         # Filtrar solo las fechas existentes que se van a eliminar
-#         fechas_actuales = set(glamping.get("fechasReservadas", []))
-#         fechas_eliminar_set = set(fechas_a_eliminar)
-#         fechas_a_eliminar_final = list(fechas_actuales.intersection(fechas_eliminar_set))
-
-#         if not fechas_a_eliminar_final:
-#             raise HTTPException(status_code=400, detail="🚫 Ninguna de las fechas proporcionadas está reservada")
-
-#         # Actualizar la base de datos eliminando las fechas específicas
-#         db["glampings"].update_one(
-#             {"_id": ObjectId(glamping_id)},
-#             {"$pullAll": {"fechasReservadas": fechas_a_eliminar_final}}
-#         )
-
-#         # Obtener el glamping actualizado
-#         glamping_actualizado = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
-
-#         return ModeloGlamping(**convertir_objectid(glamping_actualizado))
-
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=f"🔥 Error al eliminar las fechas reservadas: {str(e)}")
-
 
 @ruta_glampings.put("/{glamping_id}/rotate_image")
 async def rotar_imagen(
