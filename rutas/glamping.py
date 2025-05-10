@@ -231,74 +231,75 @@ async def crear_glamping(
         raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
 
 
-
-# Obtener todos por filtros especificos
 @ruta_glampings.get("/glampingfiltrados", response_model=List[ModeloGlamping])
 async def glamping_filtrados(
-    lat: Optional[float]          = Query(4.710989),
-    lng: Optional[float]          = Query(-74.072090),
-    tipoGlamping: Optional[str]   = Query(None),
-    precioMin: Optional[float]    = Query(None),
-    precioMax: Optional[float]    = Query(None),
-    fechaInicio: Optional[str]    = Query(None),
-    fechaFin: Optional[str]       = Query(None),
+    lat: Optional[float] = Query(None),
+    lng: Optional[float] = Query(None),
+    tipoGlamping: Optional[str] = Query(None),
+    precioMin: Optional[float] = Query(None),
+    precioMax: Optional[float] = Query(None),
+    fechaInicio: Optional[str] = Query(None),
+    fechaFin: Optional[str] = Query(None),
     amenidades: Optional[List[str]] = Query(None),
-    page: int                     = Query(1, ge=1),
-    limit: int                    = Query(30, ge=1),
+    page: int = Query(1, ge=1),
+    limit: int = Query(30, ge=1),
+    distanciaMax: float = Query(150.0),
 ):
-    """
-    Filtra glampings según parámetros opcionales y
-    devuelve sólo la página solicitada.
-    """
     try:
         filtro: dict = {"habilitado": True}
 
-        # Tipo de glamping
         if tipoGlamping:
             filtro["tipoGlamping"] = tipoGlamping
 
-        # Rango de precio
         if precioMin is not None or precioMax is not None:
             precio_filter = {}
-            if precioMin is not None: precio_filter["$gte"] = precioMin
-            if precioMax is not None: precio_filter["$lte"] = precioMax
+            if precioMin is not None:
+                precio_filter["$gte"] = precioMin
+            if precioMax is not None:
+                precio_filter["$lte"] = precioMax
             filtro["precioEstandar"] = precio_filter
 
-        # Rango de fechas (sólo si envío ambos parámetros)
         if fechaInicio and fechaFin:
             inicio = datetime.strptime(fechaInicio, "%Y-%m-%d")
-            fin    = datetime.strptime(fechaFin,    "%Y-%m-%d")
+            fin = datetime.strptime(fechaFin, "%Y-%m-%d")
             dias = [
                 (inicio + timedelta(days=i)).strftime("%Y-%m-%d")
                 for i in range((fin - inicio).days + 1)
             ]
             filtro["fechasReservadas"] = {"$not": {"$elemMatch": {"$in": dias}}}
 
-        # Amenidades
         if amenidades:
             filtro["amenidadesGlobal"] = {"$all": amenidades}
 
-        # Cálculo de skip
-        skip = (page - 1) * limit
-
-        # Consulta con paginación en BD
-        cursor = (
-            db["glampings"]
-            .find(filtro)
-            .sort([
-                ("calificacion", -1),
-                ("nombreGlamping", 1),
-                ("_id", 1),
-            ])
-            .skip(skip)
-            .limit(limit)
-        )
+        # Consulta sin paginar aún
+        cursor = db["glampings"].find(filtro).sort([
+            ("calificacion", -1),
+            ("nombreGlamping", 1),
+            ("_id", 1),
+        ])
         resultados = list(cursor)
-        return [convertir_objectid(g) for g in resultados]
+
+        # Si lat y lng fueron pasados, filtrar por distancia
+        if lat is not None and lng is not None:
+            coordenadas_usuario = (lat, lng)
+            resultados = [
+                gl for gl in resultados
+                if "ubicacion" in gl and isinstance(gl["ubicacion"], str)
+                and (
+                    lambda ubic:
+                        geodesic(coordenadas_usuario, (ubic["lat"], ubic["lng"])).km <= distanciaMax
+                )(json.loads(gl["ubicacion"]))
+            ]
+
+        # Paginación
+        inicio = (page - 1) * limit
+        fin = inicio + limit
+        resultados_paginados = resultados[inicio:fin]
+
+        return [convertir_objectid(g) for g in resultados_paginados]
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al filtrar glampings: {e}")
-    
 
 
 # Obtener todos los glampings
