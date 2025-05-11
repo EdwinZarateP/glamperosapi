@@ -238,6 +238,7 @@ async def glamping_filtrados(
     tipoGlamping: Optional[str] = Query(None),
     precioMin: Optional[float] = Query(None),
     precioMax: Optional[float] = Query(None),
+    totalHuespedes: Optional[float] = Query(None),
     fechaInicio: Optional[str] = Query(None),
     fechaFin: Optional[str] = Query(None),
     amenidades: Optional[List[str]] = Query(None),
@@ -279,6 +280,20 @@ async def glamping_filtrados(
         ])
         resultados = list(cursor)
 
+        # Filtrar por capacidad total de huéspedes
+        if totalHuespedes is not None:
+            resultados = [
+                gl for gl in resultados
+                if (
+                    isinstance(gl.get("Cantidad_Huespedes"), (int, float, str)) and
+                    isinstance(gl.get("Cantidad_Huespedes_Adicional"), (int, float, str)) and
+                    (
+                        float(gl.get("Cantidad_Huespedes", 0)) +
+                        float(gl.get("Cantidad_Huespedes_Adicional", 0))
+                    ) >= totalHuespedes
+                )
+            ]
+
         # Si lat y lng fueron pasados, filtrar por distancia
         if lat is not None and lng is not None:
             coordenadas_usuario = (lat, lng)
@@ -302,7 +317,8 @@ async def glamping_filtrados(
         raise HTTPException(status_code=500, detail=f"Error al filtrar glampings: {e}")
 
 
-# Obtener todos los glampings
+
+# -------------------Obtener todos los glampings -------------------
 @ruta_glampings.get("/", response_model=List[ModeloGlamping])
 async def obtener_glampings(page: int = 1, limit: int = 30):
     """
