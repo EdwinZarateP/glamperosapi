@@ -32,7 +32,7 @@ def modelo_favorito(favorito) -> dict:
         "fecha_agregado": favorito["fecha_agregado"],
     }
 
-# ✅ Endpoint para agregar un favorito (evita duplicados)
+# ✅ Endpoint para agregar un favorito (evita duplicados) s
 @ruta_favoritos.post("/", response_model=dict)
 async def agregar_favorito(favorito: Favorito):
     existe = db.favoritos.find_one({"usuario_id": favorito.usuario_id, "glamping_id": favorito.glamping_id})
