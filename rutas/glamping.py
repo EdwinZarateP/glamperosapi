@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, UploadFile, Form, File, Body, Query
 from geopy.distance import geodesic
-from fastapi_cache2.decorator import cache
+# from fastapi_cache2.decorator import cache
 from datetime import timedelta
 from google.cloud import storage
 from pymongo import MongoClient
