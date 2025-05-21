@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException, UploadFile, Form, File, Body, Query
 from geopy.distance import geodesic
-# from fastapi_cache2.decorator import cache
 from datetime import timedelta
 from google.cloud import storage
 from pymongo import MongoClient
@@ -295,16 +294,25 @@ async def glamping_filtrados(
             ]
 
         # Si lat y lng fueron pasados, filtrar por distancia
+                
         if lat is not None and lng is not None:
             coordenadas_usuario = (lat, lng)
-            resultados = [
-                gl for gl in resultados
-                if "ubicacion" in gl and isinstance(gl["ubicacion"], str)
-                and (
-                    lambda ubic:
-                        geodesic(coordenadas_usuario, (ubic["lat"], ubic["lng"])).km <= distanciaMax
-                )(json.loads(gl["ubicacion"]))
-            ]
+            resultados_con_distancia = []
+
+            for gl in resultados:
+                if "ubicacion" in gl:
+                    try:
+                        ubic = gl["ubicacion"]
+                        if isinstance(ubic, str):
+                            ubic = json.loads(ubic)
+                        distancia = geodesic(coordenadas_usuario, (ubic["lat"], ubic["lng"])).km
+                        if distancia <= distanciaMax:
+                            gl["distancia"] = distancia
+                            resultados_con_distancia.append(gl)
+                    except Exception:
+                        continue  # Ignorar errores por coordenadas mal formateadas
+
+            resultados = sorted(resultados_con_distancia, key=lambda x: x["distancia"])
 
         # Paginación
         inicio = (page - 1) * limit

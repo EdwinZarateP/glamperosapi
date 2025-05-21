@@ -41,6 +41,10 @@ class Usuario(BaseModel):
     numeroDocumento: str = None  # Campo opcional para la foto
     nombreTitular: str = None
 
+class UsuarioSimple(BaseModel):
+    nombre: str
+    email: str
+
 
 def modelo_usuario(usuario) -> dict:
     return {
@@ -159,6 +163,21 @@ async def registro_google(email: str, nombre: str):
     }
     result = base_datos.usuarios.insert_one(nuevo_usuario)
     return modelo_usuario(base_datos.usuarios.find_one({"_id": result.inserted_id}))
+
+
+# ------------Endpoint para obtener Usuarios con glamping--------------------
+@ruta_usuario.get(
+    "/con-glampings",
+    response_model=List[UsuarioSimple],
+    summary="Listar usuarios con al menos un glamping"
+)
+def obtener_usuarios_con_glampings():
+    filtro = {"glampings.0": {"$exists": True}}
+    proyeccion = {"_id": 0, "nombre": 1, "email": 1}
+
+    cursor = base_datos.usuarios.find(filtro, proyeccion)
+    resultados = list(cursor)   # <-- lista síncrona
+    return resultados
 
 
 # Obtener usuario por ID
@@ -319,92 +338,6 @@ async def actualizar_datos_bancarios(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al actualizar los datos bancarios: {str(e)}")
 
-
-
-
-# facebook autenticacion
-
-import requests
-
-FACEBOOK_APP_ID = os.getenv("FACEBOOK_APP_ID")
-FACEBOOK_APP_SECRET = os.getenv("FACEBOOK_APP_SECRET")
-
-@ruta_usuario.post("/facebook", response_model=dict)
-async def registro_facebook(accessToken: str = Body(..., embed=True)):
-    """
-    Registra o inicia sesión con Facebook. 
-    Valida el token de acceso y registra al usuario si no existe.
-    """
-    if not accessToken:
-        raise HTTPException(status_code=400, detail="No se recibió el token de Facebook")
-
-    # 1. Verificar el token de Facebook
-    #    Usamos /debug_token para validar que el token sea válido y emitido para esta app.
-    debug_url = (
-        f"https://graph.facebook.com/debug_token?"
-        f"input_token={accessToken}&access_token={FACEBOOK_APP_ID}|{FACEBOOK_APP_SECRET}"
-    )
-    debug_response = requests.get(debug_url)
-    debug_data = debug_response.json()
-
-    # Si el token no es válido, retornamos error
-    if debug_response.status_code != 200 or not debug_data.get("data", {}).get("is_valid"):
-        raise HTTPException(status_code=400, detail="Token de Facebook inválido o expirado")
-
-    # 2. Obtener datos del usuario con /me (id, name, email, etc.)
-    user_info_url = f"https://graph.facebook.com/me?fields=id,name,email&access_token={accessToken}"
-    user_response = requests.get(user_info_url)
-    if user_response.status_code != 200:
-        raise HTTPException(status_code=400, detail="No se pudo obtener información del usuario de Facebook")
-
-    user_data = user_response.json()
-    # user_data debe tener campos como { "id": "...", "name": "...", "email": "..." }
-
-    email = user_data.get("email")
-    nombre = user_data.get("name", "Usuario Facebook")
-
-    if not email:
-        # Algunos usuarios de Facebook pueden no tener email público
-        # Decide qué hacer en ese caso: forzar que el usuario ingrese un email, etc.
-        raise HTTPException(status_code=400, detail="No se encontró un correo electrónico en Facebook")
-
-    # 3. Revisar si el usuario ya existe en la base de datos
-    usuario_existente = base_datos.usuarios.find_one({"email": email})
-    if usuario_existente:
-        # El correo ya está registrado → Devolvemos sus datos
-        return {
-            "mensaje": "Correo ya registrado",
-            "usuario": {
-                "_id": str(usuario_existente["_id"]),
-                "nombre": usuario_existente["nombre"],
-                "email": usuario_existente["email"],
-                "telefono": usuario_existente["telefono"],
-            }
-        }
-
-    # 4. Crear un nuevo usuario con clave de autenticación de Facebook
-    nuevo_usuario = {
-        "nombre": nombre,
-        "email": email,
-        "telefono": "",
-        "clave": "autenticacionFacebook",  # Distinto a Google
-        "glampings": [],
-        "fecha_registro": datetime.now().astimezone(ZONA_HORARIA_COLOMBIA),
-        "foto": None,
-        "banco": None,
-        "numeroCuenta": None,
-        "tipoCuenta": None,
-        "tipoDocumento": None,
-        "numeroDocumento": None,
-        "nombreTitular": None,
-    }
-
-    result = base_datos.usuarios.insert_one(nuevo_usuario)
-    nuevo_usuario["_id"] = str(result.inserted_id)
-
-    return {"mensaje": "Usuario creado exitosamente", "usuario": nuevo_usuario}
-
-
 @ruta_usuario.get("/{usuario_id}/banco", response_model=dict)
 async def obtener_datos_bancarios(usuario_id: str):
     """Obtiene los datos bancarios del propietario"""
@@ -420,3 +353,87 @@ async def obtener_datos_bancarios(usuario_id: str):
         "numeroDocumento": usuario.get("numeroDocumento"),
         "nombreTitular": usuario.get("nombreTitular"),        
     }
+
+
+
+# facebook autenticacion
+
+# import requests
+
+# FACEBOOK_APP_ID = os.getenv("FACEBOOK_APP_ID")
+# FACEBOOK_APP_SECRET = os.getenv("FACEBOOK_APP_SECRET")
+
+# @ruta_usuario.post("/facebook", response_model=dict)
+# async def registro_facebook(accessToken: str = Body(..., embed=True)):
+#     """
+#     Registra o inicia sesión con Facebook. 
+#     Valida el token de acceso y registra al usuario si no existe.
+#     """
+#     if not accessToken:
+#         raise HTTPException(status_code=400, detail="No se recibió el token de Facebook")
+
+#     # 1. Verificar el token de Facebook
+#     #    Usamos /debug_token para validar que el token sea válido y emitido para esta app.
+#     debug_url = (
+#         f"https://graph.facebook.com/debug_token?"
+#         f"input_token={accessToken}&access_token={FACEBOOK_APP_ID}|{FACEBOOK_APP_SECRET}"
+#     )
+#     debug_response = requests.get(debug_url)
+#     debug_data = debug_response.json()
+
+#     # Si el token no es válido, retornamos error
+#     if debug_response.status_code != 200 or not debug_data.get("data", {}).get("is_valid"):
+#         raise HTTPException(status_code=400, detail="Token de Facebook inválido o expirado")
+
+#     # 2. Obtener datos del usuario con /me (id, name, email, etc.)
+#     user_info_url = f"https://graph.facebook.com/me?fields=id,name,email&access_token={accessToken}"
+#     user_response = requests.get(user_info_url)
+#     if user_response.status_code != 200:
+#         raise HTTPException(status_code=400, detail="No se pudo obtener información del usuario de Facebook")
+
+#     user_data = user_response.json()
+#     # user_data debe tener campos como { "id": "...", "name": "...", "email": "..." }
+
+#     email = user_data.get("email")
+#     nombre = user_data.get("name", "Usuario Facebook")
+
+#     if not email:
+#         # Algunos usuarios de Facebook pueden no tener email público
+#         # Decide qué hacer en ese caso: forzar que el usuario ingrese un email, etc.
+#         raise HTTPException(status_code=400, detail="No se encontró un correo electrónico en Facebook")
+
+#     # 3. Revisar si el usuario ya existe en la base de datos
+#     usuario_existente = base_datos.usuarios.find_one({"email": email})
+#     if usuario_existente:
+#         # El correo ya está registrado → Devolvemos sus datos
+#         return {
+#             "mensaje": "Correo ya registrado",
+#             "usuario": {
+#                 "_id": str(usuario_existente["_id"]),
+#                 "nombre": usuario_existente["nombre"],
+#                 "email": usuario_existente["email"],
+#                 "telefono": usuario_existente["telefono"],
+#             }
+#         }
+
+#     # 4. Crear un nuevo usuario con clave de autenticación de Facebook
+#     nuevo_usuario = {
+#         "nombre": nombre,
+#         "email": email,
+#         "telefono": "",
+#         "clave": "autenticacionFacebook",  # Distinto a Google
+#         "glampings": [],
+#         "fecha_registro": datetime.now().astimezone(ZONA_HORARIA_COLOMBIA),
+#         "foto": None,
+#         "banco": None,
+#         "numeroCuenta": None,
+#         "tipoCuenta": None,
+#         "tipoDocumento": None,
+#         "numeroDocumento": None,
+#         "nombreTitular": None,
+#     }
+
+#     result = base_datos.usuarios.insert_one(nuevo_usuario)
+#     nuevo_usuario["_id"] = str(result.inserted_id)
+
+#     return {"mensaje": "Usuario creado exitosamente", "usuario": nuevo_usuario}
