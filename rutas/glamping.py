@@ -241,6 +241,7 @@ async def glamping_filtrados(
     fechaInicio: Optional[str] = Query(None),
     fechaFin: Optional[str] = Query(None),
     amenidades: Optional[List[str]] = Query(None),
+    aceptaMascotas: Optional[bool] = Query(None),
     page: int = Query(1, ge=1),
     limit: int = Query(30, ge=1),
     distanciaMax: float = Query(150.0),
@@ -250,6 +251,9 @@ async def glamping_filtrados(
 
         if tipoGlamping:
             filtro["tipoGlamping"] = tipoGlamping
+        
+        if aceptaMascotas is not None:
+            filtro["Acepta_Mascotas"] = aceptaMascotas
 
         if precioMin is not None or precioMax is not None:
             precio_filter = {}
