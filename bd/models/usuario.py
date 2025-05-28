@@ -11,6 +11,7 @@ def modelo_usuario(usuario) -> dict:
         "numeroCuenta": usuario.get("numeroCuenta"),  # Campo opcional
         "tipoCuenta": usuario.get("tipoCuenta"),  # Campo opcional
         "tipoDocumento": usuario.get("tipoDocumento"),  # Campo opcional
+        
     }
 
 def modelo_usuarios(usuarios)->list:

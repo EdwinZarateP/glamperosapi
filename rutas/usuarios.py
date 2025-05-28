@@ -41,6 +41,7 @@ class Usuario(BaseModel):
     tipoDocumento: str = None  # Campo opcional para la foto
     numeroDocumento: str = None  # Campo opcional para la foto
     nombreTitular: str = None
+    rol: Optional[str] = "usuario"
 
 
 class GlampingResumen(BaseModel):
@@ -117,7 +118,8 @@ async def crear_usuario(usuario: Usuario):
                 "_id": str(usuario_existente["_id"]),
                 "nombre": usuario_existente["nombre"],
                 "email": usuario_existente["email"],
-                "telefono": usuario_existente["telefono"],                
+                "telefono": usuario_existente["telefono"],
+                "rol": "usuario",  # Valor por defecto
             }
         }
 
@@ -397,6 +399,33 @@ async def obtener_datos_bancarios(usuario_id: str):
         "nombreTitular": usuario.get("nombreTitular"),        
     }
 
+
+# listar glampings según rol
+@ruta_usuario.get("/{usuario_id}/glampings", response_model=List[GlampingResumen])
+async def obtener_glampings_segun_rol(usuario_id: str):
+    usuario = base_datos.usuarios.find_one({"_id": ObjectId(usuario_id)})
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+    
+    # Si es superusuario, trae todos los glampings
+    if usuario.get("rol") == "admin":
+        glampings_cursor = base_datos.glampings.find()
+    else:
+        glampings_ids = usuario.get("glampings", [])
+        object_ids = [ObjectId(gid) for gid in glampings_ids if ObjectId.is_valid(gid)]
+        glampings_cursor = base_datos.glampings.find(
+            {"_id": {"$in": object_ids}}
+        )
+
+    glampings = []
+    for g in glampings_cursor:
+        glampings.append({
+            "id": str(g["_id"]),
+            "nombreGlamping": g.get("nombreGlamping", ""),
+            "ciudad_departamento": g.get("ciudad_departamento", "")
+        })
+    
+    return glampings
 
 
 # facebook autenticacion
