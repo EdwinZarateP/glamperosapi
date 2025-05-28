@@ -7,8 +7,9 @@ from pytz import timezone
 from io import BytesIO
 from PIL import Image
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 from pydantic import BaseModel
+from bson.errors import InvalidId
 import os
 
 # Configuración de la base de datos
@@ -41,10 +42,17 @@ class Usuario(BaseModel):
     numeroDocumento: str = None  # Campo opcional para la foto
     nombreTitular: str = None
 
-class UsuarioSimple(BaseModel):
+
+class GlampingResumen(BaseModel):
+    id: str
+    nombreGlamping: str
+    ciudad_departamento: str
+
+class UsuarioConGlampings(BaseModel):
     nombre: str
     email: str
-
+    telefono: str
+    glampings: List[GlampingResumen] = []
 
 def modelo_usuario(usuario) -> dict:
     return {
@@ -165,19 +173,54 @@ async def registro_google(email: str, nombre: str):
     return modelo_usuario(base_datos.usuarios.find_one({"_id": result.inserted_id}))
 
 
+
 # ------------Endpoint para obtener Usuarios con glamping--------------------
 @ruta_usuario.get(
     "/con-glampings",
-    response_model=List[UsuarioSimple],
-    summary="Listar usuarios con al menos un glamping"
+    response_model=List[UsuarioConGlampings],
+    summary="Listar usuarios con al menos un glamping, incluyendo info de sus glampings"
 )
 def obtener_usuarios_con_glampings():
-    filtro = {"glampings.0": {"$exists": True}}
-    proyeccion = {"_id": 0, "nombre": 1, "email": 1}
+    usuarios = base_datos.usuarios.find({"glampings.0": {"$exists": True}})
+    resultado = []
 
-    cursor = base_datos.usuarios.find(filtro, proyeccion)
-    resultados = list(cursor)   # <-- lista síncrona
-    return resultados
+    for usuario in usuarios:
+        glamping_ids = usuario.get("glampings", [])
+        
+        # Convertir a ObjectId        
+        object_ids = []
+        for gid in glamping_ids:
+            try:
+                object_ids.append(ObjectId(gid))
+            except InvalidId:
+                print(f"ID inválido ignorado: {gid}")
+                continue
+        
+        # Buscar glampings por ID y seleccionar solo nombre y ciudad_departamento
+        glampings = base_datos.glampings.find(
+            {"_id": {"$in": object_ids}},
+            {"nombreGlamping": 1, "ciudad_departamento": 1}
+        )
+
+        glamping_resumen = [
+            {
+                "id": str(g["_id"]),
+                "nombreGlamping": g.get("nombreGlamping", ""),
+                "ciudad_departamento": g.get("ciudad_departamento", "")
+            }
+            for g in glampings
+        ]
+
+        if glamping_resumen:  # Solo agregar si tiene glampings válidos
+        resultado.append({
+            "nombre": usuario["nombre"],
+            "email": usuario["email"],
+            "telefono": usuario.get("telefono", ""),
+            "glampings": glamping_resumen
+        })
+
+
+    return resultado
 
 
 # Obtener usuario por ID
