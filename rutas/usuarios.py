@@ -212,7 +212,7 @@ def obtener_usuarios_con_glampings():
         ]
 
         if glamping_resumen:  # Solo agregar si tiene glampings válidos
-        resultado.append({
+            resultado.append({
             "nombre": usuario["nombre"],
             "email": usuario["email"],
             "telefono": usuario.get("telefono", ""),
