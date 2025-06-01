@@ -8,6 +8,7 @@ from typing import List, Optional
 from datetime import datetime
 from pytz import timezone
 from PIL import Image
+from pydantic import BaseModel
 from io import BytesIO
 import os
 import base64
@@ -16,6 +17,10 @@ import json
 from bd.models.glamping import ModeloGlamping
 from PIL import Image, ExifTags
 from io import BytesIO
+
+class PaginaGlampings(BaseModel):
+    glampings: List[ModeloGlamping]
+    total: int
 
 BUCKET_NAME = "glamperos-imagenes"
 
@@ -327,6 +332,120 @@ async def glamping_filtrados(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al filtrar glampings: {e}")
+
+
+
+@ruta_glampings.get(
+    "/glampingfiltrados2",
+    response_model=PaginaGlampings
+)
+async def glamping_filtrados2(
+    lat: Optional[float] = Query(None),
+    lng: Optional[float] = Query(None),
+    tipoGlamping: Optional[str] = Query(None),
+    precioMin: Optional[float] = Query(None),
+    precioMax: Optional[float] = Query(None),
+    totalHuespedes: Optional[float] = Query(None),
+    fechaInicio: Optional[str] = Query(None),
+    fechaFin: Optional[str] = Query(None),
+    amenidades: Optional[List[str]] = Query(None),
+    aceptaMascotas: Optional[bool] = Query(None),
+    page: int = Query(1, ge=1),
+    limit: int = Query(30, ge=1),
+    distanciaMax: float = Query(150.0),
+):
+    try:
+        # 1) Construir el filtro base con “habilitado”
+        filtro: dict = {"habilitado": True}
+
+        if tipoGlamping:
+            filtro["tipoGlamping"] = tipoGlamping
+
+        if aceptaMascotas is not None:
+            filtro["Acepta_Mascotas"] = aceptaMascotas
+
+        if precioMin is not None or precioMax is not None:
+            precio_filter: dict = {}
+            if precioMin is not None:
+                precio_filter["$gte"] = precioMin
+            if precioMax is not None:
+                precio_filter["$lte"] = precioMax
+            filtro["precioEstandar"] = precio_filter
+
+        if fechaInicio and fechaFin:
+            inicio_dt = datetime.strptime(fechaInicio, "%Y-%m-%d")
+            fin_dt = datetime.strptime(fechaFin, "%Y-%m-%d")
+            dias_rango = [
+                (inicio_dt + timedelta(days=i)).strftime("%Y-%m-%d")
+                for i in range((fin_dt - inicio_dt).days + 1)
+            ]
+            # Excluir fechas reservadas que coincidan con el rango
+            filtro["fechasReservadas"] = {"$not": {"$elemMatch": {"$in": dias_rango}}}
+
+        if amenidades:
+            filtro["amenidadesGlobal"] = {"$all": amenidades}
+
+        # 2) Ejecución de la consulta SIN paginar todavía
+        cursor = db["glampings"].find(filtro).sort([
+            ("calificacion", -1),
+            ("nombreGlamping", 1),
+            ("_id", 1),
+        ])
+        resultados = list(cursor)
+
+        # 3) Filtrar por capacidad total de huéspedes (si aplica)
+        if totalHuespedes is not None:
+            resultados = [
+                gl for gl in resultados
+                if (
+                    isinstance(gl.get("Cantidad_Huespedes"), (int, float, str))
+                    and isinstance(gl.get("Cantidad_Huespedes_Adicional"), (int, float, str))
+                    and (
+                        float(gl.get("Cantidad_Huespedes", 0)) +
+                        float(gl.get("Cantidad_Huespedes_Adicional", 0))
+                    ) >= totalHuespedes
+                )
+            ]
+
+        # 4) Filtrar por distancia si llegan lat y lng
+        if lat is not None and lng is not None:
+            coordenadas_usuario = (lat, lng)
+            resultados_con_distancia = []
+            for gl in resultados:
+                if "ubicacion" in gl:
+                    try:
+                        ubic = gl["ubicacion"]
+                        if isinstance(ubic, str):
+                            ubic = json.loads(ubic)
+                        distancia = geodesic(
+                            coordenadas_usuario,
+                            (ubic["lat"], ubic["lng"])
+                        ).km
+                        if distancia <= distanciaMax:
+                            gl["distancia"] = distancia
+                            resultados_con_distancia.append(gl)
+                    except Exception:
+                        continue
+            # Ordenar por distancia ascendente
+            resultados = sorted(resultados_con_distancia, key=lambda x: x["distancia"])
+
+        # 5) Calcular el total FINAL (después de todos los filtros)
+        total = len(resultados)
+
+        # 6) Aplicar paginación (slice)
+        inicio_idx = (page - 1) * limit
+        fin_idx = inicio_idx + limit
+        resultados_paginados = resultados[inicio_idx:fin_idx]
+
+        # 7) Devolver el diccionario con “glampings” y “total”
+        return {
+            "glampings": [convertir_objectid(g) for g in resultados_paginados],
+            "total": total
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al filtrar glampings: {e}")
+
 
 
 
