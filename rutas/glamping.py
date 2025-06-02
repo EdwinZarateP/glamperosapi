@@ -248,7 +248,7 @@ async def glamping_filtrados(
     amenidades: Optional[List[str]] = Query(None),
     aceptaMascotas: Optional[bool] = Query(None),
     page: int = Query(1, ge=1),
-    limit: int = Query(30, ge=1),
+    limit: int = Query(24, ge=1),
     distanciaMax: float = Query(150.0),
 ):
     try:
@@ -351,7 +351,7 @@ async def glamping_filtrados2(
     amenidades: Optional[List[str]] = Query(None),
     aceptaMascotas: Optional[bool] = Query(None),
     page: int = Query(1, ge=1),
-    limit: int = Query(30, ge=1),
+    limit: int = Query(24, ge=1),
     distanciaMax: float = Query(150.0),
 ):
     try:
@@ -451,12 +451,12 @@ async def glamping_filtrados2(
 
 # -------------------Obtener todos los glampings -------------------
 @ruta_glampings.get("/", response_model=List[ModeloGlamping])
-async def obtener_glampings(page: int = 1, limit: int = 30):
+async def obtener_glampings(page: int = 1, limit: int = 24):
     """
     Obtiene una lista de glampings con paginación.
     
     - `page`: Número de página, por defecto 1.
-    - `limit`: Tamaño del lote, por defecto 30.
+    - `limit`: Tamaño del lote, por defecto 24.
     """
     try:
         if page < 1 or limit < 1:
