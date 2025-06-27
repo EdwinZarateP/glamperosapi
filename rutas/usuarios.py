@@ -28,7 +28,6 @@ ruta_usuario = APIRouter(
 BUCKET_NAME = "glamperos-imagenes"
 
 # Modelos de datos
-
 class UsuarioGoogle(BaseModel):
     nombre: str
     email: str
