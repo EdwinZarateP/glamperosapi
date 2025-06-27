@@ -31,7 +31,11 @@ app = FastAPI(title="Glamperos", version="1.0")
 # Configuración de CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Permitir todas las solicitudes (mejor restringir en producción)
+    allow_origins=[
+        "http://localhost:4000",
+        "https://tudominiofrontend.com",
+        "*"
+    ], 
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

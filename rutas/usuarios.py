@@ -28,6 +28,12 @@ ruta_usuario = APIRouter(
 BUCKET_NAME = "glamperos-imagenes"
 
 # Modelos de datos
+
+class UsuarioGoogle(BaseModel):
+    nombre: str
+    email: str
+    aceptaTratamientoDatos: bool
+
 class Usuario(BaseModel):
     nombre: str
     email: str
@@ -58,17 +64,18 @@ class UsuarioConGlampings(BaseModel):
 def modelo_usuario(usuario) -> dict:
     return {
         "id": str(usuario["_id"]),
-        "nombre": usuario["nombre"],
-        "email": usuario["email"],
-        "telefono": usuario["telefono"],
+        "nombre": usuario.get("nombre", ""),
+        "email": usuario.get("email", ""),
+        "telefono": usuario.get("telefono", ""),
         "glampings": usuario.get("glampings", []),
-        "foto": usuario["foto"],
-        "banco": usuario["banco"],
-        "numeroCuenta": usuario["numeroCuenta"],
-        "tipoCuenta": usuario["tipoCuenta"],
-        "tipoDocumento": usuario["tipoDocumento"],
-        "numeroDocumento": usuario["numeroDocumento"],
-        "nombreTitular": usuario["nombreTitular"],
+        "foto": usuario.get("foto", ""),
+        "banco": usuario.get("banco", ""),
+        "numeroCuenta": usuario.get("numeroCuenta", ""),
+        "tipoCuenta": usuario.get("tipoCuenta", ""),
+        "tipoDocumento": usuario.get("tipoDocumento", ""),
+        "numeroDocumento": usuario.get("numeroDocumento", ""),
+        "nombreTitular": usuario.get("nombreTitular", ""),
+        "aceptaTratamientoDatos": usuario.get("aceptaTratamientoDatos", False),
     }
 
 
@@ -156,24 +163,38 @@ async def crear_usuario(usuario: Usuario):
 
 # Registro de usuario a través de Google (sin necesidad de clave)
 @ruta_usuario.post("/google", response_model=dict)
-async def registro_google(email: str, nombre: str):
-    usuario_existente = base_datos.usuarios.find_one({"email": email})
-    if usuario_existente:
+async def registro_google(usuario: UsuarioGoogle):
+    if not usuario.aceptaTratamientoDatos:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="El correo ya está registrado"
+            status_code=400,
+            detail="Debe aceptar el tratamiento de datos personales para registrarse"
         )
-    
-    nuevo_usuario = {
-        "nombre": nombre,
-        "email": email,
-        "telefono": "",
-        "clave": "autenticacionGoogle",  
-        "glampings": [],       
-    }
-    result = base_datos.usuarios.insert_one(nuevo_usuario)
-    return modelo_usuario(base_datos.usuarios.find_one({"_id": result.inserted_id}))
 
+    usuario_existente = base_datos.usuarios.find_one({"email": usuario.email})
+    if usuario_existente:
+        return {
+            "mensaje": "Correo ya registrado",
+            "usuario": modelo_usuario(usuario_existente)
+        }
+
+    nuevo_usuario = {
+        "nombre": usuario.nombre,
+        "email": usuario.email,
+        "telefono": "",
+        "clave": "autenticacionGoogle",
+        "glampings": [],
+        "aceptaTratamientoDatos": usuario.aceptaTratamientoDatos,
+        "fecha_registro": datetime.now().astimezone(ZONA_HORARIA_COLOMBIA),
+    }
+
+    result = base_datos.usuarios.insert_one(nuevo_usuario)
+    usuario_insertado = base_datos.usuarios.find_one({"_id": result.inserted_id})
+    
+    # ✅ esto asegura que devuelves el ID como "id"
+    return {
+        "mensaje": "Usuario creado exitosamente",
+        "usuario": modelo_usuario(usuario_insertado)
+    }
 
 
 # ------------Endpoint para obtener Usuarios con glamping--------------------

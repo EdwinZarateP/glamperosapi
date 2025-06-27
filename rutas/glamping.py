@@ -16,7 +16,7 @@ import uuid
 import json
 from bd.models.glamping import ModeloGlamping
 from PIL import Image, ExifTags
-from io import BytesIO
+from utils.deepseek_utils import extraer_intencion, generar_respuesta  # ✅ importa tu util nuevo
 
 class PaginaGlampings(BaseModel):
     glampings: List[ModeloGlamping]
@@ -933,3 +933,63 @@ async def rotar_imagen(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al rotar la imagen: {str(e)}")
 
+
+# ⏬⏬⏬ NUEVO ENDPOINT ⏬⏬⏬
+from math import radians, cos, sin, asin, sqrt
+
+def haversine(lat1, lon1, lat2, lon2):
+    """Distancia en km entre dos puntos GPS."""
+    dlat, dlon = radians(lat2 - lat1), radians(lon2 - lon1)
+    a = sin(dlat/2)**2 + cos(radians(lat1))*cos(radians(lat2))*sin(dlon/2)**2
+    return 6371 * 2 * asin(sqrt(a))
+
+
+@ruta_glampings.post("/preguntar")
+def preguntar(json_input: dict):
+    pregunta = json_input.get("pregunta", "")
+    filtros  = extraer_intencion(pregunta)
+
+    # ——> POST-PROCESSING DE AMENIDADES:
+    # Si el usuario no dijo "con X" ni "sin Y" en su pregunta,
+    # forzamos amenidades = []
+    if not any(token in pregunta.lower() for token in (" con ", " sin ")):
+        filtros["amenidades"] = []
+
+    # 1) Armar query base
+    query = {"habilitado": True}
+
+    # 2) Filtrar por amenidades SOLO si hay alguna
+    if filtros["amenidades"]:
+        query["amenidadesGlobal"] = {"$in": filtros["amenidades"]}
+
+    # 3) Filtrar por texto de ubicación
+    if filtros.get("ubicacion"):
+        regex = {"$regex": filtros["ubicacion"], "$options": "i"}
+        query["$or"] = [
+            {"ciudad_departamento": regex},
+            {"direccion":           regex}
+        ]
+
+    # 4) Ejecutar consulta inicial
+    raw = list(db["glampings"].find(query))
+
+    # 5) Si el parser devolvió coords, filtrar por distancia
+    if filtros.get("ubicacion_coords"):
+        ux, uy = filtros["ubicacion_coords"]
+        radio  = filtros.get("radio_km", 50)
+        raw = [
+            g for g in raw
+            if ("ubicacion" in g
+                and haversine(ux, uy,
+                              g["ubicacion"]["lat"],
+                              g["ubicacion"]["lng"]) <= radio)
+        ]
+
+    # 6) Generar texto natural
+    respuesta = generar_respuesta(pregunta, json.dumps(raw, default=str))
+
+    return {
+        "filtros":    filtros,
+        "resultados": raw,
+        "respuesta":  respuesta
+    }
