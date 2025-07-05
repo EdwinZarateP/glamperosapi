@@ -77,7 +77,6 @@ def modelo_usuario(usuario) -> dict:
         "aceptaTratamientoDatos": usuario.get("aceptaTratamientoDatos", False),
     }
 
-
 # Función para optimizar imágenes y convertirlas a WebP
 def optimizar_imagen(archivo: UploadFile, formato: str = "WEBP", max_width: int = 1200, max_height: int = 800) -> BytesIO:
     try:

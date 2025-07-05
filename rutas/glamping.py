@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, UploadFile, Form, File, Body, Query
+from fastapi import APIRouter, HTTPException, UploadFile, Form, File, Body, Query, Request
 from geopy.distance import geodesic
 from datetime import timedelta
 from google.cloud import storage
@@ -333,13 +333,10 @@ async def glamping_filtrados(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al filtrar glampings: {e}")
 
-
-
-@ruta_glampings.get(
-    "/glampingfiltrados2",
-    response_model=PaginaGlampings
-)
+# Devolver glamping filtrados
+@ruta_glampings.get("/glampingfiltrados2")
 async def glamping_filtrados2(
+    request: Request,  # 👈 agregado para leer user-agent
     lat: Optional[float] = Query(None),
     lng: Optional[float] = Query(None),
     tipoGlamping: Optional[str] = Query(None),
@@ -355,7 +352,12 @@ async def glamping_filtrados2(
     distanciaMax: float = Query(150.0),
 ):
     try:
-        # 1) Construir el filtro base con “habilitado”
+        # 🚀 Detectar si es un bot según user-agent
+        user_agent = request.headers.get("user-agent", "").lower()
+        es_bot = any(bot in user_agent for bot in ["bot", "crawl", "spider", "slurp", "bingpreview"])
+        print(f"User-Agent: {user_agent} | Es bot: {es_bot}")
+
+        # 1) Construir filtro base
         filtro: dict = {"habilitado": True}
 
         if tipoGlamping:
@@ -379,13 +381,12 @@ async def glamping_filtrados2(
                 (inicio_dt + timedelta(days=i)).strftime("%Y-%m-%d")
                 for i in range((fin_dt - inicio_dt).days + 1)
             ]
-            # Excluir fechas reservadas que coincidan con el rango
             filtro["fechasReservadas"] = {"$not": {"$elemMatch": {"$in": dias_rango}}}
 
         if amenidades:
             filtro["amenidadesGlobal"] = {"$all": amenidades}
 
-        # 2) Ejecución de la consulta SIN paginar todavía
+        # 2) Consulta inicial SIN paginar
         cursor = db["glampings"].find(filtro).sort([
             ("calificacion", -1),
             ("nombreGlamping", 1),
@@ -393,7 +394,7 @@ async def glamping_filtrados2(
         ])
         resultados = list(cursor)
 
-        # 3) Filtrar por capacidad total de huéspedes (si aplica)
+        # 3) Filtrar por capacidad de huéspedes
         if totalHuespedes is not None:
             resultados = [
                 gl for gl in resultados
@@ -407,7 +408,7 @@ async def glamping_filtrados2(
                 )
             ]
 
-        # 4) Filtrar por distancia si llegan lat y lng
+        # 4) Filtrar por distancia
         if lat is not None and lng is not None:
             coordenadas_usuario = (lat, lng)
             resultados_con_distancia = []
@@ -426,26 +427,39 @@ async def glamping_filtrados2(
                             resultados_con_distancia.append(gl)
                     except Exception:
                         continue
-            # Ordenar por distancia ascendente
             resultados = sorted(resultados_con_distancia, key=lambda x: x["distancia"])
 
-        # 5) Calcular el total FINAL (después de todos los filtros)
+        # 5) Calcular total filtrado
         total = len(resultados)
 
-        # 6) Aplicar paginación (slice)
+        # 6) Paginación
         inicio_idx = (page - 1) * limit
         fin_idx = inicio_idx + limit
         resultados_paginados = resultados[inicio_idx:fin_idx]
 
-        # 7) Devolver el diccionario con “glampings” y “total”
+        # 7) Filtrar campos si es bot
+        if es_bot:
+            resultados_paginados = [
+                {
+                    "nombreGlamping": g.get("nombreGlamping"),
+                    "tipoGlamping": g.get("tipoGlamping"),
+                    "precioEstandar": float(g.get("precioEstandar", 0)),
+                    "descripcionGlamping": g.get("descripcionGlamping"),
+                    "ciudad_departamento": g.get("ciudad_departamento"),
+                }
+                for g in resultados_paginados
+            ]
+        else:
+            resultados_paginados = [convertir_objectid(g) for g in resultados_paginados]
+
+        # 8) Respuesta final
         return {
-            "glampings": [convertir_objectid(g) for g in resultados_paginados],
+            "glampings": resultados_paginados,
             "total": total
         }
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al filtrar glampings: {e}")
-
 
 
 
@@ -868,6 +882,7 @@ async def eliminar_fechas_reservadas_manual(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"🔥 Error al eliminar fechas manuales: {str(e)}")
 
+
 @ruta_glampings.put("/{glamping_id}/rotate_image")
 async def rotar_imagen(
     glamping_id: str,
@@ -934,7 +949,8 @@ async def rotar_imagen(
         raise HTTPException(status_code=500, detail=f"Error al rotar la imagen: {str(e)}")
 
 
-# ⏬⏬⏬ NUEVO ENDPOINT ⏬⏬⏬
+
+
 from math import radians, cos, sin, asin, sqrt
 
 def haversine(lat1, lon1, lat2, lon2):
