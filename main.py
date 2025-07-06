@@ -25,6 +25,9 @@ from rutas.reserva import ruta_reserva
 from rutas.wompi import ruta_wompi
 from rutas.openai import ruta_openai
 from rutas.ical import  ruta_ical
+from rutas.localizaciones import  ruta_localizaciones
+from rutas.visitas import  ruta_visitas
+
 
 app = FastAPI(title="Glamperos", version="1.0")
 
@@ -60,7 +63,8 @@ app.include_router(ruta_reserva)
 app.include_router(ruta_wompi)
 app.include_router(ruta_openai)
 app.include_router(ruta_ical)
-
+app.include_router(ruta_localizaciones)
+app.include_router(ruta_visitas)
 
 @app.get("/", tags=["Home"])
 async def root():
