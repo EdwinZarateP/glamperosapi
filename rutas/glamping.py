@@ -235,8 +235,10 @@ async def crear_glamping(
         raise HTTPException(status_code=500, detail=f"Error interno: {str(e)}")
 
 
-@ruta_glampings.get("/glampingfiltrados", response_model=List[ModeloGlamping])
+# Devolver glamping filtrados 
+@ruta_glampings.get("/glampingfiltrados")
 async def glamping_filtrados(
+    request: Request,
     lat: Optional[float] = Query(None),
     lng: Optional[float] = Query(None),
     tipoGlamping: Optional[str] = Query(None),
@@ -247,19 +249,23 @@ async def glamping_filtrados(
     fechaFin: Optional[str] = Query(None),
     amenidades: Optional[List[str]] = Query(None),
     aceptaMascotas: Optional[bool] = Query(None),
+    ordenPrecio: Optional[str] = Query(None, regex="^(asc|desc)$"),
     page: int = Query(1, ge=1),
     limit: int = Query(24, ge=1),
     distanciaMax: float = Query(150.0),
 ):
     try:
-        filtro: dict = {"habilitado": True}
+        # Detectar bot
+        user_agent = request.headers.get("user-agent", "").lower()
+        es_bot = any(bot in user_agent for bot in ["bot", "crawl", "spider", "slurp", "bingpreview"])
+        print(f"User-Agent: {user_agent} | Es bot: {es_bot}")
 
+        # Filtro base
+        filtro: dict = {"habilitado": True}
         if tipoGlamping:
             filtro["tipoGlamping"] = tipoGlamping
-        
         if aceptaMascotas is not None:
             filtro["Acepta_Mascotas"] = aceptaMascotas
-
         if precioMin is not None or precioMax is not None:
             precio_filter = {}
             if precioMin is not None:
@@ -267,113 +273,6 @@ async def glamping_filtrados(
             if precioMax is not None:
                 precio_filter["$lte"] = precioMax
             filtro["precioEstandar"] = precio_filter
-
-        if fechaInicio and fechaFin:
-            inicio = datetime.strptime(fechaInicio, "%Y-%m-%d")
-            fin = datetime.strptime(fechaFin, "%Y-%m-%d")
-            dias = [
-                (inicio + timedelta(days=i)).strftime("%Y-%m-%d")
-                for i in range((fin - inicio).days + 1)
-            ]
-            filtro["fechasReservadas"] = {"$not": {"$elemMatch": {"$in": dias}}}
-
-        if amenidades:
-            filtro["amenidadesGlobal"] = {"$all": amenidades}
-
-        # Consulta sin paginar aún
-        cursor = db["glampings"].find(filtro).sort([
-            ("calificacion", -1),
-            ("nombreGlamping", 1),
-            ("_id", 1),
-        ])
-        resultados = list(cursor)
-
-        # Filtrar por capacidad total de huéspedes
-        if totalHuespedes is not None:
-            resultados = [
-                gl for gl in resultados
-                if (
-                    isinstance(gl.get("Cantidad_Huespedes"), (int, float, str)) and
-                    isinstance(gl.get("Cantidad_Huespedes_Adicional"), (int, float, str)) and
-                    (
-                        float(gl.get("Cantidad_Huespedes", 0)) +
-                        float(gl.get("Cantidad_Huespedes_Adicional", 0))
-                    ) >= totalHuespedes
-                )
-            ]
-
-        # Si lat y lng fueron pasados, filtrar por distancia
-                
-        if lat is not None and lng is not None:
-            coordenadas_usuario = (lat, lng)
-            resultados_con_distancia = []
-
-            for gl in resultados:
-                if "ubicacion" in gl:
-                    try:
-                        ubic = gl["ubicacion"]
-                        if isinstance(ubic, str):
-                            ubic = json.loads(ubic)
-                        distancia = geodesic(coordenadas_usuario, (ubic["lat"], ubic["lng"])).km
-                        if distancia <= distanciaMax:
-                            gl["distancia"] = distancia
-                            resultados_con_distancia.append(gl)
-                    except Exception:
-                        continue  # Ignorar errores por coordenadas mal formateadas
-
-            resultados = sorted(resultados_con_distancia, key=lambda x: x["distancia"])
-
-        # Paginación
-        inicio = (page - 1) * limit
-        fin = inicio + limit
-        resultados_paginados = resultados[inicio:fin]
-
-        return [convertir_objectid(g) for g in resultados_paginados]
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al filtrar glampings: {e}")
-
-# Devolver glamping filtrados
-@ruta_glampings.get("/glampingfiltrados2")
-async def glamping_filtrados2(
-    request: Request,  # 👈 agregado para leer user-agent
-    lat: Optional[float] = Query(None),
-    lng: Optional[float] = Query(None),
-    tipoGlamping: Optional[str] = Query(None),
-    precioMin: Optional[float] = Query(None),
-    precioMax: Optional[float] = Query(None),
-    totalHuespedes: Optional[float] = Query(None),
-    fechaInicio: Optional[str] = Query(None),
-    fechaFin: Optional[str] = Query(None),
-    amenidades: Optional[List[str]] = Query(None),
-    aceptaMascotas: Optional[bool] = Query(None),
-    page: int = Query(1, ge=1),
-    limit: int = Query(24, ge=1),
-    distanciaMax: float = Query(150.0),
-):
-    try:
-        # 🚀 Detectar si es un bot según user-agent
-        user_agent = request.headers.get("user-agent", "").lower()
-        es_bot = any(bot in user_agent for bot in ["bot", "crawl", "spider", "slurp", "bingpreview"])
-        print(f"User-Agent: {user_agent} | Es bot: {es_bot}")
-
-        # 1) Construir filtro base
-        filtro: dict = {"habilitado": True}
-
-        if tipoGlamping:
-            filtro["tipoGlamping"] = tipoGlamping
-
-        if aceptaMascotas is not None:
-            filtro["Acepta_Mascotas"] = aceptaMascotas
-
-        if precioMin is not None or precioMax is not None:
-            precio_filter: dict = {}
-            if precioMin is not None:
-                precio_filter["$gte"] = precioMin
-            if precioMax is not None:
-                precio_filter["$lte"] = precioMax
-            filtro["precioEstandar"] = precio_filter
-
         if fechaInicio and fechaFin:
             inicio_dt = datetime.strptime(fechaInicio, "%Y-%m-%d")
             fin_dt = datetime.strptime(fechaFin, "%Y-%m-%d")
@@ -382,19 +281,25 @@ async def glamping_filtrados2(
                 for i in range((fin_dt - inicio_dt).days + 1)
             ]
             filtro["fechasReservadas"] = {"$not": {"$elemMatch": {"$in": dias_rango}}}
-
         if amenidades:
             filtro["amenidadesGlobal"] = {"$all": amenidades}
 
-        # 2) Consulta inicial SIN paginar
-        cursor = db["glampings"].find(filtro).sort([
-            ("calificacion", -1),
-            ("nombreGlamping", 1),
-            ("_id", 1),
-        ])
+        # Ordenamiento inicial en Mongo si NO filtras por distancia
+        sort_criteria = []
+        if ordenPrecio == 'asc':
+            sort_criteria.append(("precioEstandar", 1))
+        elif ordenPrecio == 'desc':
+            sort_criteria.append(("precioEstandar", -1))
+        else:
+            sort_criteria.append(("calificacion", -1))
+        sort_criteria.append(("nombreGlamping", 1))
+        sort_criteria.append(("_id", 1))
+
+        # Consulta base
+        cursor = db["glampings"].find(filtro).sort(sort_criteria)
         resultados = list(cursor)
 
-        # 3) Filtrar por capacidad de huéspedes
+        # Filtrar por capacidad de huéspedes
         if totalHuespedes is not None:
             resultados = [
                 gl for gl in resultados
@@ -408,7 +313,7 @@ async def glamping_filtrados2(
                 )
             ]
 
-        # 4) Filtrar por distancia
+        # Filtrar por distancia si aplica
         if lat is not None and lng is not None:
             coordenadas_usuario = (lat, lng)
             resultados_con_distancia = []
@@ -427,17 +332,25 @@ async def glamping_filtrados2(
                             resultados_con_distancia.append(gl)
                     except Exception:
                         continue
-            resultados = sorted(resultados_con_distancia, key=lambda x: x["distancia"])
+            resultados = resultados_con_distancia
 
-        # 5) Calcular total filtrado
+            # Ordenar por precio si se especificó, sino por distancia
+            if ordenPrecio == 'asc':
+                resultados = sorted(resultados, key=lambda x: x.get("precioEstandar", float('inf')))
+            elif ordenPrecio == 'desc':
+                resultados = sorted(resultados, key=lambda x: x.get("precioEstandar", 0), reverse=True)
+            else:
+                resultados = sorted(resultados, key=lambda x: x["distancia"])
+
+        # Total filtrado
         total = len(resultados)
 
-        # 6) Paginación
+        # Paginación
         inicio_idx = (page - 1) * limit
         fin_idx = inicio_idx + limit
         resultados_paginados = resultados[inicio_idx:fin_idx]
 
-        # 7) Filtrar campos si es bot
+        # Respuesta adaptada si es bot
         if es_bot:
             resultados_paginados = [
                 {
@@ -452,7 +365,7 @@ async def glamping_filtrados2(
         else:
             resultados_paginados = [convertir_objectid(g) for g in resultados_paginados]
 
-        # 8) Respuesta final
+        # Respuesta final
         return {
             "glampings": resultados_paginados,
             "total": total
