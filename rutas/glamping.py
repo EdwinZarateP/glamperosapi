@@ -258,8 +258,6 @@ async def glamping_filtrados(
         # Detectar bot
         user_agent = request.headers.get("user-agent", "").lower()
         es_bot = any(bot in user_agent for bot in ["bot", "crawl", "spider", "slurp", "bingpreview"])
-        print(f"User-Agent: {user_agent} | Es bot: {es_bot}")
-
         # Filtro base
         filtro: dict = {"habilitado": True}
         if tipoGlamping:
@@ -334,13 +332,21 @@ async def glamping_filtrados(
                         continue
             resultados = resultados_con_distancia
 
-            # Ordenar por precio si se especificó, sino por distancia
-            if ordenPrecio == 'asc':
-                resultados = sorted(resultados, key=lambda x: x.get("precioEstandar", float('inf')))
-            elif ordenPrecio == 'desc':
-                resultados = sorted(resultados, key=lambda x: x.get("precioEstandar", 0), reverse=True)
-            else:
-                resultados = sorted(resultados, key=lambda x: x["distancia"])
+        # Define función precio seguro
+        def precio_safe(gl):
+            try:
+                return float(gl.get("precioEstandar", float('inf')))
+            except (TypeError, ValueError):
+                return float('inf')
+
+        # Ordenamiento final
+        if ordenPrecio == 'asc':
+            resultados = sorted(resultados, key=precio_safe)
+        elif ordenPrecio == 'desc':
+            resultados = sorted(resultados, key=precio_safe, reverse=True)
+        else:
+            # Si no se especificó orden por precio, ordena por distancia (si existe) o por calificación como fallback
+            resultados = sorted(resultados, key=lambda x: x.get("distancia", float('inf')))
 
         # Total filtrado
         total = len(resultados)
@@ -373,7 +379,6 @@ async def glamping_filtrados(
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al filtrar glampings: {e}")
-
 
 
 # -------------------Obtener todos los glampings -------------------
