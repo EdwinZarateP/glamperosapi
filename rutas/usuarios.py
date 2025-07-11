@@ -75,6 +75,7 @@ def modelo_usuario(usuario) -> dict:
         "numeroDocumento": usuario.get("numeroDocumento", ""),
         "nombreTitular": usuario.get("nombreTitular", ""),
         "aceptaTratamientoDatos": usuario.get("aceptaTratamientoDatos", False),
+        "rol": usuario.get("rol", "usuario"),
     }
 
 # Función para optimizar imágenes y convertirlas a WebP
