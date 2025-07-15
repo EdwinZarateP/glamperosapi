@@ -9,7 +9,7 @@ import os
 MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
 ConexionMongo = MongoClient(MONGO_URI)
 db = ConexionMongo["glamperos"]
-
+    
 # Crear el router para favoritos
 ruta_favoritos = APIRouter(
     prefix="/favoritos",

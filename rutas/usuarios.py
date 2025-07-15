@@ -163,38 +163,59 @@ async def crear_usuario(usuario: Usuario):
 # Registro de usuario a través de Google (sin necesidad de clave)
 @ruta_usuario.post("/google", response_model=dict)
 async def registro_google(usuario: UsuarioGoogle):
+    # 1) Buscamos si ya existe el correo
+    usuario_existente = base_datos.usuarios.find_one({"email": usuario.email})
+
+    if usuario_existente:
+        # Si en la BD ya había aceptado → devolvemos directo
+        if usuario_existente.get("aceptaTratamientoDatos", False):
+            return {
+                "mensaje": "Correo ya registrado",
+                "usuario": modelo_usuario(usuario_existente)
+            }
+
+        # Si no había aceptado en la BD, obligamos el check
+        if not usuario.aceptaTratamientoDatos:
+            raise HTTPException(
+                status_code=400,
+                detail="Debe aceptar el tratamiento de datos personales para continuar"
+            )
+
+        # Marcó ahora el check → actualizamos en la BD y devolvemos
+        base_datos.usuarios.update_one(
+            {"email": usuario.email},
+            {"$set": {"aceptaTratamientoDatos": True}}
+        )
+        actualizado = base_datos.usuarios.find_one({"email": usuario.email})
+        return {
+            "mensaje": "Consentimiento registrado",
+            "usuario": modelo_usuario(actualizado)
+        }
+
+    # 2) Si NO existe, AHORA sí exigimos su consentimiento
     if not usuario.aceptaTratamientoDatos:
         raise HTTPException(
             status_code=400,
             detail="Debe aceptar el tratamiento de datos personales para registrarse"
         )
 
-    usuario_existente = base_datos.usuarios.find_one({"email": usuario.email})
-    if usuario_existente:
-        return {
-            "mensaje": "Correo ya registrado",
-            "usuario": modelo_usuario(usuario_existente)
-        }
-
+    # 3) Creamos el nuevo usuario con el campo en True
     nuevo_usuario = {
         "nombre": usuario.nombre,
         "email": usuario.email,
         "telefono": "",
         "clave": "autenticacionGoogle",
         "glampings": [],
-        "aceptaTratamientoDatos": usuario.aceptaTratamientoDatos,
+        "aceptaTratamientoDatos": True,
         "fecha_registro": datetime.now().astimezone(ZONA_HORARIA_COLOMBIA),
     }
-
     result = base_datos.usuarios.insert_one(nuevo_usuario)
     usuario_insertado = base_datos.usuarios.find_one({"_id": result.inserted_id})
-    
-    # ✅ esto asegura que devuelves el ID como "id"
+
     return {
         "mensaje": "Usuario creado exitosamente",
         "usuario": modelo_usuario(usuario_insertado)
     }
-
 
 # ------------Endpoint para obtener Usuarios con glamping--------------------
 @ruta_usuario.get(
