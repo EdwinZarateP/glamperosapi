@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from datetime import datetime, timezone  # ✅ Importa datetime también # Para UTC
 import pytz  # Para manejar zonas horarias específicas
 import os
+from typing import Optional
 
 # ============================================================================
 # CONFIGURACIÓN DE LA BASE DE DATOS
@@ -41,13 +42,13 @@ class Reserva(BaseModel):
     bebes: int
     mascotas: int
     EstadoReserva: str
-    ComentariosCancelacion: str
+    ComentariosCancelacion: Optional[str] = None
     EstadoPago: str = "Pendiente"
     EstadoPagoProp: str = "Pendiente" 
     MetodoPago: str = None
     FechaPagoPropietario: datetime = None
     ReferenciaPago: str = None
-    codigoReserva: str  # 🔥 Agrega esta línea para que FastAPI lo acepte
+    codigoReserva: str  
 
 
 class ActualizarReserva(BaseModel):
