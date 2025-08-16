@@ -506,7 +506,7 @@ async def actualizar_calificacion(
 
 
 # solo para actualizar datos basicos del glamping
-@ruta_glampings.put("/Datos/{glamping_id}", response_model=ModeloGlamping)
+@ruta_glampings.put("/Datos/{glamping_id}", response_model=ModeloGlamping,  summary="Actualizar datos basicos del glamping")
 async def actualizar_glamping(
     glamping_id: str,
     nombreGlamping: str = Form(None),
@@ -523,7 +523,12 @@ async def actualizar_glamping(
     video_youtube: str = Form(None),
     urlIcal: str = Form(None),
     urlIcalBooking: str = Form(None),
-    amenidadesGlobal: str = Form(...), 
+    amenidadesGlobal: str = Form(...),
+    decoracion_sencilla: Optional[str] = Form(None),
+    valor_decoracion_sencilla: Optional[float] = Form(None),
+    decoracion_especial: Optional[str] = Form(None),
+    valor_decoracion_especial: Optional[float] = Form(None),
+ 
 ):
     try:
         glamping = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
@@ -583,6 +588,14 @@ async def actualizar_glamping(
             actualizaciones["urlIcalBooking"] = urlIcalBooking
         if amenidadesGlobal:
             actualizaciones["amenidadesGlobal"] = amenidades_lista
+        if decoracion_sencilla is not None:
+            actualizaciones["decoracion_sencilla"] = decoracion_sencilla
+        if valor_decoracion_sencilla is not None:
+            actualizaciones["valor_decoracion_sencilla"] = valor_decoracion_sencilla
+        if decoracion_especial is not None:
+            actualizaciones["decoracion_especial"] = decoracion_especial
+        if valor_decoracion_especial is not None:
+            actualizaciones["valor_decoracion_especial"] = valor_decoracion_especial
 
         db["glampings"].update_one({"_id": ObjectId(glamping_id)}, {"$set": actualizaciones})
         glamping_actualizado = db["glampings"].find_one({"_id": ObjectId(glamping_id)})

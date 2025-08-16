@@ -31,6 +31,10 @@ class ModeloGlamping(BaseModel):
     propietario_id: str = "6482ac77b9f19f39d67891b2"
     urlIcal: Optional[str] = None
     urlIcalBooking: Optional[str] = None
+    decoracion_sencilla: Optional[str] = ""
+    valor_decoracion_sencilla: Optional[float] = 0
+    decoracion_especial: Optional[str] = ""
+    valor_decoracion_especial: Optional[float] = 0
 
     class Config:
         allow_population_by_field_name = True 
