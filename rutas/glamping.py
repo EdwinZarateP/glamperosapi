@@ -528,7 +528,25 @@ async def actualizar_glamping(
     valor_decoracion_sencilla: Optional[float] = Form(None),
     decoracion_especial: Optional[str] = Form(None),
     valor_decoracion_especial: Optional[float] = Form(None),
- 
+    paseo_cuatrimoto: Optional[str] = Form(None),
+    valor_paseo_cuatrimoto: Optional[float] = Form(None),
+    paseo_caballo: Optional[str] = Form(None),
+    valor_paseo_caballo: Optional[float] = Form(None),
+    masaje_pareja: Optional[str] = Form(None),
+    valor_masaje_pareja: Optional[float] = Form(None),
+    dia_sol: Optional[str] = Form(None),
+    valor_dia_sol: Optional[float] = Form(None), 
+    caminata: Optional[str] = Form(None),
+    valor_caminata: Optional[float] = Form(None), 
+    kit_fogata: Optional[str] = Form(None),
+    valor_kit_fogata: Optional[float] = Form(None),
+    cena_romantica: Optional[str] = Form(None),
+    valor_cena_romantica: Optional[float] = Form(None),
+    mascota_adicional: Optional[str] = Form(None),
+    valor_mascota_adicional: Optional[float] = Form(None),
+    politicas_casa: Optional[str] = Form(None),
+    horarios: Optional[str] = Form(None),
+
 ):
     try:
         glamping = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
@@ -595,7 +613,45 @@ async def actualizar_glamping(
         if decoracion_especial is not None:
             actualizaciones["decoracion_especial"] = decoracion_especial
         if valor_decoracion_especial is not None:
-            actualizaciones["valor_decoracion_especial"] = valor_decoracion_especial
+            actualizaciones["valor_decoracion_especial"] = valor_decoracion_especial        
+        if paseo_cuatrimoto is not None:
+            actualizaciones["paseo_cuatrimoto"] = paseo_cuatrimoto
+        if valor_paseo_cuatrimoto is not None:
+            actualizaciones["valor_paseo_cuatrimoto"] = valor_paseo_cuatrimoto
+        if paseo_caballo is not None:
+            actualizaciones["paseo_caballo"] = paseo_caballo
+        if valor_paseo_caballo is not None:
+            actualizaciones["valor_paseo_caballo"] = valor_paseo_caballo
+        if masaje_pareja is not None:
+            actualizaciones["masaje_pareja"] = masaje_pareja
+        if valor_masaje_pareja is not None:
+            actualizaciones["valor_masaje_pareja"] = valor_masaje_pareja
+        if dia_sol is not None:
+            actualizaciones["dia_sol"] = dia_sol
+        if valor_dia_sol is not None:
+            actualizaciones["valor_dia_sol"] = valor_dia_sol          
+        if caminata is not None:
+            actualizaciones["caminata"] = caminata
+        if valor_caminata is not None:
+            actualizaciones["valor_caminata"] = valor_caminata
+        if kit_fogata is not None:
+            actualizaciones["kit_fogata"] = kit_fogata
+        if valor_kit_fogata is not None:
+            actualizaciones["valor_kit_fogata"] = valor_kit_fogata
+        if cena_romantica is not None:
+            actualizaciones["cena_romantica"] = cena_romantica
+        if valor_cena_romantica is not None:
+            actualizaciones["valor_cena_romantica"] = valor_cena_romantica
+        if mascota_adicional is not None:
+            actualizaciones["mascota_adicional"] = mascota_adicional
+        if valor_mascota_adicional is not None:
+            actualizaciones["valor_mascota_adicional"] = valor_mascota_adicional
+        if politicas_casa is not None:
+            actualizaciones["politicas_casa"] = politicas_casa
+        if horarios is not None:
+            actualizaciones["horarios"] = horarios
+    
+
 
         db["glampings"].update_one({"_id": ObjectId(glamping_id)}, {"$set": actualizaciones})
         glamping_actualizado = db["glampings"].find_one({"_id": ObjectId(glamping_id)})

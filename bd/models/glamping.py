@@ -1,40 +1,81 @@
-from pydantic import BaseModel, HttpUrl, Field
-from typing import Optional, List, Dict
+from pydantic import BaseModel, Field
+from typing import Optional, List, Any
 from datetime import datetime
 
 class ModeloGlamping(BaseModel):
+    # MongoDB id
     id: Optional[str] = Field(None, alias="_id")
-    habilitado: Optional[bool] = Field(True)
-    nombreGlamping: str = "Glamping Estrella Verde" 
-    tipoGlamping: str = "choza"
-    Acepta_Mascotas: bool = True     
-    ubicacion: Optional[Dict[str, float]] = {"latitud": 4.5981, "longitud": -74.0758}
-    direccion: str = "Plaza Bolivar, Bogota, Colombia" 
-    precioEstandar: float = 0
-    precioEstandarAdicional:float = 0
-    diasCancelacion:Optional[float] = 3
-    Cantidad_Huespedes: float = 1  
-    Cantidad_Huespedes_Adicional: float = 0 
-    minimoNoches: float = 1 
-    descuento:float = 0 
-    descripcionGlamping: str = "Un lugar increíble rodeado de naturaleza."
-    imagenes: List[str] = ["https://example.com/image1.jpg", "https://example.com/image2.jpg"]  # Ejemplo de URLs de imágenes
-    video_youtube: Optional[str] = "sin video"
-    calificacion: Optional[float] = 5
-    amenidadesGlobal: List[str] = ["WiFi", "Jacuzzi", "Piscina"]
-    ciudad_departamento: str = "Bogotá, Cundinamarca"
-    fechasReservadas: Optional[List[str]] = Field(default_factory=list)  # Campo unión
-    fechasReservadasManual: Optional[List[str]] = Field(default_factory=list)
-    fechasReservadasAirbnb: Optional[List[str]] = Field(default_factory=list)
-    fechasReservadasBooking: Optional[List[str]] = Field(default_factory=list)
-    creado: Optional[datetime] = datetime.now()
-    propietario_id: str = "6482ac77b9f19f39d67891b2"
+
+    # — Datos base —
+    habilitado: Optional[bool] = True
+    nombreGlamping: Optional[str] = None
+    tipoGlamping: Optional[str] = None
+    Acepta_Mascotas: Optional[bool] = None
+    # Puede venir como dict {"lat": ..., "lng": ...} o como string JSON
+    ubicacion: Optional[Any] = None
+    direccion: Optional[str] = None
+
+    precioEstandar: Optional[float] = None
+    precioEstandarAdicional: Optional[float] = None
+    diasCancelacion: Optional[float] = None
+    Cantidad_Huespedes: Optional[float] = None
+    Cantidad_Huespedes_Adicional: Optional[float] = None
+    minimoNoches: Optional[float] = None
+    descuento: Optional[float] = None
+
+    descripcionGlamping: Optional[str] = None
+    imagenes: Optional[List[str]] = None
+    video_youtube: Optional[str] = None
+    calificacion: Optional[float] = None
+    amenidadesGlobal: Optional[List[str]] = None
+    ciudad_departamento: Optional[str] = None
+
+    # Fechas
+    fechasReservadas: Optional[List[str]] = None
+    fechasReservadasManual: Optional[List[str]] = None
+    fechasReservadasAirbnb: Optional[List[str]] = None
+    fechasReservadasBooking: Optional[List[str]] = None
+
+    creado: Optional[datetime] = None
+    propietario_id: Optional[str] = None
     urlIcal: Optional[str] = None
     urlIcalBooking: Optional[str] = None
-    decoracion_sencilla: Optional[str] = ""
-    valor_decoracion_sencilla: Optional[float] = 0
-    decoracion_especial: Optional[str] = ""
-    valor_decoracion_especial: Optional[float] = 0
+
+    # — Ten en cuenta —
+    politicas_casa: Optional[str] = None
+    horarios: Optional[str] = None
+
+    # — Servicios adicionales —
+    decoracion_sencilla: Optional[str] = None
+    valor_decoracion_sencilla: Optional[float] = None
+
+    decoracion_especial: Optional[str] = None
+    valor_decoracion_especial: Optional[float] = None
+
+    paseo_cuatrimoto: Optional[str] = None
+    valor_paseo_cuatrimoto: Optional[float] = None
+
+    paseo_caballo: Optional[str] = None
+    valor_paseo_caballo: Optional[float] = None
+
+    masaje_pareja: Optional[str] = None
+    valor_masaje_pareja: Optional[float] = None
+
+    dia_sol: Optional[str] = None
+    valor_dia_sol: Optional[float] = None
+
+    caminata: Optional[str] = None
+    valor_caminata: Optional[float] = None
+
+    kit_fogata: Optional[str] = None
+    valor_kit_fogata: Optional[float] = None
+
+    cena_romantica: Optional[str] = None
+    valor_cena_romantica: Optional[float] = None
+
+    mascota_adicional: Optional[str] = None
+    valor_mascota_adicional: Optional[float] = None
 
     class Config:
-        allow_population_by_field_name = True 
+        allow_population_by_field_name = True
+        extra = "ignore"
