@@ -70,6 +70,9 @@ class ModeloGlamping(BaseModel):
     kit_fogata: Optional[str] = None
     valor_kit_fogata: Optional[float] = None
 
+    cena_estandar: Optional[str] = None
+    valor_cena_estandar: Optional[float] = None
+
     cena_romantica: Optional[str] = None
     valor_cena_romantica: Optional[float] = None
 

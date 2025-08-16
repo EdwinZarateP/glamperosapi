@@ -542,6 +542,8 @@ async def actualizar_glamping(
     valor_kit_fogata: Optional[float] = Form(None),
     cena_romantica: Optional[str] = Form(None),
     valor_cena_romantica: Optional[float] = Form(None),
+    cena_estandar: Optional[str] = Form(None),
+    valor_cena_estandar: Optional[float] = Form(None),    
     mascota_adicional: Optional[str] = Form(None),
     valor_mascota_adicional: Optional[float] = Form(None),
     politicas_casa: Optional[str] = Form(None),
@@ -642,6 +644,10 @@ async def actualizar_glamping(
             actualizaciones["cena_romantica"] = cena_romantica
         if valor_cena_romantica is not None:
             actualizaciones["valor_cena_romantica"] = valor_cena_romantica
+        if cena_estandar is not None:
+            actualizaciones["cena_estandar"] = cena_estandar
+        if valor_cena_estandar is not None:
+            actualizaciones["valor_cena_estandar"] = valor_cena_estandar            
         if mascota_adicional is not None:
             actualizaciones["mascota_adicional"] = mascota_adicional
         if valor_mascota_adicional is not None:
