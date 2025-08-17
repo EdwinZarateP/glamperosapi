@@ -675,8 +675,6 @@ async def actualizar_glamping(
         if horarios is not None:
             actualizaciones["horarios"] = horarios
     
-
-
         db["glampings"].update_one({"_id": ObjectId(glamping_id)}, {"$set": actualizaciones})
         glamping_actualizado = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
         return ModeloGlamping(**convertir_objectid(glamping_actualizado))
