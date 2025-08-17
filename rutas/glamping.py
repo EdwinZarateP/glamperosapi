@@ -538,6 +538,12 @@ async def actualizar_glamping(
     valor_dia_sol: Optional[float] = Form(None), 
     caminata: Optional[str] = Form(None),
     valor_caminata: Optional[float] = Form(None), 
+    torrentismo: Optional[str] = Form(None),
+    valor_torrentismo: Optional[float] = Form(None),    
+    parapente: Optional[str] = Form(None),
+    valor_parapente: Optional[float] = Form(None),
+    paseo_lancha: Optional[str] = Form(None),
+    valor_paseo_lancha: Optional[float] = Form(None),   
     kit_fogata: Optional[str] = Form(None),
     valor_kit_fogata: Optional[float] = Form(None),
     cena_romantica: Optional[str] = Form(None),
@@ -636,6 +642,18 @@ async def actualizar_glamping(
             actualizaciones["caminata"] = caminata
         if valor_caminata is not None:
             actualizaciones["valor_caminata"] = valor_caminata
+        if torrentismo is not None:
+            actualizaciones["torrentismo"] = torrentismo
+        if valor_torrentismo is not None:
+            actualizaciones["valor_torrentismo"] = valor_torrentismo
+        if paseo_lancha is not None:
+            actualizaciones["paseo_lancha"] = paseo_lancha
+        if valor_paseo_lancha is not None:
+            actualizaciones["valor_paseo_lancha"] = valor_paseo_lancha
+        if parapente is not None:
+            actualizaciones["parapente"] = parapente
+        if valor_parapente is not None:
+            actualizaciones["valor_parapente"] = valor_parapente
         if kit_fogata is not None:
             actualizaciones["kit_fogata"] = kit_fogata
         if valor_kit_fogata is not None:

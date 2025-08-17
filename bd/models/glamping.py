@@ -79,6 +79,13 @@ class ModeloGlamping(BaseModel):
     mascota_adicional: Optional[str] = None
     valor_mascota_adicional: Optional[float] = None
 
+    torrentismo: Optional[str] = None
+    valor_torrentismo: Optional[float] = None
+    parapente: Optional[str] = None
+    valor_parapente: Optional[float] = None
+    paseo_lancha: Optional[str] = None
+    valor_paseo_lancha: Optional[float] = None
+
     class Config:
         allow_population_by_field_name = True
         extra = "ignore"
