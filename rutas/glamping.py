@@ -18,6 +18,30 @@ from bd.models.glamping import ModeloGlamping
 from PIL import Image, ExifTags
 from utils.deepseek_utils import extraer_intencion, generar_respuesta  # ✅ importa tu util nuevo
 
+SERVICIOS_EXTRAS = [
+    {"desc": "dia_sol",              "val": "valor_dia_sol"},
+    {"desc": "kit_fogata",           "val": "valor_kit_fogata"},
+    {"desc": "mascota_adicional",    "val": "valor_mascota_adicional"},
+    {"desc": "decoracion_sencilla",  "val": "valor_decoracion_sencilla"},
+    {"desc": "decoracion_especial",  "val": "valor_decoracion_especial"},
+    {"desc": "paseo_cuatrimoto",     "val": "valor_paseo_cuatrimoto"},
+    {"desc": "paseo_caballo",        "val": "valor_paseo_caballo"},
+    {"desc": "masaje_pareja",        "val": "valor_masaje_pareja"},
+    {"desc": "terapia_facial",        "val": "valor_terapia_facial"},    
+    {"desc": "caminata",             "val": "valor_caminata"},
+    {"desc": "torrentismo",          "val": "valor_torrentismo"},
+    {"desc": "parapente",            "val": "valor_parapente"},
+    {"desc": "paseo_lancha",         "val": "valor_paseo_lancha"},
+    {"desc": "kayak",                "val": "valor_kayak"},
+    {"desc": "jet_ski",              "val": "valor_jet_ski"},    
+    {"desc": "paseo_vela",           "val": "valor_paseo_vela"},
+    {"desc": "paseo_bicicleta",      "val": "valor_paseo_bicicleta"},
+    {"desc": "picnic_romantico",     "val": "valor_picnic_romantico"},
+    {"desc": "proyeccion_pelicula",  "val": "valor_proyeccion_pelicula"},
+    {"desc": "cena_estandar",        "val": "valor_cena_estandar"},
+    {"desc": "cena_romantica",       "val": "valor_cena_romantica"},
+]
+
 class PaginaGlampings(BaseModel):
     glampings: List[ModeloGlamping]
     total: int
@@ -58,6 +82,27 @@ ruta_glampings = APIRouter(
     responses={404: {"description": "No encontrado"}},
 )
 
+
+def to_bool(v: Optional[str]) -> Optional[bool]:
+    if v is None: return None
+    s = str(v).strip().lower()
+    if s in ("true", "1", "si", "sí"):  return True
+    if s in ("false", "0", "no"):       return False
+    return None  # invalido => no actualiza
+
+def to_float(v: Optional[str]) -> Optional[float]:
+    if v is None: return None
+    s = str(v).strip()
+    if s == "":  return None
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+def to_str(v: Optional[str]) -> Optional[str]:
+    if v is None: return None
+    s = str(v).strip()
+    return s if s != "" else None
 
 def corregir_orientacion(imagen: Image.Image) -> Image.Image:
     """Corrige la orientación de la imagen según los metadatos EXIF."""
@@ -506,181 +551,84 @@ async def actualizar_calificacion(
 
 
 # solo para actualizar datos basicos del glamping
-@ruta_glampings.put("/Datos/{glamping_id}", response_model=ModeloGlamping,  summary="Actualizar datos basicos del glamping")
-async def actualizar_glamping(
-    glamping_id: str,
-    nombreGlamping: str = Form(None),
-    tipoGlamping: str = Form(None),
-    Cantidad_Huespedes: str = Form(None),
-    Cantidad_Huespedes_Adicional:str = Form(None),
-    minimoNoches:str = Form(None),
-    Acepta_Mascotas: str = Form(...), 
-    precioEstandar: str = Form(None),
-    precioEstandarAdicional: str = Form(None),
-    diasCancelacion: str = Form(None),    
-    descuento: str = Form(None),
-    descripcionGlamping: str = Form(None),
-    video_youtube: str = Form(None),
-    urlIcal: str = Form(None),
-    urlIcalBooking: str = Form(None),
-    amenidadesGlobal: str = Form(...),
-    decoracion_sencilla: Optional[str] = Form(None),
-    valor_decoracion_sencilla: Optional[float] = Form(None),
-    decoracion_especial: Optional[str] = Form(None),
-    valor_decoracion_especial: Optional[float] = Form(None),
-    paseo_cuatrimoto: Optional[str] = Form(None),
-    valor_paseo_cuatrimoto: Optional[float] = Form(None),
-    paseo_caballo: Optional[str] = Form(None),
-    valor_paseo_caballo: Optional[float] = Form(None),
-    masaje_pareja: Optional[str] = Form(None),
-    valor_masaje_pareja: Optional[float] = Form(None),
-    dia_sol: Optional[str] = Form(None),
-    valor_dia_sol: Optional[float] = Form(None), 
-    caminata: Optional[str] = Form(None),
-    valor_caminata: Optional[float] = Form(None), 
-    torrentismo: Optional[str] = Form(None),
-    valor_torrentismo: Optional[float] = Form(None),    
-    parapente: Optional[str] = Form(None),
-    valor_parapente: Optional[float] = Form(None),
-    paseo_lancha: Optional[str] = Form(None),
-    valor_paseo_lancha: Optional[float] = Form(None),   
-    kit_fogata: Optional[str] = Form(None),
-    valor_kit_fogata: Optional[float] = Form(None),
-    cena_romantica: Optional[str] = Form(None),
-    valor_cena_romantica: Optional[float] = Form(None),
-    cena_estandar: Optional[str] = Form(None),
-    valor_cena_estandar: Optional[float] = Form(None),    
-    mascota_adicional: Optional[str] = Form(None),
-    valor_mascota_adicional: Optional[float] = Form(None),
-    politicas_casa: Optional[str] = Form(None),
-    horarios: Optional[str] = Form(None),
-
-):
+@ruta_glampings.put("/Datos/{glamping_id}", response_model=ModeloGlamping, summary="Actualizar datos básicos del glamping")
+async def actualizar_glamping(glamping_id: str, request: Request):
     try:
         glamping = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
         if not glamping:
             raise HTTPException(status_code=404, detail="Glamping no encontrado")
 
-        # Procesar el valor de Acepta_Mascotas
-        if Acepta_Mascotas == "false":
-            Acepta_Mascotas = False
-        elif Acepta_Mascotas == "true":
-            Acepta_Mascotas = True
-        else:
-            raise HTTPException(status_code=400, detail="Valor inválido para Acepta_Mascotas")
+        form = await request.form()
 
-        # Procesamiento de amenidadesGlobal: convertir de cadena a lista de amenidades
-        amenidades_lista = [amenidad.strip() for amenidad in amenidadesGlobal.split(",")]
+        # Campos de texto simples
+        TEXT_FIELDS = [
+            "nombreGlamping", "tipoGlamping", "descripcionGlamping", "video_youtube",
+            "urlIcal", "urlIcalBooking", "politicas_casa", "horarios",
+        ]
+        # Campos numéricos
+        FLOAT_FIELDS = [
+            "precioEstandar", "precioEstandarAdicional", "diasCancelacion",
+            "Cantidad_Huespedes", "Cantidad_Huespedes_Adicional", "minimoNoches",
+            "descuento",
+        ]
+        # Booleanos
+        BOOL_FIELDS = ["Acepta_Mascotas"]
 
         actualizaciones = {}
-        if nombreGlamping:
-            actualizaciones["nombreGlamping"] = nombreGlamping
-        if tipoGlamping:
-            actualizaciones["tipoGlamping"] = tipoGlamping
-        if Cantidad_Huespedes:
-            actualizaciones["Cantidad_Huespedes"] = Cantidad_Huespedes        
-        if Cantidad_Huespedes_Adicional is not None:
-            actualizaciones["Cantidad_Huespedes_Adicional"] = Cantidad_Huespedes_Adicional
-        else:
-            actualizaciones["Cantidad_Huespedes_Adicional"] = 0         
-        if minimoNoches:
-            actualizaciones["minimoNoches"] = minimoNoches        
-        if Acepta_Mascotas is not None:
-            actualizaciones["Acepta_Mascotas"] = Acepta_Mascotas
-        if precioEstandar:
-            actualizaciones["precioEstandar"] = precioEstandar
-        if precioEstandarAdicional is not None:
-            actualizaciones["precioEstandarAdicional"] = precioEstandarAdicional
-        else:
-            actualizaciones["precioEstandarAdicional"] = 0 
-        
-        if diasCancelacion is not None:
-            actualizaciones["diasCancelacion"] = diasCancelacion
-        else:
-            actualizaciones["diasCancelacion"] = 0         
 
-        if descuento is not None:
-            actualizaciones["descuento"] = descuento
-        else:
-            actualizaciones["descuento"] = 0
+        # Texto
+        for f in TEXT_FIELDS:
+            val = to_str(form.get(f))
+            if val is not None:
+                actualizaciones[f] = val
 
-        if descripcionGlamping:
-            actualizaciones["descripcionGlamping"] = descripcionGlamping
-        if video_youtube:
-            actualizaciones["video_youtube"] = video_youtube
-        if urlIcal:
-            actualizaciones["urlIcal"] = urlIcal
-        if urlIcalBooking:
-            actualizaciones["urlIcalBooking"] = urlIcalBooking
-        if amenidadesGlobal:
-            actualizaciones["amenidadesGlobal"] = amenidades_lista
-        if decoracion_sencilla is not None:
-            actualizaciones["decoracion_sencilla"] = decoracion_sencilla
-        if valor_decoracion_sencilla is not None:
-            actualizaciones["valor_decoracion_sencilla"] = valor_decoracion_sencilla
-        if decoracion_especial is not None:
-            actualizaciones["decoracion_especial"] = decoracion_especial
-        if valor_decoracion_especial is not None:
-            actualizaciones["valor_decoracion_especial"] = valor_decoracion_especial        
-        if paseo_cuatrimoto is not None:
-            actualizaciones["paseo_cuatrimoto"] = paseo_cuatrimoto
-        if valor_paseo_cuatrimoto is not None:
-            actualizaciones["valor_paseo_cuatrimoto"] = valor_paseo_cuatrimoto
-        if paseo_caballo is not None:
-            actualizaciones["paseo_caballo"] = paseo_caballo
-        if valor_paseo_caballo is not None:
-            actualizaciones["valor_paseo_caballo"] = valor_paseo_caballo
-        if masaje_pareja is not None:
-            actualizaciones["masaje_pareja"] = masaje_pareja
-        if valor_masaje_pareja is not None:
-            actualizaciones["valor_masaje_pareja"] = valor_masaje_pareja
-        if dia_sol is not None:
-            actualizaciones["dia_sol"] = dia_sol
-        if valor_dia_sol is not None:
-            actualizaciones["valor_dia_sol"] = valor_dia_sol          
-        if caminata is not None:
-            actualizaciones["caminata"] = caminata
-        if valor_caminata is not None:
-            actualizaciones["valor_caminata"] = valor_caminata
-        if torrentismo is not None:
-            actualizaciones["torrentismo"] = torrentismo
-        if valor_torrentismo is not None:
-            actualizaciones["valor_torrentismo"] = valor_torrentismo
-        if paseo_lancha is not None:
-            actualizaciones["paseo_lancha"] = paseo_lancha
-        if valor_paseo_lancha is not None:
-            actualizaciones["valor_paseo_lancha"] = valor_paseo_lancha
-        if parapente is not None:
-            actualizaciones["parapente"] = parapente
-        if valor_parapente is not None:
-            actualizaciones["valor_parapente"] = valor_parapente
-        if kit_fogata is not None:
-            actualizaciones["kit_fogata"] = kit_fogata
-        if valor_kit_fogata is not None:
-            actualizaciones["valor_kit_fogata"] = valor_kit_fogata
-        if cena_romantica is not None:
-            actualizaciones["cena_romantica"] = cena_romantica
-        if valor_cena_romantica is not None:
-            actualizaciones["valor_cena_romantica"] = valor_cena_romantica
-        if cena_estandar is not None:
-            actualizaciones["cena_estandar"] = cena_estandar
-        if valor_cena_estandar is not None:
-            actualizaciones["valor_cena_estandar"] = valor_cena_estandar            
-        if mascota_adicional is not None:
-            actualizaciones["mascota_adicional"] = mascota_adicional
-        if valor_mascota_adicional is not None:
-            actualizaciones["valor_mascota_adicional"] = valor_mascota_adicional
-        if politicas_casa is not None:
-            actualizaciones["politicas_casa"] = politicas_casa
-        if horarios is not None:
-            actualizaciones["horarios"] = horarios
-    
+        # Números
+        for f in FLOAT_FIELDS:
+            num = to_float(form.get(f))
+            if num is not None:
+                actualizaciones[f] = num
+
+        # Booleanos
+        for f in BOOL_FIELDS:
+            bv = to_bool(form.get(f))
+            if bv is not None:
+                actualizaciones[f] = bv
+
+        # Amenidades (lista separada por coma)
+        amenidadesGlobal = form.get("amenidadesGlobal")
+        if amenidadesGlobal is not None:
+            lista = [a.strip() for a in str(amenidadesGlobal).split(",") if a.strip()]
+            actualizaciones["amenidadesGlobal"] = lista
+
+        # Extras (texto y valor) iterados desde el catálogo común
+        for s in SERVICIOS_EXTRAS:
+            desc_key = s["desc"]
+            val_key  = s.get("val")
+
+            desc_val = to_str(form.get(desc_key))
+            if desc_val is not None:
+                actualizaciones[desc_key] = desc_val
+
+            if val_key:
+                price = to_float(form.get(val_key))
+                if price is not None:
+                    actualizaciones[val_key] = price
+
+        # Si quieres comportamiento de "default a 0" cuando vienen explícitamente vacíos:
+        #   client debe enviar "0" y arriba se setea. (evitamos sobreescribir con 0 cuando no mandan nada)
+
+        if not actualizaciones:
+            # Nada para actualizar
+            return ModeloGlamping(**convertir_objectid(glamping))
+
         db["glampings"].update_one({"_id": ObjectId(glamping_id)}, {"$set": actualizaciones})
         glamping_actualizado = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
         return ModeloGlamping(**convertir_objectid(glamping_actualizado))
+
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al actualizar glamping: {str(e)}")
-
 
 
 # Listar glampings por propietario_id
