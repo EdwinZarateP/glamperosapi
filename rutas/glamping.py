@@ -40,6 +40,8 @@ SERVICIOS_EXTRAS = [
     {"desc": "proyeccion_pelicula",  "val": "valor_proyeccion_pelicula"},
     {"desc": "cena_estandar",        "val": "valor_cena_estandar"},
     {"desc": "cena_romantica",       "val": "valor_cena_romantica"},
+    {"desc": "tour_1",               "val": "valor_tour_1"},
+    {"desc": "tour_2",               "val": "valor_tour_2"},
 ]
 
 class PaginaGlampings(BaseModel):
