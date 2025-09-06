@@ -96,6 +96,11 @@ class ModeloGlamping(BaseModel):
     valor_paseo_caballo: Optional[float] = None
     paseo_bicicleta: Optional[str] = None
     valor_paseo_bicicleta: Optional[float] = None
+    tour_1: Optional[str] = None
+    valor_tour_1: Optional[float] = None
+    tour_2: Optional[str] = None
+    valor_tour_2: Optional[float] = None
+    
 
     # Aventura aérea
     parapente: Optional[str] = None
