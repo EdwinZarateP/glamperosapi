@@ -853,16 +853,23 @@ async def reenviar_bonos_lote(
                 errores.append(f"No se pudo adjuntar PDF de {b['codigo_unico']}: {e}")
 
     # 5) Construir correo
-    lista_html = "".join(
-        f"<li><b>{e.get('codigo_unico','')}</b>"
-        f"{' — Valor redimible: $' + format(e['valor_redimible'], ',') if e.get('valor_redimible') is not None else ''}"
-        f"{' — Vence: ' + e['vence'] if e.get('vence') else ''}"
-        f"{' — <a href=\"' + e['pdf_bono_url'] + '\">Descargar</a>' if e.get('pdf_bono_url') else ''}"
-        f"{' — (NO ACTIVO)' if e.get('estado') and e['estado']!='activo' else ''}"
-        f"{' — ' + e.get('error','') if e.get('error') else ''}"
-        f"</li>"
-        for e in enlaces_bonos
-    )
+    def _li_bono(e: dict) -> str:
+        partes = [f"<li><b>{e.get('codigo_unico','')}</b>"]
+        if e.get('valor_redimible') is not None:
+            partes.append(" — Valor redimible: $" + format(e['valor_redimible'], ','))
+        if e.get('vence'):
+            partes.append(" — Vence: " + e['vence'])
+        if e.get('pdf_bono_url'):
+            partes.append(f' — <a href="{e["pdf_bono_url"]}">Descargar</a>')
+        if e.get('estado') and e['estado'] != 'activo':
+            partes.append(" — (NO ACTIVO)")
+        if e.get('error'):
+            partes.append(" — " + e['error'])
+        partes.append("</li>")
+        return "".join(partes)
+
+    lista_html = "".join(_li_bono(e) for e in enlaces_bonos)
+
 
     html = f"""
     <h2>Reenvío de bonos Glamperos (lote {compra_lote_id})</h2>
