@@ -1,4 +1,3 @@
-
 from fastapi import APIRouter, HTTPException, status, UploadFile, File, Query
 from pydantic import BaseModel, Field
 from pymongo import MongoClient, ASCENDING, errors
@@ -57,7 +56,6 @@ except Exception:
     storage_client = None  # Permitimos levantar la app; fallará al subir si no hay credenciales
 
 
-
 def _get_bucket():
     if storage_client is None:
         raise HTTPException(status_code=500, detail="Google Cloud Storage no inicializado (credenciales faltantes)")
@@ -88,6 +86,45 @@ def subir_bytes_a_google_storage(data: bytes, carpeta: str, filename: str, conte
         return f"https://storage.googleapis.com/{BUCKET_NAME}/{nombre_archivo}"
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al subir bytes a Google Storage: {str(e)}")
+
+# ===================== Tipos de archivos (PDF o imágenes) =====================
+ALLOWED_MIME = {
+    "application/pdf",
+    "image/jpeg",
+    "image/jpg",
+    "image/png",
+    "image/webp",
+    "application/octet-stream",  # algunos navegadores lo envían
+}
+ALLOWED_EXT = {"pdf", "jpg", "jpeg", "png", "webp"}
+
+MIME_EXT_MAP = {
+    "application/pdf": "pdf",
+    "image/jpeg": "jpg",
+    "image/jpg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+}
+
+def _ext_from_upload(upload: UploadFile) -> str:
+    # 1) por filename
+    if upload.filename and "." in upload.filename:
+        ext = upload.filename.rsplit(".", 1)[-1].lower()
+        if ext in ALLOWED_EXT:
+            return ext
+    # 2) por content-type
+    if upload.content_type in MIME_EXT_MAP:
+        return MIME_EXT_MAP[upload.content_type]
+    return "dat"  # fallback
+
+def _is_allowed_upload(upload: UploadFile) -> bool:
+    if upload.content_type in ALLOWED_MIME:
+        return True
+    # si el content-type viene vacío u 'octet-stream', validamos por extensión
+    if upload.filename and "." in upload.filename:
+        ext = upload.filename.rsplit(".", 1)[-1].lower()
+        return ext in ALLOWED_EXT
+    return False
 
 # ===================== Mongo =====================
 MONGO_URI = os.environ.get("MONGO_URI", "mongodb://localhost:27017")
@@ -204,7 +241,7 @@ def parse_fecha(fecha_str: Optional[str]) -> datetime:
         raise HTTPException(status_code=400, detail="fechaCompra inválida. Use ISO8601.")
 
 # ===================== Endpoints =====================
-# 1) Comprar (Query params + soporte PDF en File) | SIN email_usuario_redime
+# 1) Comprar (Query params + soporte PDF o imagen en File) | SIN email_usuario_redime
 @ruta_bonos.post("/comprar", response_model=dict)
 async def comprar_bonos(
     id_usuario: str = Query(..., description="ID del usuario/comprador (string)"),
@@ -224,11 +261,11 @@ async def comprar_bonos(
     telefono_facturacion: Optional[str] = Query(None, description="Teléfono de facturación"),
 
     # Archivo
-    soporte_pago: UploadFile = File(..., description="PDF del comprobante de pago"),
+    soporte_pago: UploadFile = File(..., description="Comprobante de pago (PDF o imagen JPG/PNG/WEBP)"),
 ):
     # ---- Validaciones básicas
-    if soporte_pago.content_type not in ("application/pdf", "application/octet-stream"):
-        raise HTTPException(status_code=400, detail="El soporte debe ser un PDF")
+    if not _is_allowed_upload(soporte_pago):
+        raise HTTPException(status_code=400, detail="El soporte debe ser PDF o imagen (JPG/PNG/WEBP)")
 
     # Parse bonos
     try:
@@ -262,13 +299,13 @@ async def comprar_bonos(
     if not soporte_bytes:
         raise HTTPException(status_code=400, detail="El archivo de soporte está vacío")
 
-    ext = "pdf"
+    ext = _ext_from_upload(soporte_pago)
     nombre_soporte = f"soporte_{uuid.uuid4().hex}.{ext}"
     soporte_url = subir_bytes_a_google_storage(
         soporte_bytes,
         carpeta=f"{CARPETA_BONOS}/soportes",
         filename=nombre_soporte,
-        content_type=soporte_pago.content_type or "application/pdf",
+        content_type=soporte_pago.content_type or "application/octet-stream",
     )
 
     # ---- Crear documentos de bonos
@@ -363,6 +400,7 @@ async def comprar_bonos(
         adjunto_soporte = [{
             "filename": nombre_soporte,
             "content": base64.b64encode(soporte_bytes).decode("utf-8"),
+            "contentType": soporte_pago.content_type or "application/octet-stream",
         }]
         enviar_correo(
             destinatario="contabilidad@glamperos.com",
@@ -414,7 +452,7 @@ async def aprobar_bono(
     codigo_unico: str,
     id_usuario_admin: str = Query(...),
     observacion: Optional[str] = Query(None),
-    factura_pdf: Optional[UploadFile] = File(None, description="Factura/soporte final para el cliente (opcional)")
+    factura_pdf: Optional[UploadFile] = File(None, description="Factura/soporte final (PDF o imagen JPG/PNG/WEBP) para el cliente (opcional)")
 ):
     bono = db.bonos.find_one({"codigo_unico": codigo_unico})
     if not bono:
@@ -443,10 +481,11 @@ async def aprobar_bono(
 
     # Guardar factura del admin (si la adjunta) en GCS pagosBonos/facturas
     if factura_pdf:
-        if factura_pdf.content_type not in ("application/pdf", "application/octet-stream"):
-            raise HTTPException(status_code=400, detail="La factura debe ser PDF")
+        if not _is_allowed_upload(factura_pdf):
+            raise HTTPException(status_code=400, detail="La factura debe ser PDF o imagen (JPG/PNG/WEBP)")
+        ext_fac = _ext_from_upload(factura_pdf)
         factura_url = subir_a_google_storage(
-            factura_pdf, carpeta=f"{CARPETA_BONOS}/facturas", nombre=f"factura_{bono['codigo_unico']}.pdf"
+            factura_pdf, carpeta=f"{CARPETA_BONOS}/facturas", nombre=f"factura_{bono['codigo_unico']}.{ext_fac}"
         )
         set_fields["factura_url"] = factura_url
 
@@ -458,8 +497,6 @@ async def aprobar_bono(
         "bono": serialize_bono(bono)
     }
 
-
-
 # ------------------------------------------------------------------------------
 # 2b) Aprobar LOTE (admin) → activa todos, adjunta FACTURA del admin en el ÚNICO correo, e incluye links a cada bono
 @ruta_bonos.post("/compras/{compra_lote_id}/aprobar", response_model=dict)
@@ -467,7 +504,7 @@ async def aprobar_lote(
     compra_lote_id: str,
     id_usuario_admin: str = Query(...),
     observacion: Optional[str] = Query(None),
-    factura_pdf: Optional[UploadFile] = File(None, description="Factura/soporte final para el cliente (se adjunta en el correo)")
+    factura_pdf: Optional[UploadFile] = File(None, description="Factura/soporte final (PDF o imagen JPG/PNG/WEBP) para el cliente (se adjunta en el correo)")
 ):
     try:
         lote_oid = ObjectId(compra_lote_id)
@@ -485,18 +522,20 @@ async def aprobar_lote(
     factura_url_general = None
     factura_adjunto = None
     if factura_pdf:
-        if factura_pdf.content_type not in ("application/pdf", "application/octet-stream"):
-            raise HTTPException(status_code=400, detail="La factura debe ser PDF")
+        if not _is_allowed_upload(factura_pdf):
+            raise HTTPException(status_code=400, detail="La factura debe ser PDF o imagen (JPG/PNG/WEBP)")
+        ext_fac = _ext_from_upload(factura_pdf)
         # Subir a GCS
         factura_url_general = subir_a_google_storage(
-            factura_pdf, carpeta=f"{CARPETA_BONOS}/facturas", nombre=f"factura_lote_{compra_lote_id}.pdf"
+            factura_pdf, carpeta=f"{CARPETA_BONOS}/facturas", nombre=f"factura_lote_{compra_lote_id}.{ext_fac}"
         )
         # También adjuntarla en el correo
         factura_pdf.file.seek(0)
         factura_bytes = factura_pdf.file.read()
         factura_adjunto = {
-            "filename": f"factura_lote_{compra_lote_id}.pdf",
-            "content": base64.b64encode(factura_bytes).decode("utf-8")
+            "filename": f"factura_lote_{compra_lote_id}.{ext_fac}",
+            "content": base64.b64encode(factura_bytes).decode("utf-8"),
+            "contentType": factura_pdf.content_type or "application/octet-stream",
         }
 
     aprobados = 0
@@ -548,7 +587,7 @@ async def aprobar_lote(
         <h2>¡Tu compra fue aprobada!</h2>
         <p>Estos son tus bonos (válidos por 1 año):</p>
         <ul>{lista_html}</ul>
-        {"<p>Adjuntamos tu factura en PDF.</p>" if factura_adjunto else ""}
+        {"<p>Adjuntamos tu factura en PDF o imagen.</p>" if factura_adjunto else ""}
         <p>Gracias por comprar en <a href="https://glamperos.com">Glamperos.com</a>.</p>
         """
 
@@ -559,7 +598,6 @@ async def aprobar_lote(
             "aprobados": aprobados,
             "bonos": enlaces_bonos,
             "factura_url": factura_url_general}
-
 
 # ------------------------------------------------------------------------------
 # 3) Rechazar (admin) individual → envía correo al comprador
@@ -591,7 +629,6 @@ async def rechazar_bono(
     enviar_correo(destinatario=bono["email_comprador"], asunto=asunto, html=html)
 
     return {"mensaje": "Bono rechazado y correo enviado.", "codigo_unico": codigo_unico}
-
 
 # ------------------------------------------------------------------------------
 # 3b) Rechazar LOTE (admin) → por compra_lote_id, envía un único correo
@@ -677,7 +714,6 @@ async def redimir_bono(payload: RedimirBonoRequest):
     bono = db.bonos.find_one({"_id": bono["_id"]})
     return {"mensaje": "Bono redimido exitosamente", "bono": serialize_bono(bono)}
 
-
 # ------------------------------------------------------------------------------
 # 6) Listar por comprador
 @ruta_bonos.get("/comprados/{id_usuario}", response_model=List[dict])
@@ -695,7 +731,6 @@ async def listar_bonos_por_lote(compra_lote_id: str):
     bonos = db.bonos.find({"compra_lote_id": lote_oid}).sort("fechaCompra", ASCENDING)
     return [serialize_bono(b) for b in bonos]
 
-
 # ------------------------------------------------------------------------------
 # 7) Obtener por código
 @ruta_bonos.get("/{codigo_unico}", response_model=dict)
@@ -704,7 +739,6 @@ async def obtener_bono(codigo_unico: str):
     if not bono:
         raise HTTPException(status_code=404, detail="Bono no encontrado")
     return serialize_bono(bono)
-
 
 # ------------------------------------------------------------------------------
 # 8) URLs de archivos (opcional)
@@ -722,7 +756,6 @@ async def obtener_pdf_bono_url(codigo_unico: str):
         raise HTTPException(status_code=404, detail="PDF del bono no disponible")
     return {"url": bono["pdf_bono_url"]}
 
-
 # ------------------------------------------------------------------------------
 # 9) Factura
 @ruta_bonos.get("/{codigo_unico}/factura", response_model=dict)
@@ -732,9 +765,8 @@ async def obtener_factura_url(codigo_unico: str):
         raise HTTPException(status_code=404, detail="Factura no disponible")
     return {"url": bono["factura_url"]}
 
-
 # ------------------------------------------------------------------------------
-# 10) reenviar lote de bonos (opcional)
+# 10) Reenviar lote de bonos (opcional)
 @ruta_bonos.post("/compras/{compra_lote_id}/reenviar", response_model=dict)
 async def reenviar_bonos_lote(
     compra_lote_id: str,
@@ -777,7 +809,7 @@ async def reenviar_bonos_lote(
             factura_url_general = b["factura_url"]
             break
 
-    # 3) Adjuntar factura si procede
+    # 3) Adjuntar factura si procede (con extensión real)
     if incluir_factura and factura_url_general:
         try:
             blob_name = _blob_name_from_url(factura_url_general)
@@ -785,8 +817,11 @@ async def reenviar_bonos_lote(
                 bucket = _get_bucket()
                 blob = bucket.blob(blob_name)
                 factura_bytes = blob.download_as_bytes()
+                ext_fac = "dat"
+                if "." in blob_name:
+                    ext_fac = blob_name.rsplit(".", 1)[-1].lower()
                 adjuntos_email.append({
-                    "filename": f"factura_lote_{compra_lote_id}.pdf",
+                    "filename": f"factura_lote_{compra_lote_id}.{ext_fac}",
                     "content": base64.b64encode(factura_bytes).decode("utf-8")
                 })
         except Exception as e:
@@ -870,12 +905,11 @@ async def reenviar_bonos_lote(
 
     lista_html = "".join(_li_bono(e) for e in enlaces_bonos)
 
-
     html = f"""
     <h2>Reenvío de bonos Glamperos (lote {compra_lote_id})</h2>
     <p>Te compartimos nuevamente tus bonos:</p>
     <ul>{lista_html}</ul>
-    {"<p>Adjuntamos tu factura en PDF.</p>" if incluir_factura and factura_url_general else ""}
+    {"<p>Adjuntamos tu factura.</p>" if incluir_factura and factura_url_general else ""}
     {f'<p>También puedes ver tu factura aquí: <a href="{factura_url_general}">{factura_url_general}</a></p>' if factura_url_general else ""}
     <p>Gracias por comprar en <a href="https://glamperos.com">Glamperos.com</a>.</p>
     """
@@ -905,4 +939,3 @@ async def reenviar_bonos_lote(
         "factura_url": factura_url_general,
         "errores": errores
     }
-
