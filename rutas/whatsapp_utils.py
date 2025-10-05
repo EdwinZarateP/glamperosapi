@@ -71,6 +71,7 @@ async def enviar_whatsapp_cliente(
     except Exception as e:
         print(f"🚨 Error al enviar mensaje de WhatsApp al cliente: {e}")
 
+
 async def enviar_whatsapp_propietario(
     numero: str,
     nombrePropietario: str,
@@ -131,3 +132,64 @@ async def enviar_whatsapp_propietario(
             print("✅ WhatsApp enviado al propietario correctamente.")
     except Exception as e:
         print(f"🚨 Error al enviar mensaje de WhatsApp al propietario: {e}")
+
+
+
+async def enviar_whatsapp_compra_bonos(
+    numero: str,
+    pdf: str,
+    correo_cliente: str,
+    valor_bono: str,
+    imagenUrl: str = "https://storage.googleapis.com/glamperos-imagenes/Imagenes/animal1.jpeg",
+):
+    try:
+        whatsappApiToken = os.getenv("WHATSAPP_API_TOKEN")
+        if not whatsappApiToken:
+            print("⚠️ WHATSAPP_API_TOKEN no está definido en las variables de entorno.")
+            return
+        url = "https://graph.facebook.com/v21.0/531912696676146/messages"
+        body = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": numero,
+            "type": "template",
+            "template": {
+                "name": "notifica_compra_bonos",
+                "language": {"code": "es"},
+                "components": [
+                    {
+                        "type": "header",
+                        "parameters": [
+                            {
+                                "type": "image",
+                                "image": {"link": imagenUrl},
+                            },
+                        ],
+                    },
+                    {
+                        "type": "body",
+                        "parameters": [
+                            {"type": "text", "text": pdf},
+                            {"type": "text", "text": correo_cliente},
+                            {"type": "text", "text": valor_bono},
+                        ],
+                    },
+                ],
+            },
+        }
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                url,
+                headers={
+                    "Authorization": f"Bearer {whatsappApiToken}",
+                    "Content-Type": "application/json",
+                },
+                json=body,
+                timeout=10
+            )
+        if resp.status_code != 200:
+            print(f"❌ Error al enviar WhatsApp al cliente de bonos: {resp.text}")
+        else:
+            print("✅ WhatsApp enviado al propietario correctamente.")
+    except Exception as e:
+        print(f"🚨 Error al enviar mensaje de WhatsApp al cliente de bonos: {e}")
