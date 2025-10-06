@@ -938,4 +938,5 @@ async def reenviar_bonos_lote(
         "adjuntos_incluidos": len(adjuntos_email),
         "factura_url": factura_url_general,
         "errores": errores
-    }
+     }
+ 
