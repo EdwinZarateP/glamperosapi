@@ -170,8 +170,8 @@ async def enviar_whatsapp_compra_bonos(
                         "type": "body",
                         "parameters": [
                             {"type": "text", "text": pdf},
-                            {"type": "text", "text": correo_cliente},
                             {"type": "text", "text": valor_bono},
+                            {"type": "text", "text": correo_cliente},
                         ],
                     },
                 ],
