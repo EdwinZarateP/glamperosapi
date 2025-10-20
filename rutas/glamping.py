@@ -16,7 +16,11 @@ import uuid
 import json
 from bd.models.glamping import ModeloGlamping
 from PIL import Image, ExifTags
-from utils.deepseek_utils import extraer_intencion, generar_respuesta  # ✅ importa tu util nuevo
+from utils.deepseek_utils import extraer_intencion, generar_respuesta
+from fastapi.responses import StreamingResponse
+from openpyxl import Workbook
+from openpyxl.utils import get_column_letter
+
 
 SERVICIOS_EXTRAS = [
     {"desc": "dia_sol",              "val": "valor_dia_sol"},
@@ -473,18 +477,6 @@ async def obtener_todos_glampings():
         return glampings_convertidos
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error al obtener glampings: {str(e)}")
-
-
-# Obtener un glamping por ID
-@ruta_glampings.get("/{glamping_id}", response_model=ModeloGlamping)
-async def obtener_glamping_por_id(glamping_id: str):
-    try:
-        glamping = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
-        if not glamping:
-            raise HTTPException(status_code=404, detail="Glamping no encontrado")
-        return ModeloGlamping(**convertir_objectid(glamping))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Error al obtener glamping: {str(e)}")
 
 
 # Eliminar un glamping
@@ -968,3 +960,133 @@ def preguntar(json_input: dict):
         "resultados": raw,
         "respuesta":  respuesta
     }
+
+
+ # exportar glamping en excel-------------------------------------
+@ruta_glampings.get("/exportar.xlsx", summary="Exportar glampings a Excel (incluye teléfono del propietario)")
+async def exportar_glampings_excel(
+    habilitado: Optional[bool] = Query(None, description="Filtra por habilitado True/False"),
+    ciudad: Optional[str] = Query(None, description="Filtra por ciudad_departamento (regex, case-insensitive)"),
+    acepta_mascotas: Optional[bool] = Query(None, alias="aceptaMascotas", description="Filtra por Acepta_Mascotas"),
+):
+    """
+    Exporta un Excel (.xlsx) con el listado de glampings e información del propietario.
+    Columnas:
+      - id_glamping, nombre_glamping, tipo_glamping, ciudad_departamento,
+        precio_estandar, acepta_mascotas, habilitado,
+        propietario_nombre, propietario_email, propietario_telefono
+    """
+    try:
+        # 1) Filtro base
+        filtro: dict = {}
+        if habilitado is not None:
+            filtro["habilitado"] = habilitado
+        if acepta_mascotas is not None:
+            filtro["Acepta_Mascotas"] = acepta_mascotas
+        if ciudad:
+            filtro["ciudad_departamento"] = {"$regex": ciudad, "$options": "i"}
+
+        glampings = list(db["glampings"].find(filtro))
+
+        # 2) Traer propietarios en un solo query
+        propietario_ids = [g.get("propietario_id") for g in glampings if g.get("propietario_id")]
+
+        object_ids = []
+        for pid in propietario_ids:
+            try:
+                if ObjectId.is_valid(pid):
+                    object_ids.append(ObjectId(pid))
+            except Exception:
+                continue
+
+        usuarios_map = {}
+        if object_ids:
+            usuarios = db["usuarios"].find(
+                {"_id": {"$in": object_ids}},
+                {"nombre": 1, "email": 1, "telefono": 1}
+            )
+            for u in usuarios:
+                usuarios_map[str(u["_id"])] = u
+
+        # 3) Crear Excel en memoria
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Glampings"
+
+        headers = [
+            "id_glamping",
+            "nombre_glamping",
+            "tipo_glamping",
+            "ciudad_departamento",
+            "precio_estandar",
+            "acepta_mascotas",
+            "habilitado",
+            "propietario_nombre",
+            "propietario_email",
+            "propietario_telefono",
+        ]
+        ws.append(headers)
+
+        # 4) Agregar filas
+        for g in glampings:
+            propietario_id = g.get("propietario_id")
+            dueno = usuarios_map.get(propietario_id, {})
+
+            # precio_estandar seguro
+            precio = g.get("precioEstandar", 0)
+            try:
+                precio = float(precio)
+            except Exception:
+                precio = 0.0
+
+            fila = [
+                str(g.get("_id", "")),
+                g.get("nombreGlamping", ""),
+                g.get("tipoGlamping", ""),
+                g.get("ciudad_departamento", ""),
+                precio,
+                bool(g.get("Acepta_Mascotas", False)),
+                bool(g.get("habilitado", False)),
+                dueno.get("nombre", ""),
+                dueno.get("email", ""),
+                dueno.get("telefono", ""),
+            ]
+            ws.append(fila)
+
+        # 5) Auto-ajustar ancho de columnas
+        for col_idx, header in enumerate(headers, start=1):
+            max_len = len(str(header))
+            for row in ws.iter_rows(min_col=col_idx, max_col=col_idx, min_row=2):
+                val = row[0].value
+                if val is None:
+                    continue
+                max_len = max(max_len, len(str(val)))
+            ws.column_dimensions[get_column_letter(col_idx)].width = min(max_len + 2, 60)
+
+        # 6) Responder como archivo descargable
+        buffer = BytesIO()
+        wb.save(buffer)
+        buffer.seek(0)
+
+        nombre_archivo = f"glampings_{datetime.now().astimezone(ZONA_HORARIA_COLOMBIA).strftime('%Y%m%d_%H%M')}.xlsx"
+
+        return StreamingResponse(
+            buffer,
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f'attachment; filename="{nombre_archivo}"'},
+        )
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al exportar Excel: {str(e)}")
+
+# Obtener un glamping por ID
+@ruta_glampings.get("/{glamping_id}", response_model=ModeloGlamping)
+async def obtener_glamping_por_id(glamping_id: str):
+    try:
+        glamping = db["glampings"].find_one({"_id": ObjectId(glamping_id)})
+        if not glamping:
+            raise HTTPException(status_code=404, detail="Glamping no encontrado")
+        return ModeloGlamping(**convertir_objectid(glamping))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener glamping: {str(e)}")
+
