@@ -95,7 +95,7 @@ def propose_categories(all_keywords: List[str], max_categories: int, language: s
     lang_hint = "en" if language.lower().startswith("en") else "es"
 
     system = (
-        "Eres un taxonomista experto en marketing digital. "
+        "Eres un taxonomista y SEO experto en marketing digital. "
         "Diseña categorías generales no redundantes para agrupar keywords. "
         "Cada categoría: 2–4 palabras, clara y mutuamente exclusiva. "
         "Responde SOLO JSON válido."
