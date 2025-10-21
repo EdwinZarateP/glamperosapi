@@ -421,13 +421,13 @@ async def comprar_bonos(
             imagenUrl="https://storage.googleapis.com/glamperos-imagenes/Imagenes/bono.png"
         )
 
-        await enviar_whatsapp_compra_bonos(
-            numero="573197862921",  # TODO: reemplazar por el teléfono real del cliente si lo tienes
-            pdf=soporte_url,
-            correo_cliente=str(compra_lote_id) ,
-            valor_bono=f"Total redimible ${total_redimible:,} | Total pagado con IVA: ${total_con_iva:,}",
-            imagenUrl="https://storage.googleapis.com/glamperos-imagenes/Imagenes/bono.png"
-        )
+        # await enviar_whatsapp_compra_bonos(
+        #     numero="573197862921",  # TODO: reemplazar por el teléfono real del cliente si lo tienes
+        #     pdf=soporte_url,
+        #     correo_cliente=str(compra_lote_id) ,
+        #     valor_bono=f"Total redimible ${total_redimible:,} | Total pagado con IVA: ${total_con_iva:,}",
+        #     imagenUrl="https://storage.googleapis.com/glamperos-imagenes/Imagenes/bono.png"
+        # )
     except:
         pass
 
