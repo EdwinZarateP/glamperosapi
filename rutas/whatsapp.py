@@ -27,31 +27,47 @@ WHATSAPP_HUMAN_PHONE = (os.getenv("WHATSAPP_HUMAN_PHONE") or "").strip()
 
 # =========================
 # LISTADOS (links)
-# (Se envían uno a uno para que WhatsApp muestre preview/descripcion)
+# (Se envían uno a uno - sin esperas)
 # =========================
 GLAMPINGS_BOGOTA: List[str] = [
-    "https://glamperos.com/propiedad/67d9910bb7356ca665a6eb93",
-    "https://glamperos.com/propiedad/67d6e09cbef08b81f7592b81",
-    "https://glamperos.com/propiedad/682be66d2bf4d5c634aa8a80",
+    "https://glamperos.com/propiedad/6897773f34f85956b85eab4a",
+    "https://glamperos.com/propiedad/6897772434f85956b85eab49",
+    "https://glamperos.com/propiedad/6827602386c9f5be06c6039d",
+    "https://glamperos.com/propiedad/68a52a23d83e9028812edf7f",
+    "https://glamperos.com/propiedad/682765b486c9f5be06c6039e",
+    "https://glamperos.com/propiedad/682768c586c9f5be06c6039f",
+    "https://glamperos.com/propiedad/68914d9634f85956b85eaa26",
+    "https://glamperos.com/propiedad/68a11b84a0a1c9a8c809b5b5",
+    "https://glamperos.com/propiedad/68a11b72a0a1c9a8c809b5b4",
+    "https://glamperos.com/propiedad/67e629b7ed46c5cd5fcee9ad",
+    "https://glamperos.com/propiedad/688902bb34f85956b85ea78f",
+    "https://glamperos.com/propiedad/6822ac0a86c9f5be06c60394",
+    "https://glamperos.com/propiedad/67c61158bf722ccb3a8e0b0b",
+    "https://glamperos.com/propiedad/67d9bc8cb7356ca665a6eba0",
 ]
 
 GLAMPINGS_MEDELLIN: List[str] = [
     "https://glamperos.com/propiedad/68f29613d60cc8baef6ad155",
     "https://glamperos.com/propiedad/6886794dbec77fc6ebf64ea0",
     "https://glamperos.com/propiedad/68154a82aadd248f50833fdd",
+    "https://glamperos.com/propiedad/681c2a103193d38b54b152ed",
+    "https://glamperos.com/propiedad/68978bcd34f85956b85eab59",
+    "https://glamperos.com/propiedad/68113e4e0389b5eca382d8fb",
+    "https://glamperos.com/propiedad/689fcc4634f85956b85ead6a",
+    "https://glamperos.com/propiedad/681be9d51095b0469c0e3600",
 ]
 
-# ✅ Guatavita (pon aquí tus links cuando los tengas)
 GLAMPINGS_GUATAVITA: List[str] = [
-    # "https://glamperos.com/propiedad/xxxxxxxxxxxxxxxxxxxxxxxx",
+    "https://glamperos.com/propiedad/68192171659173a779d344db",
+    "https://glamperos.com/propiedad/67d6e09cbef08b81f7592b81",
+    "https://glamperos.com/propiedad/6812cbd2ab954364e923a027",
+    "https://glamperos.com/propiedad/67d996f6b7356ca665a6eb98",
+    "https://glamperos.com/propiedad/67d9910bb7356ca665a6eb93",
+    "https://glamperos.com/propiedad/6874622906ea14d27344d8bb",
+    "https://glamperos.com/propiedad/67acfc3a4d16ab7cc77c4d5f",
+    "https://glamperos.com/propiedad/68153b3eaadd248f50833fd9",
+    "https://glamperos.com/propiedad/68153dfaaadd248f50833fda",
 ]
-
-MAPA_ZONAS = {
-    "ZONA_BOGOTA": "Cerca a Bogotá",
-    "ZONA_GUATAVITA": "Guatavita",
-    "ZONA_MEDELLIN": "Cerca a Medellín",
-    "ZONA_BOYACA_SANTANDER": "Boyacá/Santander",
-}
 
 MAPA_FUENTES = {
     "FUENTE_GOOGLE_ADS": "Google Ads",
@@ -214,37 +230,26 @@ async def enviar_boton_ok(
     await _post_graph(payload)
 
 
-async def enviar_lista_zona(to: str):
+async def enviar_menu_zonas_numerado(to: str):
     """
-    List message para poder tener 4+ opciones (porque reply buttons máximo 3).
+    Menú por texto (sin listas interactivas, sin límite de 3).
+    El usuario responde 1,2,3,4.
     """
-    payload = {
-        "messaging_product": "whatsapp",
-        "to": to,
-        "type": "interactive",
-        "interactive": {
-            "type": "list",
-            "body": {"text": "¿En qué zona buscas glamping? 👇"},
-            "action": {
-                "button": "Seleccionar",
-                "sections": [
-                    {
-                        "title": "Zonas",
-                        "rows": [
-                            {"id": "ZONA_BOGOTA", "title": "Cerca a Bogotá"},
-                            {"id": "ZONA_GUATAVITA", "title": "Guatavita"},
-                            {"id": "ZONA_MEDELLIN", "title": "Cerca a Medellín"},
-                            {"id": "ZONA_BOYACA_SANTANDER", "title": "Boyacá/Santander"},
-                        ],
-                    }
-                ],
-            },
-        },
-    }
-    await _post_graph(payload)
+    texto = (
+        "¿En qué zona buscas glamping? 👇\n\n"
+        "Responde con un número:\n"
+        "1) Cerca a Bogotá\n"
+        "2) Guatavita\n"
+        "3) Cerca a Medellín\n"
+        "4) Boyacá/Santander\n\n"
+        "Si quieres volver al inicio escribe *menu*."
+    )
+    await enviar_texto(to, texto)
 
 
 async def enviar_lista_fuente(to: str):
+    # Se deja lista interactiva porque aquí no estás pidiendo cambio,
+    # pero si también la quieres numerada, se cambia igual que zonas.
     payload = {
         "messaging_product": "whatsapp",
         "to": to,
@@ -325,7 +330,7 @@ def _resumen_contexto(ctx: Dict[str, Any]) -> str:
     """
     - Sin "Mi WhatsApp"
     - Sin palabra "Resumen"
-    - Fuente según lo que selecciona (Instagram, etc.)
+    - Fuente según lo que selecciona
     """
     partes = []
 
@@ -377,6 +382,10 @@ def _comando_humano(texto_lower: str) -> bool:
     return texto_lower in ["humano", "asesor", "agente", "persona", "hablar con humano"]
 
 
+def _es_menu(texto_lower: str) -> bool:
+    return texto_lower in ["menu", "menú", "inicio", "volver", "empezar", "reiniciar", "cancelar", "reset"]
+
+
 # =========================
 # WEBHOOK MENSAJES (POST)
 # =========================
@@ -399,7 +408,7 @@ async def webhook(request: Request):
     # -------------------------
     # ATAJOS GLOBALES
     # -------------------------
-    if texto_lower in ["menu", "menú", "inicio", "volver", "empezar", "reiniciar", "cancelar", "reset"]:
+    if _es_menu(texto_lower):
         reset_state(numero)
         set_state(numero, "WAIT_OK", {})
         await enviar_boton_ok(numero, texto_inicio_glamperos(), button_id="OK_INICIO", button_title="OK")
@@ -459,7 +468,7 @@ async def webhook(request: Request):
     if state == "WAIT_OK":
         if texto_lower in ["ok_inicio", "ok", "okay", "okey", "ok."]:
             set_state(numero, "ASK_CITY", {})
-            await enviar_lista_zona(numero)
+            await enviar_menu_zonas_numerado(numero)
             return JSONResponse({"status": "ok"})
 
         await enviar_boton_ok(numero, texto_inicio_glamperos(), button_id="OK_INICIO", button_title="OK")
@@ -467,26 +476,52 @@ async def webhook(request: Request):
         return JSONResponse({"status": "ok"})
 
     if state == "ASK_CITY":
-        if not (texto or "").strip():
-            await enviar_lista_zona(numero)
+        if not texto:
+            await enviar_menu_zonas_numerado(numero)
             return JSONResponse({"status": "ok"})
 
-        # Si viene de la lista, texto será el ID (ZONA_...)
-        zona_final = MAPA_ZONAS.get(texto) or texto
+        # ✅ Selección numerada
+        seleccion = texto_lower.strip()
+
+        mapa_numero_zona = {
+            "1": ("Cerca a Bogotá", GLAMPINGS_BOGOTA, "ZONA_BOGOTA"),
+            "2": ("Guatavita", GLAMPINGS_GUATAVITA, "ZONA_GUATAVITA"),
+            "3": ("Cerca a Medellín", GLAMPINGS_MEDELLIN, "ZONA_MEDELLIN"),
+            "4": ("Boyacá/Santander", [], "ZONA_BOYACA_SANTANDER"),
+        }
+
+        if seleccion not in mapa_numero_zona:
+            await enviar_texto(
+                numero,
+                "No entendí la opción 😅\n\n"
+                "Responde con un número:\n"
+                "1) Cerca a Bogotá\n"
+                "2) Guatavita\n"
+                "3) Cerca a Medellín\n"
+                "4) Boyacá/Santander\n\n"
+                "O escribe *menu* para volver al inicio."
+            )
+            return JSONResponse({"status": "ok"})
+
+        zona_nombre, links, zona_code = mapa_numero_zona[seleccion]
 
         nuevo_contexto = _merge_context(
             context,
-            {"city": zona_final, "city_code": texto if texto in MAPA_ZONAS else None, "via": "search"},
+            {"city": zona_nombre, "city_code": zona_code, "via": "search"},
         )
         set_state(numero, "ASK_ARRIVAL_DATE", nuevo_contexto)
 
-        # ✅ Enviar links uno a uno (para que salga preview por cada uno)
-        if texto == "ZONA_BOGOTA":
-            await enviar_links_uno_a_uno(numero, "Glampings cerca a Bogotá", GLAMPINGS_BOGOTA)
-        elif texto == "ZONA_GUATAVITA":
-            await enviar_links_uno_a_uno(numero, "Glampings en Guatavita", GLAMPINGS_GUATAVITA)
-        elif texto == "ZONA_MEDELLIN":
-            await enviar_links_uno_a_uno(numero, "Glampings cerca a Medellín", GLAMPINGS_MEDELLIN)
+        # ✅ Enviar links uno a uno (sin espera)
+        if links:
+            await enviar_links_uno_a_uno(numero, f"Glampings {zona_nombre}", links)
+        else:
+            await enviar_texto(
+                numero,
+                f"Perfecto ✅ Elegiste: *{zona_nombre}*.\n\n"
+                "Aún no tengo un listado fijo para esta zona.\n"
+                "Si quieres, escribe *humano* y te atiende un asesor.\n"
+                "O escribe *menu* para volver."
+            )
 
         await enviar_texto(numero, pedir_fecha_llegada())
         return JSONResponse({"status": "ok"})
