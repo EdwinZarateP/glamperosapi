@@ -267,7 +267,8 @@ async def enviar_menu_zonas_numerado(to: str):
         "1) Cerca a Bogotá\n"
         "2) Guatavita\n"
         "3) Cerca a Medellín\n"
-        "4) Boyacá/Santander\n\n"
+        "4) Boyacá\n"
+        "5) Santander\n\n"
         "Si quieres volver al inicio escribe *menu*."
     )
     await enviar_texto(to, texto)
