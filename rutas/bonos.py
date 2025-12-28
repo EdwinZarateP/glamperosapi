@@ -6,7 +6,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional, List
 from google.cloud import storage
 import os, random, string, json, base64, uuid
-from rutas.Funciones.pdfBonos import generar_pdf_bono_bytes
+from Funciones.pdfBonos import generar_pdf_bono_bytes
 from rutas.whatsapp_utils import enviar_whatsapp_compra_bonos
 from google.oauth2 import service_account  # <-- nuevo import
 
