@@ -8,13 +8,9 @@ import re
 from datetime import datetime, date
 from typing import Optional, Dict, Any, List
 
-# ✅ Guarda lead
 from Funciones.whatsapp_leads import guardar_lead
-
-# ✅ Estado de chat
 from Funciones.chat_state import get_state, set_state, reset_state
 
-# ✅ para wa.me text prefill
 import urllib.parse
 
 # =========================
@@ -26,7 +22,6 @@ WHATSAPP_API_TOKEN = os.getenv("WHATSAPP_API_TOKEN")
 PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "531912696676146")
 GRAPH_URL = f"https://graph.facebook.com/v21.0/{PHONE_NUMBER_ID}/messages"
 
-# ✅ Número del asesor humano (WhatsApp normal) - SOLO dígitos con indicativo (ej: 573001112233)
 WHATSAPP_HUMAN_PHONE = (os.getenv("WHATSAPP_HUMAN_PHONE") or "").strip()
 
 # =========================
@@ -79,10 +74,6 @@ FECHA_REGEX = re.compile(r"^\s*(\d{2})/(\d{2})/(\d{4})\s*$")
 
 
 def parsear_fecha_ddmmaaaa(texto: str) -> Optional[datetime]:
-    """
-    Valida DD/MM/AAAA y convierte a datetime (sin hora).
-    Retorna None si no es válido.
-    """
     m = FECHA_REGEX.match(texto or "")
     if not m:
         return None
@@ -117,11 +108,6 @@ async def verify_webhook(request: Request):
 # EXTRAER MENSAJE
 # =========================
 def extraer_mensaje(data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """
-    Soporta:
-    - text
-    - interactive (button_reply / list_reply)
-    """
     try:
         value = data["entry"][0]["changes"][0]["value"]
         mensajes = value.get("messages", [])
@@ -147,12 +133,7 @@ def extraer_mensaje(data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
                 lr = inter.get("list_reply") or {}
                 texto = (lr.get("id") or lr.get("title") or "").strip()
 
-        return {
-            "from": m.get("from"),
-            "type": msg_type,
-            "text": texto,
-            "id": m.get("id"),
-        }
+        return {"from": m.get("from"), "type": msg_type, "text": texto, "id": m.get("id")}
     except Exception as e:
         print(f"❌ extraer_mensaje error: {e}")
         return None
@@ -195,12 +176,7 @@ async def enviar_texto(to: str, texto: str):
     await _post_graph(payload)
 
 
-async def enviar_boton_ok(
-    to: str,
-    texto: str,
-    button_id: str = "OK_INICIO",
-    button_title: str = "OK",
-):
+async def enviar_boton_ok(to: str, texto: str, button_id: str = "OK_INICIO", button_title: str = "OK"):
     payload = {
         "messaging_product": "whatsapp",
         "to": to,
@@ -208,11 +184,7 @@ async def enviar_boton_ok(
         "interactive": {
             "type": "button",
             "body": {"text": texto},
-            "action": {
-                "buttons": [
-                    {"type": "reply", "reply": {"id": button_id, "title": button_title}}
-                ]
-            },
+            "action": {"buttons": [{"type": "reply", "reply": {"id": button_id, "title": button_title}}]},
         },
     }
     await _post_graph(payload)
@@ -228,21 +200,9 @@ async def enviar_botones_zona(to: str):
             "body": {"text": "¿En qué zona buscas glamping?"},
             "action": {
                 "buttons": [
-                    {
-                        "type": "reply",
-                        "reply": {"id": "ZONA_BOGOTA", "title": "Cerca a Bogotá"},
-                    },
-                    {
-                        "type": "reply",
-                        "reply": {"id": "ZONA_MEDELLIN", "title": "Cerca a Medellín"},
-                    },
-                    {
-                        "type": "reply",
-                        "reply": {
-                            "id": "ZONA_BOYACA_SANTANDER",
-                            "title": "Boyacá/Santander",
-                        },
-                    },
+                    {"type": "reply", "reply": {"id": "ZONA_BOGOTA", "title": "Cerca a Bogotá"}},
+                    {"type": "reply", "reply": {"id": "ZONA_MEDELLIN", "title": "Cerca a Medellín"}},
+                    {"type": "reply", "reply": {"id": "ZONA_BOYACA_SANTANDER", "title": "Boyacá/Santander"}},
                 ]
             },
         },
@@ -306,12 +266,12 @@ def pedir_fecha_salida() -> str:
     )
 
 
-def mensaje_listado_glampings(titulo: str, links: List[str]) -> str:
-    texto = f"✨ *Glampings {titulo}* ✨\n\n"
-    for i, link in enumerate(links, 1):
-        texto += f"{i}. {link}\n"
-    texto += "\nPuedes abrir cualquiera 👆 o seguir y te ayudo con fechas 📅"
-    return texto
+async def enviar_links_uno_a_uno(to: str, titulo: str, links: List[str]):
+    # 1) encabezado
+    await enviar_texto(to, f"✨ *{titulo}* ✨")
+    # 2) cada link separado para que WhatsApp renderice el preview (si el dominio lo permite)
+    for link in links:
+        await enviar_texto(to, link)
 
 
 # =========================
@@ -327,13 +287,6 @@ def _merge_context(prev: Dict[str, Any], new_fields: Dict[str, Any]) -> Dict[str
 # HELPERS (human redirect)
 # =========================
 def _resumen_contexto(ctx: Dict[str, Any]) -> str:
-    """
-    Texto prellenado para el asesor.
-    REGLAS:
-    - Sin "Mi WhatsApp"
-    - Sin palabra "Resumen"
-    - Fuente: la que eligió el usuario (Instagram/TikTok/etc.)
-    """
     partes = []
 
     arrival = ctx.get("arrival_date")
@@ -369,7 +322,6 @@ def _link_humano_con_contexto(ctx: Dict[str, Any]) -> Optional[str]:
 
     datos = _resumen_contexto(ctx)
 
-    # ✅ Mensaje limpio, sin duplicaciones, sin "Mi WhatsApp", sin "Resumen"
     texto_prellenado = (
         "Hola 👋\n\n"
         "Te escribo desde el chat automático de Glamperos.\n\n"
@@ -396,17 +348,6 @@ async def webhook(request: Request):
         print(f"❌ No pude leer JSON: {e}")
         return JSONResponse({"status": "ok"})
 
-    # 🔎 Log mínimo (para debug cuando 'no responde')
-    try:
-        entrada = data.get("entry", [{}])[0]
-        cambio = entrada.get("changes", [{}])[0]
-        valor = cambio.get("value", {})
-        mensajes = valor.get("messages", [])
-        if mensajes:
-            print("📩 Mensaje recibido:", mensajes[0].get("type"), mensajes[0].get("from"))
-    except Exception:
-        pass
-
     msg = extraer_mensaje(data)
     if not msg:
         return JSONResponse({"status": "ok"})
@@ -416,17 +357,12 @@ async def webhook(request: Request):
     texto_lower = texto.lower().strip()
 
     # -------------------------
-    # ATAJOS GLOBALES (menu siempre disponible)
+    # ATAJOS GLOBALES
     # -------------------------
     if texto_lower in ["menu", "menú", "inicio", "volver", "empezar", "reiniciar", "cancelar", "reset"]:
         reset_state(numero)
         set_state(numero, "WAIT_OK", {})
-        await enviar_boton_ok(
-            numero,
-            texto_inicio_glamperos(),
-            button_id="OK_INICIO",
-            button_title="OK",
-        )
+        await enviar_boton_ok(numero, texto_inicio_glamperos(), button_id="OK_INICIO", button_title="OK")
         return JSONResponse({"status": "ok"})
 
     # -------------------------
@@ -456,11 +392,7 @@ async def webhook(request: Request):
             f"{link}",
         )
 
-        set_state(
-            numero,
-            "REDIRECTED_TO_HUMAN",
-            _merge_context(context, {"redirected_at": datetime.utcnow().isoformat()}),
-        )
+        set_state(numero, "REDIRECTED_TO_HUMAN", _merge_context(context, {"redirected_at": datetime.utcnow().isoformat()}))
         return JSONResponse({"status": "ok"})
 
     # -------------------------
@@ -473,7 +405,6 @@ async def webhook(request: Request):
         await enviar_texto(numero, pedir_fecha_llegada())
         return JSONResponse({"status": "ok"})
 
-    # Si ya fue redirigido a humano, no seguimos (solo menu/humano ya se manejan arriba)
     if state == "REDIRECTED_TO_HUMAN":
         return JSONResponse({"status": "ok"})
 
@@ -481,18 +412,12 @@ async def webhook(request: Request):
     # FLUJO
     # -------------------------
     if state == "WAIT_OK":
-        # Si escribe OK/OK_INICIO, avanza; si no, re-muestra botón OK
         if texto_lower in ["ok_inicio", "ok", "okay", "okey", "ok."]:
             set_state(numero, "ASK_CITY", {})
             await enviar_botones_zona(numero)
             return JSONResponse({"status": "ok"})
 
-        await enviar_boton_ok(
-            numero,
-            texto_inicio_glamperos(),
-            button_id="OK_INICIO",
-            button_title="OK",
-        )
+        await enviar_boton_ok(numero, texto_inicio_glamperos(), button_id="OK_INICIO", button_title="OK")
         set_state(numero, "WAIT_OK", {})
         return JSONResponse({"status": "ok"})
 
@@ -510,22 +435,17 @@ async def webhook(request: Request):
         zona = mapa_zonas.get(texto)
         zona_final = zona or texto
 
-        # ✅ Guardar zona en contexto
         nuevo_contexto = _merge_context(
             context,
-            {
-                "city": zona_final,
-                "city_code": texto if zona else None,
-                "via": "search",
-            },
+            {"city": zona_final, "city_code": texto if zona else None, "via": "search"},
         )
         set_state(numero, "ASK_ARRIVAL_DATE", nuevo_contexto)
 
-        # ✅ Mostrar listados si aplica (sin romper el flujo)
+        # ✅ Enviar links uno a uno (para que salga preview por cada uno)
         if texto == "ZONA_BOGOTA":
-            await enviar_texto(numero, mensaje_listado_glampings("cerca a Bogotá", GLAMPINGS_BOGOTA))
+            await enviar_links_uno_a_uno(numero, "Glampings cerca a Bogotá", GLAMPINGS_BOGOTA)
         elif texto == "ZONA_MEDELLIN":
-            await enviar_texto(numero, mensaje_listado_glampings("cerca a Medellín", GLAMPINGS_MEDELLIN))
+            await enviar_links_uno_a_uno(numero, "Glampings cerca a Medellín", GLAMPINGS_MEDELLIN)
 
         await enviar_texto(numero, pedir_fecha_llegada())
         return JSONResponse({"status": "ok"})
@@ -536,7 +456,6 @@ async def webhook(request: Request):
             await enviar_texto(numero, "No pude leer la fecha 😅\n\n" + pedir_fecha_llegada())
             return JSONResponse({"status": "ok"})
 
-        # ✅ Validación: llegada no puede ser anterior a hoy
         if not es_hoy_o_futura(llegada):
             await enviar_texto(
                 numero,
@@ -557,7 +476,6 @@ async def webhook(request: Request):
             await enviar_texto(numero, "No pude leer la fecha 😅\n\n" + pedir_fecha_salida())
             return JSONResponse({"status": "ok"})
 
-        # ✅ Validación: salida no puede ser anterior a hoy
         if not es_hoy_o_futura(salida):
             await enviar_texto(
                 numero,
@@ -570,7 +488,6 @@ async def webhook(request: Request):
         llegada_txt = context.get("arrival_date")
         llegada_dt = parsear_fecha_ddmmaaaa(llegada_txt) if llegada_txt else None
 
-        # ✅ Validación: salida posterior a llegada
         if llegada_dt and not fechas_en_orden(llegada_dt, salida):
             await enviar_texto(
                 numero,
@@ -585,7 +502,6 @@ async def webhook(request: Request):
         return JSONResponse({"status": "ok"})
 
     if state == "ASK_SOURCE":
-        # Fuente viene del ID de la lista; si escribe manual algo raro, lo guardamos igual
         fuente_id = texto or "FUENTE_CHATGPT"
         nuevo_contexto = _merge_context(context, {"source": fuente_id})
 
@@ -598,7 +514,6 @@ async def webhook(request: Request):
         )
         print(f"✅ Lead guardado en whatsapp_leads: {lead_id}")
 
-        # ✅ Al finalizar, ofrecemos humano de una vez
         link = _link_humano_con_contexto(nuevo_contexto)
 
         if link:
@@ -627,10 +542,5 @@ async def webhook(request: Request):
     # Fallback
     reset_state(numero)
     set_state(numero, "WAIT_OK", {})
-    await enviar_boton_ok(
-        numero,
-        texto_inicio_glamperos(),
-        button_id="OK_INICIO",
-        button_title="OK",
-    )
+    await enviar_boton_ok(numero, texto_inicio_glamperos(), button_id="OK_INICIO", button_title="OK")
     return JSONResponse({"status": "ok"})
