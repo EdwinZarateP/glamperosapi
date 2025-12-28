@@ -7,9 +7,7 @@ import httpx
 import re
 from datetime import datetime
 from typing import Optional, Dict, Any
-
-# ✅ Import correcto según tu estructura:
-# /rutas/Funciones/chat_state.py
+from Funciones.whatsapp_leads import guardar_lead
 from Funciones.chat_state import get_state, set_state, reset_state
 
 # =========================
@@ -378,22 +376,29 @@ async def webhook(request: Request):
         return JSONResponse({"status": "ok"})
 
     if state == "ASK_SOURCE":
-        # Aquí texto llega como ID seleccionado (list_reply id)
         fuente = texto  # ej: FUENTE_GOOGLE_ORGANICO
+        nuevo_context = {**context, "source": fuente}
 
-        # Guardamos en estado (context) para que quede en Mongo "chat_states"
-        nuevo_contexto = _merge_context(context, {"source": fuente})
-        set_state(numero, "DONE", nuevo_contexto)
+        # Guardar state final
+        set_state(numero, "DONE", nuevo_context)
+
+        # ✅ Guardar lead en otra colección
+        lead_id = guardar_lead(
+            phone=numero,
+            context=nuevo_context,
+            property_id=nuevo_context.get("property_id"),
+        )
+        print(f"✅ Lead guardado en whatsapp_leads: {lead_id}")
 
         await enviar_texto(
             numero,
             "Perfecto ✅\n\n"
             "Ya tengo la información 🙌\n"
             "En breve te compartimos opciones disponibles 🌄\n\n"
-            "Si quieres reiniciar, escribe *menu*.\n"
-            "Si deseas hablar con un humano, escribe *humano*."
+            "Si quieres reiniciar, escribe *menu*."
         )
         return JSONResponse({"status": "ok"})
+
 
     # Fallback (si el estado quedó raro)
     reset_state(numero)
