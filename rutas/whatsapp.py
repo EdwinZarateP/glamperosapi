@@ -10,6 +10,9 @@ from typing import Optional, Dict, Any
 from Funciones.whatsapp_leads import guardar_lead
 from Funciones.chat_state import get_state, set_state, reset_state
 
+# ✅ para wa.me text prefill
+import urllib.parse
+
 # =========================
 # CONFIG
 # =========================
@@ -18,6 +21,9 @@ WHATSAPP_API_TOKEN = os.getenv("WHATSAPP_API_TOKEN")
 
 PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "531912696676146")
 GRAPH_URL = f"https://graph.facebook.com/v21.0/{PHONE_NUMBER_ID}/messages"
+
+# ✅ Número del asesor humano (WhatsApp normal)
+WHATSAPP_HUMAN_PHONE = (os.getenv("WHATSAPP_HUMAN_PHONE") or "").strip()
 
 # =========================
 # ROUTER
@@ -183,6 +189,7 @@ async def enviar_boton_ok(
     }
     await _post_graph(payload)
 
+
 async def enviar_botones_zona(to: str):
     """
     Reply buttons: máximo 3. Perfecto para 3 zonas.
@@ -202,7 +209,10 @@ async def enviar_botones_zona(to: str):
                     },
                     {
                         "type": "reply",
-                        "reply": {"id": "ZONA_MEDELLIN", "title": "Busco cerca a Medellín"},
+                        "reply": {
+                            "id": "ZONA_MEDELLIN",
+                            "title": "Busco cerca a Medellín",
+                        },
                     },
                     {
                         "type": "reply",
@@ -243,7 +253,10 @@ async def enviar_lista_fuente(to: str):
                             {"id": "FUENTE_GOOGLE_ADS", "title": "Publicidad en Google"},
                             {"id": "FUENTE_INSTAGRAM", "title": "Instagram"},
                             {"id": "FUENTE_TIKTOK", "title": "Tiktok"},
-                            {"id": "FUENTE_REFERIDO", "title": "Me recomendó un amigo/familiar"},
+                            {
+                                "id": "FUENTE_REFERIDO",
+                                "title": "Me recomendó un amigo/familiar",
+                            },
                             {"id": "FUENTE_CLIENTE", "title": "Ya soy cliente"},
                         ],
                     }
@@ -267,6 +280,7 @@ def texto_inicio_glamperos() -> str:
 
 
 def pedir_ciudad() -> str:
+    # (ya no se usa en el flujo principal, porque ahora usamos botones)
     return "¡Genial! 😊 ¿En qué ciudad o zona buscas glamping?"
 
 
@@ -296,6 +310,36 @@ def _merge_context(prev: Dict[str, Any], new_fields: Dict[str, Any]) -> Dict[str
 
 
 # =========================
+# HELPERS (human redirect)
+# =========================
+def _resumen_contexto(ctx: Dict[str, Any]) -> str:
+    city = ctx.get("city")
+    arrival = ctx.get("arrival_date")
+    departure = ctx.get("departure_date")
+    source = ctx.get("source")
+    property_id = ctx.get("property_id")
+
+    partes = []
+    if city:
+        partes.append(f"Zona/Ciudad: {city}")
+    if arrival:
+        partes.append(f"Llegada: {arrival}")
+    if departure:
+        partes.append(f"Salida: {departure}")
+    if property_id:
+        partes.append(f"Glamping: https://glamperos.com/propiedad/{property_id}")
+    if source:
+        partes.append(f"Fuente: {source}")
+
+    return " | ".join(partes) if partes else "Sin datos aún."
+
+
+def _wa_me_link(phone_digits: str, text: str) -> str:
+    # wa.me requiere dígitos y el texto URL-encoded
+    return f"https://wa.me/{phone_digits}?text={urllib.parse.quote(text)}"
+
+
+# =========================
 # WEBHOOK MENSAJES (POST)
 # =========================
 @ruta_whatsapp.post("/")
@@ -316,18 +360,56 @@ async def webhook(request: Request):
     if texto_lower in ["menu", "menú", "inicio", "reiniciar", "cancelar", "reset"]:
         reset_state(numero)
         set_state(numero, "WAIT_OK", {})
-        await enviar_boton_ok(numero, texto_inicio_glamperos(), button_id="OK_INICIO", button_title="OK")
+        await enviar_boton_ok(
+            numero, texto_inicio_glamperos(), button_id="OK_INICIO", button_title="OK"
+        )
         return JSONResponse({"status": "ok"})
 
+    # -------------------------
+    # ESTADO ACTUAL (antes de humano, para capturar contexto)
+    # -------------------------
+    estado = get_state(numero) or {"state": "WAIT_OK", "context": {}}
+    state = estado.get("state") or "WAIT_OK"
+    context = estado.get("context") or {}
+
+    # -------------------------
+    # HUMANO -> REDIRECCIÓN A WA.ME (WhatsApp normal)
+    # -------------------------
     if texto_lower in ["humano", "asesor", "agente", "persona", "hablar con humano"]:
-        # Modo "humano": el bot no guía más, solo deja un mensaje.
-        set_state(numero, "HUMAN_HANDOFF", {"requested_at": datetime.utcnow().isoformat()})
+        if not WHATSAPP_HUMAN_PHONE:
+            await enviar_texto(
+                numero,
+                "En este momento no tenemos un número de asesor configurado.\n"
+                "Por favor intenta más tarde o escribe *menu*.",
+            )
+            return JSONResponse({"status": "ok"})
+
+        resumen = _resumen_contexto(context)
+
+        texto_prellenado = (
+            "Hola 👋 Necesito ayuda de un asesor humano de Glamperos.\n"
+            f"Mi WhatsApp: {numero}\n"
+            f"Resumen: {resumen}\n\n"
+            "Mi solicitud es:"
+        )
+
+        link = _wa_me_link(WHATSAPP_HUMAN_PHONE, texto_prellenado)
+
         await enviar_texto(
             numero,
             "Entendido ✅\n\n"
-            "Te pondremos en contacto con un asesor humano.\n"
-            "Mientras tanto, por favor cuéntanos tu necesidad en 1 mensaje."
+            "Para hablar con un asesor humano, escríbenos aquí 👇\n"
+            f"{link}\n\n"
+            "El mensaje ya va prellenado con tu información. Solo presiona *Enviar*.",
         )
+
+        # Marcamos que fue redirigido (opcional)
+        set_state(
+            numero,
+            "REDIRECTED_TO_HUMAN",
+            _merge_context(context, {"redirected_at": datetime.utcnow().isoformat()}),
+        )
+
         return JSONResponse({"status": "ok"})
 
     # Detectar link de propiedad en cualquier momento
@@ -339,20 +421,8 @@ async def webhook(request: Request):
         await enviar_texto(numero, pedir_fecha_llegada())
         return JSONResponse({"status": "ok"})
 
-    # -------------------------
-    # ESTADO ACTUAL
-    # -------------------------
-    estado = get_state(numero) or {"state": "WAIT_OK", "context": {}}
-    state = estado.get("state") or "WAIT_OK"
-    context = estado.get("context") or {}
-
-    # Si está en handoff humano, el bot no debe “pisar” la conversación.
-    if state == "HUMAN_HANDOFF":
-        await enviar_texto(
-            numero,
-            "Gracias. Un asesor humano continuará la conversación.\n"
-            "Si deseas volver al bot, escribe *menu*."
-        )
+    # Si ya fue redirigido a humano, no seguimos molestando (solo permitir menu)
+    if state == "REDIRECTED_TO_HUMAN":
         return JSONResponse({"status": "ok"})
 
     # -------------------------
@@ -365,12 +435,14 @@ async def webhook(request: Request):
             return JSONResponse({"status": "ok"})
 
         # Si escribe cualquier cosa, lo encarrilamos con el OK
-        await enviar_boton_ok(numero, texto_inicio_glamperos(), button_id="OK_INICIO", button_title="OK")
+        await enviar_boton_ok(
+            numero, texto_inicio_glamperos(), button_id="OK_INICIO", button_title="OK"
+        )
         set_state(numero, "WAIT_OK", {})
         return JSONResponse({"status": "ok"})
 
     if state == "ASK_CITY":
-    # Si llega vacío o algo raro, volvemos a mostrar los botones
+        # Si llega vacío o algo raro, volvemos a mostrar los botones
         if not (texto or "").strip():
             await enviar_botones_zona(numero)
             return JSONResponse({"status": "ok"})
@@ -400,7 +472,6 @@ async def webhook(request: Request):
         await enviar_texto(numero, pedir_fecha_llegada())
         return JSONResponse({"status": "ok"})
 
-
     if state == "ASK_ARRIVAL_DATE":
         llegada = parsear_fecha_ddmmaaaa(texto)
         if not llegada:
@@ -423,7 +494,8 @@ async def webhook(request: Request):
         if llegada_dt and not fechas_en_orden(llegada_dt, salida):
             await enviar_texto(
                 numero,
-                "La fecha de salida debe ser *posterior* a la fecha de llegada 🙂\n\n" + pedir_fecha_salida()
+                "La fecha de salida debe ser *posterior* a la fecha de llegada 🙂\n\n"
+                + pedir_fecha_salida(),
             )
             return JSONResponse({"status": "ok"})
 
@@ -433,7 +505,7 @@ async def webhook(request: Request):
         return JSONResponse({"status": "ok"})
 
     if state == "ASK_SOURCE":
-        fuente = texto  # ej: FUENTE_GOOGLE_ORGANICO
+        fuente = texto  # ej: FUENTE_GOOGLE_ADS
         nuevo_context = {**context, "source": fuente}
 
         # Guardar state final
@@ -452,13 +524,14 @@ async def webhook(request: Request):
             "Perfecto ✅\n\n"
             "Ya tengo la información 🙌\n"
             "En breve te compartimos opciones disponibles 🌄\n\n"
-            "Si quieres reiniciar, escribe *menu*."
+            "Si quieres reiniciar, escribe *menu*.",
         )
         return JSONResponse({"status": "ok"})
-
 
     # Fallback (si el estado quedó raro)
     reset_state(numero)
     set_state(numero, "WAIT_OK", {})
-    await enviar_boton_ok(numero, texto_inicio_glamperos(), button_id="OK_INICIO", button_title="OK")
+    await enviar_boton_ok(
+        numero, texto_inicio_glamperos(), button_id="OK_INICIO", button_title="OK"
+    )
     return JSONResponse({"status": "ok"})
