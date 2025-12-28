@@ -69,6 +69,32 @@ GLAMPINGS_GUATAVITA: List[str] = [
     "https://glamperos.com/propiedad/68153dfaaadd248f50833fda",
 ]
 
+GLAMPINGS_BOYACA: List[str] = [
+    "https://glamperos.com/propiedad/681a830f824e61ba124dbb6b",
+    "https://glamperos.com/propiedad/6890e6e934f85956b85ea9fa",
+    "https://glamperos.com/propiedad/6890df8134f85956b85ea9f7",
+    "https://glamperos.com/propiedad/680160d8d90de3e7d2ddae49",
+    "https://glamperos.com/propiedad/688926f934f85956b85ea7a1",
+    "https://glamperos.com/propiedad/688910fb34f85956b85ea797",
+    "https://glamperos.com/propiedad/685093c40695e3a851c2b1a4",
+    "https://glamperos.com/propiedad/68153dfaaadd248f50833fda",
+]
+
+GLAMPINGS_SANTANDER: List[str] = [
+    "https://glamperos.com/propiedad/681d2e645dc068dd1fdf4dc2",
+    "https://glamperos.com/propiedad/681525b5aadd248f50833fd5",
+    "https://glamperos.com/propiedad/681d2e3d5dc068dd1fdf4dc1",
+    "https://glamperos.com/propiedad/681525a1aadd248f50833fd4",
+    "https://glamperos.com/propiedad/6815257caadd248f50833fd2",
+    "https://glamperos.com/propiedad/6806d872d90de3e7d2ddae51",
+    "https://glamperos.com/propiedad/68080acf0389b5eca382d8eb",
+    "https://glamperos.com/propiedad/68081af90389b5eca382d8ef",
+    "https://glamperos.com/propiedad/68081af10389b5eca382d8ee",
+    "https://glamperos.com/propiedad/680810930389b5eca382d8ec",
+    "https://glamperos.com/propiedad/680813440389b5eca382d8ed",
+    "https://glamperos.com/propiedad/67d4c397e6e0814d14ecd7d7"
+]
+
 MAPA_FUENTES = {
     "FUENTE_GOOGLE_ADS": "Google Ads",
     "FUENTE_INSTAGRAM": "Instagram",
@@ -487,7 +513,8 @@ async def webhook(request: Request):
             "1": ("Cerca a Bogotá", GLAMPINGS_BOGOTA, "ZONA_BOGOTA"),
             "2": ("Guatavita", GLAMPINGS_GUATAVITA, "ZONA_GUATAVITA"),
             "3": ("Cerca a Medellín", GLAMPINGS_MEDELLIN, "ZONA_MEDELLIN"),
-            "4": ("Boyacá/Santander", [], "ZONA_BOYACA_SANTANDER"),
+            "4": ("Boyacá", GLAMPINGS_BOYACA, "ZONA_BOYACA"),
+            "5": ("Santander", GLAMPINGS_SANTANDER, "ZONA_SANTANDER"),
         }
 
         if seleccion not in mapa_numero_zona:
@@ -498,7 +525,8 @@ async def webhook(request: Request):
                 "1) Cerca a Bogotá\n"
                 "2) Guatavita\n"
                 "3) Cerca a Medellín\n"
-                "4) Boyacá/Santander\n\n"
+                "4) Boyacá\n"
+                "5) Santander\n\n"
                 "O escribe *menu* para volver al inicio."
             )
             return JSONResponse({"status": "ok"})
