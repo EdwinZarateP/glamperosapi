@@ -189,36 +189,29 @@ async def enviar_boton_ok(
     }
     await _post_graph(payload)
 
-
 async def enviar_botones_zona(to: str):
-    """
-    Reply buttons: máximo 3. Perfecto para 3 zonas.
-    """
     payload = {
         "messaging_product": "whatsapp",
         "to": to,
         "type": "interactive",
         "interactive": {
             "type": "button",
-            "body": {"text": "¡Genial! 😊 ¿En qué zona buscas glamping?"},
+            "body": {"text": "¿En qué zona buscas glamping?"},
             "action": {
                 "buttons": [
                     {
                         "type": "reply",
-                        "reply": {"id": "ZONA_BOGOTA", "title": "Busco cerca a Bogotá"},
+                        "reply": {"id": "ZONA_BOGOTA", "title": "Cerca a Bogotá"},
                     },
                     {
                         "type": "reply",
-                        "reply": {
-                            "id": "ZONA_MEDELLIN",
-                            "title": "Busco cerca a Medellín",
-                        },
+                        "reply": {"id": "ZONA_MEDELLIN", "title": "Cerca a Medellín"},
                     },
                     {
                         "type": "reply",
                         "reply": {
                             "id": "ZONA_BOYACA_SANTANDER",
-                            "title": "Busco en Boyacá o Santander",
+                            "title": "Boyacá / Santander",
                         },
                     },
                 ]
