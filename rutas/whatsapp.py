@@ -22,10 +22,12 @@ WHATSAPP_API_TOKEN = os.getenv("WHATSAPP_API_TOKEN")
 PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "531912696676146")
 GRAPH_URL = f"https://graph.facebook.com/v21.0/{PHONE_NUMBER_ID}/messages"
 
+# ✅ Número del asesor humano (WhatsApp normal) - SOLO dígitos con indicativo (ej: 573001112233)
 WHATSAPP_HUMAN_PHONE = (os.getenv("WHATSAPP_HUMAN_PHONE") or "").strip()
 
 # =========================
 # LISTADOS (links)
+# (Se envían uno a uno para que WhatsApp muestre preview/descripcion)
 # =========================
 GLAMPINGS_BOGOTA: List[str] = [
     "https://glamperos.com/propiedad/67d9910bb7356ca665a6eb93",
@@ -38,6 +40,18 @@ GLAMPINGS_MEDELLIN: List[str] = [
     "https://glamperos.com/propiedad/6886794dbec77fc6ebf64ea0",
     "https://glamperos.com/propiedad/68154a82aadd248f50833fdd",
 ]
+
+# ✅ Guatavita (pon aquí tus links cuando los tengas)
+GLAMPINGS_GUATAVITA: List[str] = [
+    # "https://glamperos.com/propiedad/xxxxxxxxxxxxxxxxxxxxxxxx",
+]
+
+MAPA_ZONAS = {
+    "ZONA_BOGOTA": "Cerca a Bogotá",
+    "ZONA_GUATAVITA": "Guatavita",
+    "ZONA_MEDELLIN": "Cerca a Medellín",
+    "ZONA_BOYACA_SANTANDER": "Boyacá/Santander",
+}
 
 MAPA_FUENTES = {
     "FUENTE_GOOGLE_ADS": "Google Ads",
@@ -108,6 +122,11 @@ async def verify_webhook(request: Request):
 # EXTRAER MENSAJE
 # =========================
 def extraer_mensaje(data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """
+    Soporta:
+    - text
+    - interactive (button_reply / list_reply)
+    """
     try:
         value = data["entry"][0]["changes"][0]["value"]
         mensajes = value.get("messages", [])
@@ -176,7 +195,12 @@ async def enviar_texto(to: str, texto: str):
     await _post_graph(payload)
 
 
-async def enviar_boton_ok(to: str, texto: str, button_id: str = "OK_INICIO", button_title: str = "OK"):
+async def enviar_boton_ok(
+    to: str,
+    texto: str,
+    button_id: str = "OK_INICIO",
+    button_title: str = "OK",
+):
     payload = {
         "messaging_product": "whatsapp",
         "to": to,
@@ -190,20 +214,30 @@ async def enviar_boton_ok(to: str, texto: str, button_id: str = "OK_INICIO", but
     await _post_graph(payload)
 
 
-async def enviar_botones_zona(to: str):
+async def enviar_lista_zona(to: str):
+    """
+    List message para poder tener 4+ opciones (porque reply buttons máximo 3).
+    """
     payload = {
         "messaging_product": "whatsapp",
         "to": to,
         "type": "interactive",
         "interactive": {
-            "type": "button",
-            "body": {"text": "¿En qué zona buscas glamping?"},
+            "type": "list",
+            "body": {"text": "¿En qué zona buscas glamping? 👇"},
             "action": {
-                "buttons": [
-                    {"type": "reply", "reply": {"id": "ZONA_BOGOTA", "title": "Cerca a Bogotá"}},
-                    {"type": "reply", "reply": {"id": "ZONA_MEDELLIN", "title": "Cerca a Medellín"}},
-                    {"type": "reply", "reply": {"id": "ZONA_BOYACA_SANTANDER", "title": "Boyacá/Santander"}},
-                ]
+                "button": "Seleccionar",
+                "sections": [
+                    {
+                        "title": "Zonas",
+                        "rows": [
+                            {"id": "ZONA_BOGOTA", "title": "Cerca a Bogotá"},
+                            {"id": "ZONA_GUATAVITA", "title": "Guatavita"},
+                            {"id": "ZONA_MEDELLIN", "title": "Cerca a Medellín"},
+                            {"id": "ZONA_BOYACA_SANTANDER", "title": "Boyacá/Santander"},
+                        ],
+                    }
+                ],
             },
         },
     }
@@ -267,9 +301,10 @@ def pedir_fecha_salida() -> str:
 
 
 async def enviar_links_uno_a_uno(to: str, titulo: str, links: List[str]):
-    # 1) encabezado
     await enviar_texto(to, f"✨ *{titulo}* ✨")
-    # 2) cada link separado para que WhatsApp renderice el preview (si el dominio lo permite)
+    if not links:
+        await enviar_texto(to, "Por ahora no tengo alojamientos cargados en esta zona. Puedes escribir *menu* para volver.")
+        return
     for link in links:
         await enviar_texto(to, link)
 
@@ -287,6 +322,11 @@ def _merge_context(prev: Dict[str, Any], new_fields: Dict[str, Any]) -> Dict[str
 # HELPERS (human redirect)
 # =========================
 def _resumen_contexto(ctx: Dict[str, Any]) -> str:
+    """
+    - Sin "Mi WhatsApp"
+    - Sin palabra "Resumen"
+    - Fuente según lo que selecciona (Instagram, etc.)
+    """
     partes = []
 
     arrival = ctx.get("arrival_date")
@@ -309,7 +349,7 @@ def _resumen_contexto(ctx: Dict[str, Any]) -> str:
     fuente_legible = MAPA_FUENTES.get(fuente_id, fuente_id)
     partes.append(f"🔎 Fuente: {fuente_legible}")
 
-    return "\n".join(partes)
+    return "\n".join(partes) if partes else ""
 
 
 def _wa_me_link(phone_digits: str, text: str) -> str:
@@ -392,7 +432,11 @@ async def webhook(request: Request):
             f"{link}",
         )
 
-        set_state(numero, "REDIRECTED_TO_HUMAN", _merge_context(context, {"redirected_at": datetime.utcnow().isoformat()}))
+        set_state(
+            numero,
+            "REDIRECTED_TO_HUMAN",
+            _merge_context(context, {"redirected_at": datetime.utcnow().isoformat()}),
+        )
         return JSONResponse({"status": "ok"})
 
     # -------------------------
@@ -405,6 +449,7 @@ async def webhook(request: Request):
         await enviar_texto(numero, pedir_fecha_llegada())
         return JSONResponse({"status": "ok"})
 
+    # Si ya fue redirigido a humano, no seguimos molestando (solo permitir menu)
     if state == "REDIRECTED_TO_HUMAN":
         return JSONResponse({"status": "ok"})
 
@@ -414,7 +459,7 @@ async def webhook(request: Request):
     if state == "WAIT_OK":
         if texto_lower in ["ok_inicio", "ok", "okay", "okey", "ok."]:
             set_state(numero, "ASK_CITY", {})
-            await enviar_botones_zona(numero)
+            await enviar_lista_zona(numero)
             return JSONResponse({"status": "ok"})
 
         await enviar_boton_ok(numero, texto_inicio_glamperos(), button_id="OK_INICIO", button_title="OK")
@@ -423,27 +468,23 @@ async def webhook(request: Request):
 
     if state == "ASK_CITY":
         if not (texto or "").strip():
-            await enviar_botones_zona(numero)
+            await enviar_lista_zona(numero)
             return JSONResponse({"status": "ok"})
 
-        mapa_zonas = {
-            "ZONA_BOGOTA": "Cerca a Bogotá",
-            "ZONA_MEDELLIN": "Cerca a Medellín",
-            "ZONA_BOYACA_SANTANDER": "Boyacá o Santander",
-        }
-
-        zona = mapa_zonas.get(texto)
-        zona_final = zona or texto
+        # Si viene de la lista, texto será el ID (ZONA_...)
+        zona_final = MAPA_ZONAS.get(texto) or texto
 
         nuevo_contexto = _merge_context(
             context,
-            {"city": zona_final, "city_code": texto if zona else None, "via": "search"},
+            {"city": zona_final, "city_code": texto if texto in MAPA_ZONAS else None, "via": "search"},
         )
         set_state(numero, "ASK_ARRIVAL_DATE", nuevo_contexto)
 
         # ✅ Enviar links uno a uno (para que salga preview por cada uno)
         if texto == "ZONA_BOGOTA":
             await enviar_links_uno_a_uno(numero, "Glampings cerca a Bogotá", GLAMPINGS_BOGOTA)
+        elif texto == "ZONA_GUATAVITA":
+            await enviar_links_uno_a_uno(numero, "Glampings en Guatavita", GLAMPINGS_GUATAVITA)
         elif texto == "ZONA_MEDELLIN":
             await enviar_links_uno_a_uno(numero, "Glampings cerca a Medellín", GLAMPINGS_MEDELLIN)
 
@@ -502,6 +543,7 @@ async def webhook(request: Request):
         return JSONResponse({"status": "ok"})
 
     if state == "ASK_SOURCE":
+        # Fuente viene del ID de la lista (FUENTE_...)
         fuente_id = texto or "FUENTE_CHATGPT"
         nuevo_contexto = _merge_context(context, {"source": fuente_id})
 
