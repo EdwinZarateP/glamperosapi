@@ -223,7 +223,8 @@ async def enviar_botones_zona(to: str):
 
 async def enviar_lista_fuente(to: str):
     """
-    List message: ideal para 5 opciones.
+    List message:
+    - Row title máx 24 caracteres
     """
     payload = {
         "messaging_product": "whatsapp",
@@ -233,8 +234,7 @@ async def enviar_lista_fuente(to: str):
             "type": "list",
             "body": {
                 "text": (
-                    "Mientras buscamos glampings disponibles para las fechas solicitadas, "
-                    "cuéntanos cómo llegaste a nosotros 👇"
+                    "Antes de enviarte opciones, cuéntanos cómo llegaste a nosotros 👇"
                 )
             },
             "action": {
@@ -243,13 +243,10 @@ async def enviar_lista_fuente(to: str):
                     {
                         "title": "¿Cómo nos encontraste?",
                         "rows": [
-                            {"id": "FUENTE_GOOGLE_ADS", "title": "Publicidad en Google"},
+                            {"id": "FUENTE_GOOGLE_ADS", "title": "Google Ads"},
                             {"id": "FUENTE_INSTAGRAM", "title": "Instagram"},
-                            {"id": "FUENTE_TIKTOK", "title": "Tiktok"},
-                            {
-                                "id": "FUENTE_REFERIDO",
-                                "title": "Me recomendó un amigo/familiar",
-                            },
+                            {"id": "FUENTE_TIKTOK", "title": "TikTok"},
+                            {"id": "FUENTE_REFERIDO", "title": "Referido"},
                             {"id": "FUENTE_CLIENTE", "title": "Ya soy cliente"},
                         ],
                     }
@@ -258,6 +255,7 @@ async def enviar_lista_fuente(to: str):
         },
     }
     await _post_graph(payload)
+
 
 
 # =========================
