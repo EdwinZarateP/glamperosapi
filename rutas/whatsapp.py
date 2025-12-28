@@ -259,16 +259,16 @@ async def enviar_boton_ok(
 async def enviar_menu_zonas_numerado(to: str):
     """
     Menú por texto (sin listas interactivas, sin límite de 3).
-    El usuario responde 1,2,3,4.
+    El usuario responde 1,2,3,4,5.
     """
     texto = (
         "¿En qué zona buscas glamping? 👇\n\n"
         "Responde con un número:\n"
-        "1) Cerca a Bogotá\n"
-        "2) Guatavita\n"
-        "3) Cerca a Medellín\n"
-        "4) Boyacá\n"
-        "5) Santander\n\n"
+        "1️⃣ Cerca a Bogotá\n"
+        "2️⃣ Guatavita\n"
+        "3️⃣ Cerca a Medellín\n"
+        "4️⃣ Boyacá\n"
+        "5️⃣ Santander\n\n"
         "Si quieres volver al inicio escribe *menu*."
     )
     await enviar_texto(to, texto)
@@ -523,11 +523,11 @@ async def webhook(request: Request):
                 numero,
                 "No entendí la opción 😅\n\n"
                 "Responde con un número:\n"
-                "1) Cerca a Bogotá\n"
-                "2) Guatavita\n"
-                "3) Cerca a Medellín\n"
-                "4) Boyacá\n"
-                "5) Santander\n\n"
+                "1️⃣ Cerca a Bogotá\n"
+                "2️⃣ Guatavita\n"
+                "3️⃣ Cerca a Medellín\n"
+                "4️⃣ Boyacá\n"
+                "5️⃣ Santander\n\n"
                 "O escribe *menu* para volver al inicio."
             )
             return JSONResponse({"status": "ok"})
