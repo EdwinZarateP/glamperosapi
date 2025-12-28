@@ -183,10 +183,44 @@ async def enviar_boton_ok(
     }
     await _post_graph(payload)
 
+async def enviar_botones_zona(to: str):
+    """
+    Reply buttons: máximo 3. Perfecto para 3 zonas.
+    """
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "interactive",
+        "interactive": {
+            "type": "button",
+            "body": {"text": "¡Genial! 😊 ¿En qué zona buscas glamping?"},
+            "action": {
+                "buttons": [
+                    {
+                        "type": "reply",
+                        "reply": {"id": "ZONA_BOGOTA", "title": "Busco cerca a Bogotá"},
+                    },
+                    {
+                        "type": "reply",
+                        "reply": {"id": "ZONA_MEDELLIN", "title": "Busco cerca a Medellín"},
+                    },
+                    {
+                        "type": "reply",
+                        "reply": {
+                            "id": "ZONA_BOYACA_SANTANDER",
+                            "title": "Busco en Boyacá o Santander",
+                        },
+                    },
+                ]
+            },
+        },
+    }
+    await _post_graph(payload)
+
 
 async def enviar_lista_fuente(to: str):
     """
-    List message: ideal para 7 opciones.
+    List message: ideal para 5 opciones.
     """
     payload = {
         "messaging_product": "whatsapp",
@@ -206,11 +240,9 @@ async def enviar_lista_fuente(to: str):
                     {
                         "title": "¿Cómo nos encontraste?",
                         "rows": [
-                            {"id": "FUENTE_GOOGLE_ORGANICO", "title": "Buscando en Google"},
                             {"id": "FUENTE_GOOGLE_ADS", "title": "Publicidad en Google"},
-                            {"id": "FUENTE_INSTAGRAM_ORGANICO", "title": "Instagram"},
-                            {"id": "FUENTE_INSTAGRAM_ADS", "title": "Publicidad de Instagram"},
-                            {"id": "FUENTE_MERCADOLIBRE", "title": "Mercadolibre"},
+                            {"id": "FUENTE_INSTAGRAM", "title": "Instagram"},
+                            {"id": "FUENTE_TIKTOK", "title": "Tiktok"},
                             {"id": "FUENTE_REFERIDO", "title": "Me recomendó un amigo/familiar"},
                             {"id": "FUENTE_CLIENTE", "title": "Ya soy cliente"},
                         ],
@@ -227,7 +259,7 @@ async def enviar_lista_fuente(to: str):
 # =========================
 def texto_inicio_glamperos() -> str:
     return (
-        "Gracias por comunicarte con *Glamperos* 🌿🏕️ Colombia 🇨🇴\n\n"
+        "Bienvenido a *Glamperos* 🌿🏕️ Colombia 🇨🇴\n\n"
         "Dependiendo de tu consulta, te guiaremos con unas preguntas para ayudarte mejor.\n\n"
         "Este sistema no permite oír audios 🔇, por lo que deberás escribir las respuestas.\n\n"
         "Presiona *OK* para continuar."
@@ -242,7 +274,7 @@ def pedir_fecha_llegada() -> str:
     return (
         "¿En qué fecha deseas *llegar*? 📅\n\n"
         "Escribe la fecha en formato *DD/MM/AAAA*.\n"
-        "Ejemplo: *09/02/2024*"
+        "Ejemplo: *09/01/2026*"
     )
 
 
@@ -250,7 +282,7 @@ def pedir_fecha_salida() -> str:
     return (
         "¿En qué fecha deseas *salir*? 📅\n\n"
         "Escribe la fecha en formato *DD/MM/AAAA*.\n"
-        "Ejemplo: *12/02/2024*"
+        "Ejemplo: *12/01/2026*"
     )
 
 
@@ -327,10 +359,9 @@ async def webhook(request: Request):
     # FLUJO
     # -------------------------
     if state == "WAIT_OK":
-        # Si presiona el botón OK (llega como id) o escribe ok
         if texto_lower in ["ok_inicio", "ok", "okay", "okey", "ok."]:
             set_state(numero, "ASK_CITY", {})
-            await enviar_texto(numero, pedir_ciudad())
+            await enviar_botones_zona(numero)
             return JSONResponse({"status": "ok"})
 
         # Si escribe cualquier cosa, lo encarrilamos con el OK
@@ -339,10 +370,36 @@ async def webhook(request: Request):
         return JSONResponse({"status": "ok"})
 
     if state == "ASK_CITY":
-        # Guardar city
-        set_state(numero, "ASK_ARRIVAL_DATE", {"city": texto, "via": "search"})
+    # Si llega vacío o algo raro, volvemos a mostrar los botones
+        if not (texto or "").strip():
+            await enviar_botones_zona(numero)
+            return JSONResponse({"status": "ok"})
+
+        mapa_zonas = {
+            "ZONA_BOGOTA": "Cerca a Bogotá",
+            "ZONA_MEDELLIN": "Cerca a Medellín",
+            "ZONA_BOYACA_SANTANDER": "Boyacá o Santander",
+        }
+
+        # Si viene de botón, texto será el ID
+        zona = mapa_zonas.get(texto)
+
+        # Fallback: si escribe manualmente
+        zona_final = zona or texto
+
+        set_state(
+            numero,
+            "ASK_ARRIVAL_DATE",
+            {
+                "city": zona_final,
+                "city_code": texto if zona else None,
+                "via": "search",
+            },
+        )
+
         await enviar_texto(numero, pedir_fecha_llegada())
         return JSONResponse({"status": "ok"})
+
 
     if state == "ASK_ARRIVAL_DATE":
         llegada = parsear_fecha_ddmmaaaa(texto)
