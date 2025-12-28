@@ -5,14 +5,12 @@ from fastapi.responses import PlainTextResponse, JSONResponse
 import os
 import httpx
 import re
+from datetime import datetime
 from typing import Optional, Dict, Any
 
-# ✅ IMPORT CORRECTO (porque "Funciones" está dentro de "rutas")
-# Requisitos:
-# - debe existir: rutas/__init__.py
-# - debe existir: rutas/Funciones/__init__.py
+# ✅ Import correcto según tu estructura:
+# /rutas/Funciones/chat_state.py
 from Funciones.chat_state import get_state, set_state, reset_state
-
 
 # =========================
 # CONFIG
@@ -20,10 +18,8 @@ from Funciones.chat_state import get_state, set_state, reset_state
 VERIFY_TOKEN = os.getenv("WHATSAPP_VERIFY_TOKEN", "mitoken")
 WHATSAPP_API_TOKEN = os.getenv("WHATSAPP_API_TOKEN")
 
-# ⚠️ Debe ser tu PHONE_NUMBER_ID (el mismo que usas para enviar templates)
 PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "531912696676146")
 GRAPH_URL = f"https://graph.facebook.com/v21.0/{PHONE_NUMBER_ID}/messages"
-
 
 # =========================
 # ROUTER
@@ -34,9 +30,8 @@ ruta_whatsapp = APIRouter(
     responses={404: {"message": "No encontrado"}},
 )
 
-
 # =========================
-# DETECCIÓN DE URL GLAMPING
+# DETECCIÓN URL PROPIEDAD
 # =========================
 PROP_REGEX = re.compile(r"glamperos\.com/propiedad/([a-f0-9]{24})", re.IGNORECASE)
 
@@ -47,27 +42,50 @@ def extraer_property_id(texto: str) -> Optional[str]:
 
 
 # =========================
+# FECHAS (DD/MM/AAAA)
+# =========================
+FECHA_REGEX = re.compile(r"^\s*(\d{2})/(\d{2})/(\d{4})\s*$")
+
+
+def parsear_fecha_ddmmaaaa(texto: str) -> Optional[datetime]:
+    """
+    Valida DD/MM/AAAA y convierte a datetime (sin hora).
+    Retorna None si no es válido.
+    """
+    m = FECHA_REGEX.match(texto or "")
+    if not m:
+        return None
+    dd, mm, yyyy = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    try:
+        return datetime(yyyy, mm, dd)
+    except ValueError:
+        return None
+
+
+def fechas_en_orden(llegada: datetime, salida: datetime) -> bool:
+    return salida > llegada
+
+
+# =========================
 # VERIFICACIÓN WEBHOOK (GET)
 # =========================
 @ruta_whatsapp.get("/")
 async def verify_webhook(request: Request):
     hub_challenge = request.query_params.get("hub.challenge")
     hub_verify_token = request.query_params.get("hub.verify_token")
-
     if hub_verify_token == VERIFY_TOKEN:
-        # Meta espera texto plano (sin comillas)
         return PlainTextResponse(str(hub_challenge))
-
     return PlainTextResponse("Error de verificación", status_code=403)
 
 
 # =========================
-# UTILIDADES
+# EXTRAER MENSAJE
 # =========================
 def extraer_mensaje(data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """
-    Extrae el primer mensaje entrante del payload de Meta.
-    Retorna None si es un evento sin mensajes (por ejemplo status updates).
+    Soporta:
+    - text
+    - interactive (button_reply / list_reply)
     """
     try:
         value = data["entry"][0]["changes"][0]["value"]
@@ -77,65 +95,174 @@ def extraer_mensaje(data: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 
         m = mensajes[0]
         msg_type = m.get("type")
+        texto = ""
 
-        # Solo manejamos texto por ahora
-        text_body = ""
         if msg_type == "text":
-            text_body = ((m.get("text") or {}).get("body") or "").strip()
+            texto = ((m.get("text") or {}).get("body") or "").strip()
+
+        elif msg_type == "interactive":
+            inter = m.get("interactive") or {}
+            itype = inter.get("type")
+
+            if itype == "button_reply":
+                br = inter.get("button_reply") or {}
+                texto = (br.get("id") or br.get("title") or "").strip()
+
+            elif itype == "list_reply":
+                lr = inter.get("list_reply") or {}
+                texto = (lr.get("id") or lr.get("title") or "").strip()
 
         return {
-            "from": m.get("from"),  # número del usuario
+            "from": m.get("from"),
             "type": msg_type,
-            "text": text_body,
+            "text": texto,
             "id": m.get("id"),
         }
     except Exception:
         return None
 
 
-async def enviar_texto(to: str, texto: str):
-    """
-    Responde con mensaje normal (session message).
-    Solo funciona si el usuario te escribió dentro de las últimas 24h.
-    """
+# =========================
+# ENVIAR MENSAJES
+# =========================
+async def _post_graph(payload: Dict[str, Any]):
     if not WHATSAPP_API_TOKEN:
         print("⚠️ WHATSAPP_API_TOKEN no está definido.")
         return
 
-    body = {
-        "messaging_product": "whatsapp",
-        "to": to,
-        "type": "text",
-        "text": {"preview_url": True, "body": texto},
-    }
-
     async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            GRAPH_URL,
-            headers={
-                "Authorization": f"Bearer {WHATSAPP_API_TOKEN}",
-                "Content-Type": "application/json",
-            },
-            json=body,
-            timeout=20,
-        )
+        try:
+            resp = await client.post(
+                GRAPH_URL,
+                headers={
+                    "Authorization": f"Bearer {WHATSAPP_API_TOKEN}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=20,
+            )
+        except Exception as e:
+            print(f"❌ Error HTTPX WhatsApp: {e}")
+            return
 
     if resp.status_code != 200:
         print(f"❌ Error WhatsApp: {resp.status_code} - {resp.text}")
 
 
-def menu_principal() -> str:
+async def enviar_texto(to: str, texto: str):
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "text",
+        "text": {"preview_url": True, "body": texto},
+    }
+    await _post_graph(payload)
+
+
+async def enviar_boton_ok(
+    to: str,
+    texto: str,
+    button_id: str = "OK_INICIO",
+    button_title: str = "OK",
+):
+    """
+    Reply buttons: máximo 3.
+    Aquí usamos 1 botón.
+    """
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "interactive",
+        "interactive": {
+            "type": "button",
+            "body": {"text": texto},
+            "action": {
+                "buttons": [
+                    {"type": "reply", "reply": {"id": button_id, "title": button_title}}
+                ]
+            },
+        },
+    }
+    await _post_graph(payload)
+
+
+async def enviar_lista_fuente(to: str):
+    """
+    List message: ideal para 7 opciones.
+    """
+    payload = {
+        "messaging_product": "whatsapp",
+        "to": to,
+        "type": "interactive",
+        "interactive": {
+            "type": "list",
+            "body": {
+                "text": (
+                    "Mientras buscamos glampings disponibles para las fechas solicitadas, "
+                    "cuéntanos cómo llegaste a nosotros 👇"
+                )
+            },
+            "action": {
+                "button": "Seleccionar",
+                "sections": [
+                    {
+                        "title": "¿Cómo nos encontraste?",
+                        "rows": [
+                            {"id": "FUENTE_GOOGLE_ORGANICO", "title": "Buscando en Google"},
+                            {"id": "FUENTE_GOOGLE_ADS", "title": "Publicidad en Google"},
+                            {"id": "FUENTE_INSTAGRAM_ORGANICO", "title": "Instagram"},
+                            {"id": "FUENTE_INSTAGRAM_ADS", "title": "Publicidad de Instagram"},
+                            {"id": "FUENTE_MERCADOLIBRE", "title": "Mercadolibre"},
+                            {"id": "FUENTE_REFERIDO", "title": "Me recomendó un amigo/familiar"},
+                            {"id": "FUENTE_CLIENTE", "title": "Ya soy cliente"},
+                        ],
+                    }
+                ],
+            },
+        },
+    }
+    await _post_graph(payload)
+
+
+# =========================
+# TEXTOS
+# =========================
+def texto_inicio_glamperos() -> str:
     return (
-        "Hola 👋 Soy Glamperos 🌿\n\n"
-        "¿Qué te gustaría hacer?\n\n"
-        "1️⃣ Buscar glampings\n"
-        "2️⃣ Enviar link de un glamping\n"
-        "3️⃣ Soporte\n\n"
-        "Puedes escribir:\n"
-        "• 'Quiero glampings en Guatavita'\n"
-        "• pegar el link de una propiedad\n"
-        "• o escribir *menu*"
+        "Gracias por comunicarte con *Glamperos* 🌿🏕️ Colombia 🇨🇴\n\n"
+        "Dependiendo de tu consulta, te guiaremos con unas preguntas para ayudarte mejor.\n\n"
+        "Este sistema no permite oír audios 🔇, por lo que deberás escribir las respuestas.\n\n"
+        "Presiona *OK* para continuar."
     )
+
+
+def pedir_ciudad() -> str:
+    return "¡Genial! 😊 ¿En qué ciudad o zona buscas glamping?"
+
+
+def pedir_fecha_llegada() -> str:
+    return (
+        "¿En qué fecha deseas *llegar*? 📅\n\n"
+        "Escribe la fecha en formato *DD/MM/AAAA*.\n"
+        "Ejemplo: *09/02/2024*"
+    )
+
+
+def pedir_fecha_salida() -> str:
+    return (
+        "¿En qué fecha deseas *salir*? 📅\n\n"
+        "Escribe la fecha en formato *DD/MM/AAAA*.\n"
+        "Ejemplo: *12/02/2024*"
+    )
+
+
+# =========================
+# HELPERS (context merge)
+# =========================
+def _merge_context(prev: Dict[str, Any], new_fields: Dict[str, Any]) -> Dict[str, Any]:
+    base = prev or {}
+    base.update(new_fields or {})
+    return base
 
 
 # =========================
@@ -149,122 +276,127 @@ async def webhook(request: Request):
     if not msg:
         return JSONResponse({"status": "ok"})
 
-    numero = msg["from"]
-
-    # Si no es texto, responde con guía
-    if msg["type"] != "text" or not (msg.get("text") or "").strip():
-        await enviar_texto(
-            numero,
-            "Por ahora solo puedo leer mensajes de texto 🙂\n\n"
-            "Escribe *menu* para ver opciones.",
-        )
-        return JSONResponse({"status": "ok"})
-
-    texto = msg["text"]
+    numero = msg.get("from")
+    texto = (msg.get("text") or "").strip()
     texto_lower = texto.lower().strip()
 
-    # Atajos globales
-    if texto_lower in ["menu", "menú", "inicio", "reiniciar", "cancelar"]:
+    # -------------------------
+    # ATAJOS GLOBALES
+    # -------------------------
+    if texto_lower in ["menu", "menú", "inicio", "reiniciar", "cancelar", "reset"]:
         reset_state(numero)
-        await enviar_texto(numero, menu_principal())
+        set_state(numero, "WAIT_OK", {})
+        await enviar_boton_ok(numero, texto_inicio_glamperos(), button_id="OK_INICIO", button_title="OK")
         return JSONResponse({"status": "ok"})
 
-    # Detectar link en cualquier punto
-    property_id = extraer_property_id(texto)
-    if property_id:
-        set_state(numero, "ASK_PROPERTY_DATES", {"property_id": property_id})
+    if texto_lower in ["humano", "asesor", "agente", "persona", "hablar con humano"]:
+        # Modo "humano": el bot no guía más, solo deja un mensaje.
+        set_state(numero, "HUMAN_HANDOFF", {"requested_at": datetime.utcnow().isoformat()})
         await enviar_texto(
             numero,
-            "¡Perfecto! 🌿 Vi el link del glamping.\n\n"
-            "¿Para qué fechas estás interesado?\n"
-            "Ejemplo:\n"
-            "📅 05/01/2026 - 06/01/2026",
+            "Entendido ✅\n\n"
+            "Te pondremos en contacto con un asesor humano.\n"
+            "Mientras tanto, por favor cuéntanos tu necesidad en 1 mensaje."
         )
         return JSONResponse({"status": "ok"})
 
-    estado_actual = get_state(numero) or {"state": "MENU", "context": {}}
-    state = estado_actual.get("state", "MENU")
-    context = estado_actual.get("context", {}) or {}
+    # Detectar link de propiedad en cualquier momento
+    property_id = extraer_property_id(texto)
+    if property_id:
+        # Si llega con link, NO pedimos ciudad; vamos directo a fechas.
+        set_state(numero, "ASK_ARRIVAL_DATE", {"property_id": property_id, "via": "link"})
+        await enviar_texto(numero, "¡Perfecto! 🌿 Ya vi el link del glamping.")
+        await enviar_texto(numero, pedir_fecha_llegada())
+        return JSONResponse({"status": "ok"})
 
     # -------------------------
-    # STATE MACHINE
+    # ESTADO ACTUAL
     # -------------------------
-    if state == "MENU":
-        if texto_lower in ["hola", "hey", "buenas", "hello"]:
-            await enviar_texto(numero, menu_principal())
-            return JSONResponse({"status": "ok"})
+    estado = get_state(numero) or {"state": "WAIT_OK", "context": {}}
+    state = estado.get("state") or "WAIT_OK"
+    context = estado.get("context") or {}
 
-        if texto_lower == "1" or "glamping" in texto_lower or "glampings" in texto_lower:
+    # Si está en handoff humano, el bot no debe “pisar” la conversación.
+    if state == "HUMAN_HANDOFF":
+        await enviar_texto(
+            numero,
+            "Gracias. Un asesor humano continuará la conversación.\n"
+            "Si deseas volver al bot, escribe *menu*."
+        )
+        return JSONResponse({"status": "ok"})
+
+    # -------------------------
+    # FLUJO
+    # -------------------------
+    if state == "WAIT_OK":
+        # Si presiona el botón OK (llega como id) o escribe ok
+        if texto_lower in ["ok_inicio", "ok", "okay", "okey", "ok."]:
             set_state(numero, "ASK_CITY", {})
-            await enviar_texto(numero, "¡Genial! 😊 ¿En qué ciudad o zona buscas glamping?")
+            await enviar_texto(numero, pedir_ciudad())
             return JSONResponse({"status": "ok"})
 
-        if texto_lower == "2":
-            await enviar_texto(numero, "Pega aquí el link del glamping 👇")
-            return JSONResponse({"status": "ok"})
-
-        if texto_lower == "3" or "soporte" in texto_lower:
-            set_state(numero, "SUPPORT", {})
-            await enviar_texto(numero, "Cuéntame tu problema o tu código de reserva 🙏")
-            return JSONResponse({"status": "ok"})
-
-        await enviar_texto(numero, menu_principal())
+        # Si escribe cualquier cosa, lo encarrilamos con el OK
+        await enviar_boton_ok(numero, texto_inicio_glamperos(), button_id="OK_INICIO", button_title="OK")
+        set_state(numero, "WAIT_OK", {})
         return JSONResponse({"status": "ok"})
 
     if state == "ASK_CITY":
-        set_state(numero, "ASK_DATES", {"city": texto})
-        await enviar_texto(
-            numero,
-            f"Perfecto 📍 *{texto}*\n\n"
-            "¿Para qué fechas?\n"
-            "📅 05/01/2026 - 06/01/2026",
-        )
+        # Guardar city
+        set_state(numero, "ASK_ARRIVAL_DATE", {"city": texto, "via": "search"})
+        await enviar_texto(numero, pedir_fecha_llegada())
         return JSONResponse({"status": "ok"})
 
-    if state == "ASK_DATES":
-        set_state(numero, "ASK_GUESTS", {**context, "dates": texto})
-        await enviar_texto(numero, "¿Para cuántas personas sería la estadía?")
+    if state == "ASK_ARRIVAL_DATE":
+        llegada = parsear_fecha_ddmmaaaa(texto)
+        if not llegada:
+            await enviar_texto(numero, "No pude leer la fecha 😅\n\n" + pedir_fecha_llegada())
+            return JSONResponse({"status": "ok"})
+
+        nuevo_contexto = _merge_context(context, {"arrival_date": llegada.strftime("%d/%m/%Y")})
+        set_state(numero, "ASK_DEPARTURE_DATE", nuevo_contexto)
+        await enviar_texto(numero, pedir_fecha_salida())
         return JSONResponse({"status": "ok"})
 
-    if state == "ASK_GUESTS":
-        # Aquí solo reseteas el estado (temporal).
-        # Si quieres “verlo en base”, debes guardarlo en otra colección (leads).
-        reset_state(numero)
+    if state == "ASK_DEPARTURE_DATE":
+        salida = parsear_fecha_ddmmaaaa(texto)
+        if not salida:
+            await enviar_texto(numero, "No pude leer la fecha 😅\n\n" + pedir_fecha_salida())
+            return JSONResponse({"status": "ok"})
+
+        llegada_txt = context.get("arrival_date")
+        llegada_dt = parsear_fecha_ddmmaaaa(llegada_txt) if llegada_txt else None
+        if llegada_dt and not fechas_en_orden(llegada_dt, salida):
+            await enviar_texto(
+                numero,
+                "La fecha de salida debe ser *posterior* a la fecha de llegada 🙂\n\n" + pedir_fecha_salida()
+            )
+            return JSONResponse({"status": "ok"})
+
+        nuevo_contexto = _merge_context(context, {"departure_date": salida.strftime("%d/%m/%Y")})
+        set_state(numero, "ASK_SOURCE", nuevo_contexto)
+        await enviar_lista_fuente(numero)
+        return JSONResponse({"status": "ok"})
+
+    if state == "ASK_SOURCE":
+        # Aquí texto llega como ID seleccionado (list_reply id)
+        fuente = texto  # ej: FUENTE_GOOGLE_ORGANICO
+
+        # Guardamos en estado (context) para que quede en Mongo "chat_states"
+        nuevo_contexto = _merge_context(context, {"source": fuente})
+        set_state(numero, "DONE", nuevo_contexto)
+
         await enviar_texto(
             numero,
             "Perfecto ✅\n\n"
             "Ya tengo la información 🙌\n"
             "En breve te compartimos opciones disponibles 🌄\n\n"
-            "Escribe *menu* para volver al inicio.",
+            "Si quieres reiniciar, escribe *menu*.\n"
+            "Si deseas hablar con un humano, escribe *humano*."
         )
         return JSONResponse({"status": "ok"})
 
-    if state == "ASK_PROPERTY_DATES":
-        set_state(numero, "ASK_PROPERTY_GUESTS", {**context, "dates": texto})
-        await enviar_texto(numero, "¿Para cuántas personas?")
-        return JSONResponse({"status": "ok"})
-
-    if state == "ASK_PROPERTY_GUESTS":
-        reset_state(numero)
-        await enviar_texto(
-            numero,
-            "¡Listo! 🌿\n\n"
-            "Vamos a revisar disponibilidad y precios.\n"
-            "Un asesor continuará contigo si es necesario 💬",
-        )
-        return JSONResponse({"status": "ok"})
-
-    if state == "SUPPORT":
-        reset_state(numero)
-        await enviar_texto(
-            numero,
-            "Gracias 🙏 Ya registré tu solicitud de soporte.\n"
-            "Un asesor te contactará.\n\n"
-            "Escribe *menu* para volver al inicio.",
-        )
-        return JSONResponse({"status": "ok"})
-
-    # Fallback
+    # Fallback (si el estado quedó raro)
     reset_state(numero)
-    await enviar_texto(numero, menu_principal())
+    set_state(numero, "WAIT_OK", {})
+    await enviar_boton_ok(numero, texto_inicio_glamperos(), button_id="OK_INICIO", button_title="OK")
     return JSONResponse({"status": "ok"})
