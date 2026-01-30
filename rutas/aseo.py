@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, status, Query
 from pymongo import MongoClient, ASCENDING
 from pydantic import BaseModel, Field
 from datetime import datetime, date, timezone, timedelta
-from typing import List, Optional, Literal, Dict, Any
+from typing import List, Optional, Literal, Dict, Any, Tuple
 import os
 
 from bson import ObjectId
@@ -26,6 +26,7 @@ def _to_objectid(id_str: str) -> ObjectId:
     except Exception:
         raise HTTPException(status_code=400, detail="ID inválido (ObjectId)")
 
+
 def _fecha_iso_a_dt_utc(fecha_str: str) -> datetime:
     """
     Convierte 'YYYY-MM-DD' -> datetime UTC (00:00:00)
@@ -36,13 +37,15 @@ def _fecha_iso_a_dt_utc(fecha_str: str) -> datetime:
         raise HTTPException(status_code=400, detail="Formato de fecha inválido. Usa YYYY-MM-DD")
     return datetime(d.year, d.month, d.day, 0, 0, 0, tzinfo=timezone.utc)
 
-def _rango_dia_utc(fecha_str: str) -> tuple[datetime, datetime]:
+
+def _rango_dia_utc(fecha_str: str) -> Tuple[datetime, datetime]:
     """
     Devuelve [inicio, fin) del día en UTC para una fecha 'YYYY-MM-DD'
     """
     inicio = _fecha_iso_a_dt_utc(fecha_str)
     fin = inicio + timedelta(days=1)
     return inicio, fin
+
 
 def _rango_fechas_utc(desde: Optional[str], hasta: Optional[str]) -> Dict[str, Any]:
     """
@@ -54,10 +57,10 @@ def _rango_fechas_utc(desde: Optional[str], hasta: Optional[str]) -> Dict[str, A
     if desde:
         filtro["$gte"] = _fecha_iso_a_dt_utc(desde)
     if hasta:
-        # incluir todo el día 'hasta'
         hasta_dt = _fecha_iso_a_dt_utc(hasta) + timedelta(days=1)
         filtro["$lt"] = hasta_dt
     return filtro
+
 
 # ==============================================================================
 # 🗂️ ÍNDICES
@@ -66,20 +69,21 @@ try:
     # Tareas únicas por pareja + nombre_tarea (evita duplicados)
     coleccion_aseo_tareas.create_index(
         [("pareja_id", ASCENDING), ("nombre_tarea", ASCENDING)],
-        unique=True
+        unique=True,
     )
 
     # Un registro por pareja + tarea + fecha (un día, una tarea)
     # (fecha es datetime UTC 00:00:00)
     coleccion_aseo_registros.create_index(
         [("pareja_id", ASCENDING), ("tarea_id", ASCENDING), ("fecha", ASCENDING)],
-        unique=True
+        unique=True,
     )
 
     # Para consultas por rango de fechas
     coleccion_aseo_registros.create_index([("pareja_id", ASCENDING), ("fecha", ASCENDING)])
 except Exception:
     pass
+
 
 # ==============================================================================
 # 🚦 ROUTER
@@ -93,7 +97,9 @@ ruta_aseo = APIRouter(
 # ==============================================================================
 # 🧩 MODELOS
 # ==============================================================================
-Persona = Literal["HOMBRE", "MUJER"]
+# ✅ Se agrega "AMBOS"
+Persona = Literal["HOMBRE", "MUJER", "AMBOS"]
+
 
 class TareaAseoCrear(BaseModel):
     pareja_id: str = Field(..., min_length=1)
@@ -101,9 +107,11 @@ class TareaAseoCrear(BaseModel):
     activa: bool = True
     creada_en: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+
 class TareaAseoActualizar(BaseModel):
     nombre_tarea: Optional[str] = Field(None, min_length=1, max_length=120)
     activa: Optional[bool] = None
+
 
 class TareaAseoOut(BaseModel):
     id: str
@@ -111,6 +119,7 @@ class TareaAseoOut(BaseModel):
     nombre_tarea: str
     activa: bool
     creada_en: datetime
+
 
 class RegistroAseoMarcar(BaseModel):
     pareja_id: str = Field(..., min_length=1)
@@ -120,6 +129,7 @@ class RegistroAseoMarcar(BaseModel):
     realizado_por: Optional[Persona] = None
     completado: bool = True
     actualizado_en: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 
 class RegistroAseoOut(BaseModel):
     id: str
@@ -131,6 +141,7 @@ class RegistroAseoOut(BaseModel):
     realizado_por: Optional[Persona]
     actualizado_en: datetime
 
+
 def modelo_tarea(doc: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "id": str(doc["_id"]),
@@ -140,16 +151,17 @@ def modelo_tarea(doc: Dict[str, Any]) -> Dict[str, Any]:
         "creada_en": doc.get("creada_en"),
     }
 
+
 def _dt_a_fecha_iso(dt: Any) -> str:
     """
     Convierte dt almacenado (datetime UTC) a 'YYYY-MM-DD'
     """
     if isinstance(dt, datetime):
         return dt.date().isoformat()
-    # fallback por si existe data vieja
     if isinstance(dt, date):
         return dt.isoformat()
     return str(dt)
+
 
 def modelo_registro(doc: Dict[str, Any]) -> Dict[str, Any]:
     return {
@@ -161,6 +173,7 @@ def modelo_registro(doc: Dict[str, Any]) -> Dict[str, Any]:
         "realizado_por": doc.get("realizado_por"),
         "actualizado_en": doc.get("actualizado_en"),
     }
+
 
 # ==============================================================================
 # ✅ ENDPOINTS: TAREAS
@@ -185,10 +198,11 @@ async def crear_tarea(payload: TareaAseoCrear):
     doc["_id"] = resultado.inserted_id
     return {"mensaje": "Tarea creada", "tarea": modelo_tarea(doc)}
 
+
 @ruta_aseo.get("/tareas", response_model=List[TareaAseoOut])
 async def listar_tareas(
     pareja_id: str = Query(...),
-    solo_activas: bool = Query(False)
+    solo_activas: bool = Query(False),
 ):
     filtro: Dict[str, Any] = {"pareja_id": pareja_id}
     if solo_activas:
@@ -196,6 +210,7 @@ async def listar_tareas(
 
     tareas = list(coleccion_aseo_tareas.find(filtro).sort("nombre_tarea", 1))
     return [modelo_tarea(t) for t in tareas]
+
 
 @ruta_aseo.patch("/tareas/{tarea_id}", response_model=dict)
 async def actualizar_tarea(tarea_id: str, payload: TareaAseoActualizar):
@@ -208,16 +223,16 @@ async def actualizar_tarea(tarea_id: str, payload: TareaAseoActualizar):
         raise HTTPException(status_code=404, detail="Tarea no encontrada")
 
     if "nombre_tarea" in cambios:
-        existe = coleccion_aseo_tareas.find_one({
-            "pareja_id": tarea["pareja_id"],
-            "nombre_tarea": cambios["nombre_tarea"]
-        })
+        existe = coleccion_aseo_tareas.find_one(
+            {"pareja_id": tarea["pareja_id"], "nombre_tarea": cambios["nombre_tarea"]}
+        )
         if existe and str(existe["_id"]) != tarea_id:
             raise HTTPException(status_code=409, detail="Ya existe otra tarea con ese nombre en la pareja")
 
     coleccion_aseo_tareas.update_one({"_id": _to_objectid(tarea_id)}, {"$set": cambios})
     actualizado = coleccion_aseo_tareas.find_one({"_id": _to_objectid(tarea_id)})
     return {"mensaje": "Tarea actualizada", "tarea": modelo_tarea(actualizado)}
+
 
 @ruta_aseo.delete("/tareas/{tarea_id}", response_model=dict)
 async def eliminar_tarea(tarea_id: str):
@@ -233,6 +248,7 @@ async def eliminar_tarea(tarea_id: str):
     coleccion_aseo_registros.delete_many({"tarea_id": tarea_id})
     return {"mensaje": "Tarea eliminada"}
 
+
 # ==============================================================================
 # ✅ ENDPOINTS: REGISTROS (CALENDARIO)
 # ==============================================================================
@@ -243,7 +259,6 @@ async def marcar_tarea_en_fecha(payload: RegistroAseoMarcar):
     - Si completado=False => desmarca y limpia realizado_por.
     - Guarda 1 registro único por pareja_id + tarea_id + fecha (datetime UTC 00:00:00).
     """
-    # Verifica que la tarea exista (y pertenezca a la misma pareja)
     tarea = coleccion_aseo_tareas.find_one({"_id": _to_objectid(payload.tarea_id)})
     if not tarea:
         raise HTTPException(status_code=404, detail="Tarea no encontrada")
@@ -266,7 +281,7 @@ async def marcar_tarea_en_fecha(payload: RegistroAseoMarcar):
         coleccion_aseo_registros.update_one(
             {"pareja_id": payload.pareja_id, "tarea_id": payload.tarea_id, "fecha": fecha_dt},
             {"$set": doc_set},
-            upsert=True
+            upsert=True,
         )
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"No se pudo guardar el registro: {str(e)}")
@@ -275,6 +290,7 @@ async def marcar_tarea_en_fecha(payload: RegistroAseoMarcar):
         {"pareja_id": payload.pareja_id, "tarea_id": payload.tarea_id, "fecha": fecha_dt}
     )
     return {"mensaje": "Registro guardado", "registro": modelo_registro(guardado)}
+
 
 @ruta_aseo.get("/registros", response_model=List[RegistroAseoOut])
 async def listar_registros(
@@ -301,6 +317,7 @@ async def listar_registros(
     registros = list(coleccion_aseo_registros.find(filtro).sort("fecha", 1))
     return [modelo_registro(r) for r in registros]
 
+
 # ==============================================================================
 # ✅ ENDPOINT: ESTADÍSTICAS Y PORCENTAJE DE PARTICIPACIÓN
 # ==============================================================================
@@ -313,7 +330,7 @@ async def estadisticas_participacion(
     """
     Calcula:
     - Total tareas completadas
-    - Cuántas hizo HOMBRE y MUJER
+    - Cuántas hizo HOMBRE, MUJER y AMBOS
     - Porcentajes de participación
     - Listado de actividades hechas por cada uno (con fecha y nombre de tarea)
     """
@@ -327,27 +344,32 @@ async def estadisticas_participacion(
     registros = list(coleccion_aseo_registros.find(filtro))
 
     total = len(registros)
+
     hombre = [r for r in registros if r.get("realizado_por") == "HOMBRE"]
     mujer = [r for r in registros if r.get("realizado_por") == "MUJER"]
+    ambos = [r for r in registros if r.get("realizado_por") == "AMBOS"]
 
     total_hombre = len(hombre)
     total_mujer = len(mujer)
+    total_ambos = len(ambos)
 
     porc_hombre = round((total_hombre / total) * 100, 2) if total else 0.0
     porc_mujer = round((total_mujer / total) * 100, 2) if total else 0.0
+    porc_ambos = round((total_ambos / total) * 100, 2) if total else 0.0
 
-    # Mapa tarea_id -> nombre_tarea para devolver "cuáles"
     tareas = list(coleccion_aseo_tareas.find({"pareja_id": pareja_id}))
     mapa_tareas = {str(t["_id"]): t["nombre_tarea"] for t in tareas}
 
     def _detalle(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         salida: List[Dict[str, Any]] = []
         for r in sorted(items, key=lambda x: x.get("fecha") or datetime.min.replace(tzinfo=timezone.utc)):
-            salida.append({
-                "fecha": _dt_a_fecha_iso(r["fecha"]),
-                "tarea_id": r["tarea_id"],
-                "tarea": mapa_tareas.get(r["tarea_id"], "Tarea no encontrada"),
-            })
+            salida.append(
+                {
+                    "fecha": _dt_a_fecha_iso(r["fecha"]),
+                    "tarea_id": r["tarea_id"],
+                    "tarea": mapa_tareas.get(r["tarea_id"], "Tarea no encontrada"),
+                }
+            )
         return salida
 
     return {
@@ -357,13 +379,16 @@ async def estadisticas_participacion(
             "total_actividades_completadas": total,
             "hombre": total_hombre,
             "mujer": total_mujer,
+            "ambos": total_ambos,
         },
         "porcentajes": {
             "hombre": porc_hombre,
             "mujer": porc_mujer,
+            "ambos": porc_ambos,
         },
         "detalle": {
             "hombre": _detalle(hombre),
             "mujer": _detalle(mujer),
-        }
+            "ambos": _detalle(ambos),
+        },
     }
