@@ -29,6 +29,7 @@ from rutas.localizaciones import  ruta_localizaciones
 from rutas.visitas import ruta_visitas
 from rutas.bonos import ruta_bonos
 from rutas.keywords import ruta_keywords
+from rutas.aseo import ruta_aseo
 
 app = FastAPI(title="Glamperos", version="1.0")
 
@@ -68,6 +69,7 @@ app.include_router(ruta_localizaciones)
 app.include_router(ruta_visitas)
 app.include_router(ruta_bonos)
 app.include_router(ruta_keywords)
+app.include_router(ruta_aseo)
 
 
 @app.get("/", tags=["Home"])
